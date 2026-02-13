@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import { WebviewContainer } from './components/WebviewContainer'
+import { Toolbar } from './components/Toolbar'
 import { DownloadQueue } from './components/DownloadQueue'
 
 // Extend Window interface for our API
@@ -27,7 +28,6 @@ function App() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [config, setConfig] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [activePath, setActivePath] = useState<string>('')
 
   // Load config on mount
   useEffect(() => {
@@ -35,10 +35,6 @@ function App() {
       window.api.getConfig().then((cfg) => {
         console.log('Config loaded:', cfg)
         setConfig(cfg)
-        const active = cfg.rimworld?.modsPaths?.find((p: any) => p.isActive)
-        if (active) {
-          setActivePath(active.path)
-        }
       })
     }
   }, [])
@@ -80,97 +76,10 @@ function App() {
     }
   }, [])
 
-  // Handle path change
-  const handlePathChange = async () => {
-    const path = await window.api?.selectFolder()
-    if (path) {
-      setActivePath(path)
-      // Save to config
-      await window.api?.setConfig('rimworld.modsPaths', [{
-        id: crypto.randomUUID(),
-        name: 'Custom Path',
-        path,
-        isActive: true
-      }])
-    }
-  }
-
   return (
     <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header / Toolbar */}
-      <div className="app-header" style={{
-        background: '#171a21',
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottom: '1px solid #2a475e'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <h1 style={{
-            margin: 0,
-            fontSize: '18px',
-            color: '#c6d4df',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            📦 RimWorld Mod Downloader
-          </h1>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Path Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#8f98a0', fontSize: '13px' }}>Mods Path:</span>
-            <select
-              value={activePath}
-              onChange={(e) => setActivePath(e.target.value)}
-              style={{
-                background: '#2a475e',
-                color: '#c6d4df',
-                border: '1px solid #3d6c8d',
-                padding: '5px 10px',
-                borderRadius: '3px',
-                fontSize: '13px',
-                minWidth: '200px'
-              }}
-            >
-              <option value={activePath}>{activePath || 'Select path...'}</option>
-            </select>
-            <button
-              onClick={handlePathChange}
-              style={{
-                background: '#3d6c8d',
-                color: 'white',
-                border: 'none',
-                padding: '5px 12px',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                fontSize: '13px'
-              }}
-            >
-              Browse
-            </button>
-          </div>
-
-          {/* Settings Button */}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              background: showSettings ? '#66c0f4' : '#2a475e',
-              color: showSettings ? '#171a21' : '#c6d4df',
-              border: '1px solid #3d6c8d',
-              padding: '6px 12px',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              fontSize: '13px'
-            }}
-          >
-            ⚙️ Settings
-          </button>
-        </div>
-      </div>
+      <Toolbar onSettingsClick={() => setShowSettings(!showSettings)} />
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

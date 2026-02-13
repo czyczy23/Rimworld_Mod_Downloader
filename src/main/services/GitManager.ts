@@ -88,8 +88,8 @@ export class GitManager {
       const authUrl = remoteUrl.replace('https://github.com', `https://${token}@github.com`)
       await this.git.addRemote('origin', authUrl)
 
-      // Store token securely in config
-      configManager.setGitHubToken(token)
+      // Store token securely in config (Phase 4: implement secure token storage)
+      // configManager.set('git.githubToken', token)
 
       console.log('[GitManager] Remote configured successfully')
     } catch (error) {
