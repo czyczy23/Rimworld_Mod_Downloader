@@ -191,25 +191,19 @@
       const targetElement = findSubscribeButton()
 
       if (targetElement) {
-        const button = createDownloadButton()
-
-        // RELIABLE FIX: Create a container and insert it after the target button
-        // This avoids CSS stacking issues
-        const wrapper = document.createElement('span')
-        wrapper.style.display = 'inline-block'
-        wrapper.style.marginLeft = '10px'
-        wrapper.style.verticalAlign = 'middle'
-
-        // Insert the wrapper after the target element
-        if (targetElement.nextSibling) {
-          targetElement.parentNode.insertBefore(wrapper, targetElement.nextSibling)
-        } else {
-          targetElement.parentNode.appendChild(wrapper)
+        // Check if button already exists
+        if (document.getElementById('rw-downloader-btn')) {
+          console.log('[RimWorld Downloader] Button already exists, skipping injection')
+          return
         }
 
-        // Put button inside wrapper
-        wrapper.appendChild(button)
-        console.log('[RimWorld Downloader] Download button injected in wrapper after target')
+        const button = createDownloadButton()
+
+        // Simple approach: insert after the target element
+        targetElement.insertAdjacentElement('afterend', button)
+
+        console.log('[RimWorld Downloader] Download button injected after target:', targetElement)
+        console.log('[RimWorld Downloader] Button parent:', button.parentElement)
       } else {
         console.warn('[RimWorld Downloader] Could not find subscribe button, trying fallback...')
 
