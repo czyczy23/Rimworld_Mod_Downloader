@@ -1,7 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { configManager } from './utils/ConfigManager'
+import { setupIpcHandlers } from './ipcHandlers'
 import type { ModMetadata, Dependency } from '../shared/types'
 
 class AppManager {
@@ -22,7 +23,7 @@ class AppManager {
     this.createMainWindow()
 
     // Setup IPC handlers
-    this.setupIpcHandlers()
+    setupIpcHandlers()
 
     // App activation
     app.on('activate', () => {
@@ -73,60 +74,9 @@ class AppManager {
     }
   }
 
-  private setupIpcHandlers(): void {
-    // Config handlers
-    ipcMain.handle('config:get', (_, key?: string) => {
-      return configManager.get(key as any)
-    })
 
-    ipcMain.handle('config:set', (_, { key, value }) => {
-      configManager.set(key, value)
-    })
-
-    // Mod download handler (placeholder - full implementation in Phase 2)
-    ipcMain.handle('mod:download', async (_, { id, isCollection }): Promise<ModMetadata> => {
-      console.log(`[IPC] Download requested for mod ${id}, collection: ${isCollection}`)
-      throw new Error('Download not yet implemented - Phase 2')
-    })
-
-    // Dependency check handler (placeholder)
-    ipcMain.handle('mod:checkDependencies', async (_, modId: string): Promise<Dependency[]> => {
-      console.log(`[IPC] Check dependencies for mod ${modId}`)
-      return []
-    })
-
-    // Version resolver handler (placeholder)
-    ipcMain.handle('mod:resolveVersion', async (_, localPath: string): Promise<string[]> => {
-      console.log(`[IPC] Resolve version for path ${localPath}`)
-      return []
-    })
-
-    // Git handlers (placeholder)
-    ipcMain.handle('git:init', async (_, { remoteUrl, token }) => {
-      console.log(`[IPC] Git init with remote: ${remoteUrl}`)
-    })
-
-    ipcMain.handle('git:commit', async (_, message: string) => {
-      console.log(`[IPC] Git commit: ${message}`)
-      return 'placeholder-commit-hash'
-    })
-
-    // Dialog handlers
-    ipcMain.handle('dialog:selectFolder', async () => {
-      const result = await dialog.showOpenDialog({
-        properties: ['openDirectory']
-      })
-      return result.canceled ? null : result.filePaths[0]
-    })
-  }
-
-  getMainWindow(): BrowserWindow | null {
-    return this.mainWindow
-  }
 }
 
 // Initialize and start the application
 const appManager = new AppManager()
 appManager.initialize().catch(console.error)
-
-export { appManager }
