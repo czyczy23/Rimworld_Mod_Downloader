@@ -193,19 +193,9 @@
       if (targetElement) {
         const button = createDownloadButton()
 
-        // Insert AFTER the target element (not inside or before)
-        if (targetElement.parentNode) {
-          // If target has a next sibling, insert before it
-          if (targetElement.nextSibling) {
-            targetElement.parentNode.insertBefore(button, targetElement.nextSibling)
-          } else {
-            // Otherwise append to parent
-            targetElement.parentNode.appendChild(button)
-          }
-          console.log('[RimWorld Downloader] Download button injected after target')
-        } else {
-          targetElement.insertAdjacentElement('afterend', button)
-        }
+        // SIMPLE FIX: Always use insertAdjacentElement to insert AFTER the target
+        targetElement.insertAdjacentElement('afterend', button)
+        console.log('[RimWorld Downloader] Download button injected after target')
       } else {
         console.warn('[RimWorld Downloader] Could not find subscribe button, trying fallback...')
 
