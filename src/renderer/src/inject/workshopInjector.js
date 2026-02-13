@@ -52,13 +52,19 @@
   // Find the subscribe button container
   function findSubscribeButton() {
     // Try multiple selectors to find the subscribe button
+    // Support both English and Chinese Steam interfaces
     const selectors = [
       '.workshopItemSubscribeBtn',
       '[class*="workshopItemSubscribeBtn"]',
       '.workshopItemSubscriptionButtons',
       '.apphub_OtherSiteActions',
       '.apphub_HeaderBottomRight',
-      '.workshopItemAuthorLine'
+      '.workshopItemAuthorLine',
+      // Chinese Steam interface selectors
+      '[class*="subscribe"]',
+      '[class*="订阅"]',
+      '.btn_green',
+      '.btn_blue'
     ]
 
     for (const selector of selectors) {
@@ -69,14 +75,21 @@
       }
     }
 
-    // Fallback: look for any button that contains "subscribe" text
-    const buttons = document.querySelectorAll('button, a[class*="btn"]')
+    // Fallback: look for any button that contains "subscribe" or "订阅" text
+    const buttons = document.querySelectorAll('button, a[class*="btn"], a[href*="subscribe"]')
     for (const button of buttons) {
       const text = button.textContent?.toLowerCase() || ''
-      if (text.includes('subscribe')) {
+      if (text.includes('subscribe') || text.includes('订阅') || text.includes('subscribed')) {
         console.log('[RimWorld Downloader] Found subscribe button by text:', button)
         return button
       }
+    }
+
+    // Last resort: find the action bar in the workshop item header
+    const actionBar = document.querySelector('.workshopItemActions, .workshopItemHeader, .apphub_Header')
+    if (actionBar) {
+      console.log('[RimWorld Downloader] Found action bar:', actionBar)
+      return actionBar
     }
 
     return null
@@ -172,41 +185,49 @@
 
     console.log('[RimWorld Downloader] Injecting download button...')
 
-    // Find the subscribe button or its container
-    const targetElement = findSubscribeButton()
+    // Wait a bit for the Steam page to fully render
+    setTimeout(() => {
+      // Find the subscribe button or its container
+      const targetElement = findSubscribeButton()
 
-    if (targetElement) {
-      const button = createDownloadButton()
+      if (targetElement) {
+        const button = createDownloadButton()
 
-      // Try to insert after the subscribe button's parent for better alignment
-      const parent = targetElement.parentElement
-      if (parent && parent.classList.contains('workshopItemSubscriptionButtons')) {
-        parent.appendChild(button)
+        // Insert AFTER the target element (not inside or before)
+        if (targetElement.parentNode) {
+          // If target has a next sibling, insert before it
+          if (targetElement.nextSibling) {
+            targetElement.parentNode.insertBefore(button, targetElement.nextSibling)
+          } else {
+            // Otherwise append to parent
+            targetElement.parentNode.appendChild(button)
+          }
+          console.log('[RimWorld Downloader] Download button injected after target')
+        } else {
+          targetElement.insertAdjacentElement('afterend', button)
+        }
       } else {
-        targetElement.insertAdjacentElement('afterend', button)
-      }
+        console.warn('[RimWorld Downloader] Could not find subscribe button, trying fallback...')
 
-      console.log('[RimWorld Downloader] Download button injected successfully')
-    } else {
-      console.warn('[RimWorld Downloader] Could not find subscribe button, trying fallback...')
+        // Fallback: try to find any suitable container
+        const fallbackSelectors = [
+          '.workshopItemHeader',
+          '.apphub_ContentHeader',
+          '.workshopItemDetailsHeader',
+          '.workshopItemActions'
+        ]
 
-      // Fallback: try to find any suitable container
-      const fallbackSelectors = [
-        '.workshopItemHeader',
-        '.apphub_ContentHeader',
-        '.workshopItemDetailsHeader'
-      ]
-
-      for (const selector of fallbackSelectors) {
-        const container = document.querySelector(selector)
-        if (container) {
-          const button = createDownloadButton()
-          container.appendChild(button)
-          console.log('[RimWorld Downloader] Download button injected via fallback')
-          break
+        for (const selector of fallbackSelectors) {
+          const container = document.querySelector(selector)
+          if (container) {
+            const button = createDownloadButton()
+            container.appendChild(button)
+            console.log('[RimWorld Downloader] Download button injected via fallback:', selector)
+            break
+          }
         }
       }
-    }
+    }, 500) // Wait 500ms for page to render
   }
 
   // Monitor for SPA navigation changes
