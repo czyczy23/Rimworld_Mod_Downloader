@@ -73,14 +73,7 @@ export function setupIpcHandlers(): void {
 
   // ===== Dialog Handlers =====
   ipcMain.handle('dialog:selectFolder', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory']
-    })
-    return result.canceled ? null : result.filePaths[0]
-  })
-
-  // ===== Dialog Handlers =====
-  ipcMain.handle('dialog:selectFolder', async () => {
+    const { dialog } = await import('electron')
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory']
     })
