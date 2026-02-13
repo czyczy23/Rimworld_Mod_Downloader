@@ -77,7 +77,11 @@ function App() {
   }, [])
 
   return (
-    <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}>
+      {/* Debug indicator - remove after fixing */}
+      <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', padding: '4px 8px', zIndex: 99999, fontSize: '12px' }}>
+        App Loaded
+      </div>
       {/* Header / Toolbar */}
       <Toolbar onSettingsClick={() => setShowSettings(!showSettings)} />
 

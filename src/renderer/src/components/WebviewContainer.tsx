@@ -14,38 +14,44 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
     const webview = webviewRef.current
     if (!webview) return
 
-    // Handle dom-ready event
     const handleDomReady = () => {
       console.log('Webview dom-ready, injecting script...')
       setIsLoading(false)
-
-      // Inject the workshop injector script
       webview.executeJavaScript(workshopInjector).catch((err: Error) => {
         console.error('Failed to inject script:', err)
       })
     }
 
-    // Handle load start
     const handleLoadStart = () => {
       setIsLoading(true)
     }
 
-    // Handle navigation events
-    const handleDidNavigate = (e: Electron.DidNavigateEvent) => {
+    const handleDidNavigate = (e: any) => {
       console.log('Navigated to:', e.url)
       setCurrentUrl(e.url)
     }
 
-    // Handle console messages from webview
-    const handleConsoleMessage = (e: Electron.ConsoleMessageEvent) => {
+    // Handle in-page navigation (SPA navigation like Steam Workshop)
+    const handleDidNavigateInPage = (e: any) => {
+      console.log('In-page navigated to:', e.url)
+      setCurrentUrl(e.url)
+      // Re-inject script when navigating to a new mod page
+      if (e.url.includes('/filedetails/')) {
+        console.log('Mod page detected, re-injecting script...')
+        setTimeout(() => {
+          webview.executeJavaScript(workshopInjector).catch((err: Error) => {
+            console.error('Failed to re-inject script:', err)
+          })
+        }, 1000)
+      }
+    }
+
+    const handleConsoleMessage = (e: any) => {
       console.log('[Webview Console]', e.message)
     }
 
-    // Listen for messages from the injected script
-    const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
+    const handleIpcMessage = (e: any) => {
       console.log('Received IPC message from webview:', e.channel, e.args)
-
-      // Handle the download request message
       if (e.channel === 'download-mod-request' && e.args && e.args[0]) {
         const data = e.args[0] as { id: string; isCollection: boolean }
         console.log('Download request received:', data)
@@ -53,10 +59,10 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
       }
     }
 
-    // Add event listeners
     webview.addEventListener('dom-ready', handleDomReady)
     webview.addEventListener('load-start', handleLoadStart)
     webview.addEventListener('did-navigate', handleDidNavigate)
+    webview.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
     webview.addEventListener('console-message', handleConsoleMessage)
     webview.addEventListener('ipc-message', handleIpcMessage)
 
@@ -64,30 +70,30 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
       webview.removeEventListener('dom-ready', handleDomReady)
       webview.removeEventListener('load-start', handleLoadStart)
       webview.removeEventListener('did-navigate', handleDidNavigate)
+      webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
       webview.removeEventListener('console-message', handleConsoleMessage)
       webview.removeEventListener('ipc-message', handleIpcMessage)
     }
   }, [onDownloadRequest])
 
-  // Navigation handlers
   const handleGoBack = () => {
     const webview = webviewRef.current
-    if (webview && webview.canGoBack()) {
-      webview.goBack()
+    if (webview && (webview as any).canGoBack()) {
+      ;(webview as any).goBack()
     }
   }
 
   const handleGoForward = () => {
     const webview = webviewRef.current
-    if (webview && webview.canGoForward()) {
-      webview.goForward()
+    if (webview && (webview as any).canGoForward()) {
+      ;(webview as any).goForward()
     }
   }
 
   const handleReload = () => {
     const webview = webviewRef.current
     if (webview) {
-      webview.reload()
+      ;(webview as any).reload()
     }
   }
 
@@ -99,14 +105,13 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
         if (!url.startsWith('http')) {
           url = 'https://' + url
         }
-        webview.src = url
+        ;(webview as any).src = url
       }
     }
   }
 
   return (
-    <div className="webview-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Toolbar */}
+    <div className="webview-container" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }}>
       <div className="webview-toolbar" style={{
         display: 'flex',
         alignItems: 'center',
@@ -115,13 +120,14 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
         background: '#171a21',
         borderBottom: '1px solid #2a475e'
       }}>
-        <button onClick={handleGoBack} title="Back">◀</button>
-        <button onClick={handleGoForward} title="Forward">▶</button>
-        <button onClick={handleReload} title="Reload">↻</button>
+        <button onClick={handleGoBack} title="Back">&#9664;</button>
+        <button onClick={handleGoForward} title="Forward">&#9654;</button>
+        <button onClick={handleReload} title="Reload">&#8635;</button>
 
         <input
           type="text"
-          defaultValue={currentUrl}
+          value={currentUrl}
+          onChange={(e) => setCurrentUrl(e.target.value)}
           onKeyDown={handleNavigate}
           placeholder="Enter URL..."
           style={{
@@ -140,7 +146,6 @@ export function WebviewContainer({ onDownloadRequest }: WebviewContainerProps) {
         )}
       </div>
 
-      {/* Webview */}
       <div style={{ flex: 1, position: 'relative' }}>
         <webview
           ref={webviewRef}
