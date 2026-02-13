@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+dist/
+out/
+
+# Build files
+*.tgz
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Config files (sensitive data)
+config.json
+*.config.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Electron
+app-update.yml
+dev-app-update.yml
+
+# Cache
+.cache/
+temp/
+tmp/
+
+# Test files
+*.test.js
+*.spec.js
+coverage/
