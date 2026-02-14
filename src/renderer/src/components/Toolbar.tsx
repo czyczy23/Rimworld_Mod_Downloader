@@ -95,7 +95,21 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
     }))
 
     if (window.api) {
-      await window.api.setConfig('rimworld.modsPaths', updatedPaths)
+      // Set the entire rimworld object since we can't set nested properties directly
+      const currentRimworld = await window.api.getConfig('rimworld')
+      await window.api.setConfig('rimworld', {
+        ...currentRimworld,
+        modsPaths: updatedPaths
+      })
+
+      // Re-detect game version after path change
+      setGameVersion('检测中...')
+      try {
+        const version = await window.api.detectGameVersion()
+        setGameVersion(version)
+      } catch {
+        setGameVersion('未知版本')
+      }
     }
   }
 
@@ -117,7 +131,21 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
       setModsPaths(updatedPaths)
       setActivePath(selectedPath)
 
-      await window.api.setConfig('rimworld.modsPaths', updatedPaths)
+      // Set the entire rimworld object since we can't set nested properties directly
+      const currentRimworld = await window.api.getConfig('rimworld')
+      await window.api.setConfig('rimworld', {
+        ...currentRimworld,
+        modsPaths: updatedPaths
+      })
+
+      // Re-detect game version after adding new path
+      setGameVersion('检测中...')
+      try {
+        const version = await window.api.detectGameVersion()
+        setGameVersion(version)
+      } catch {
+        setGameVersion('未知版本')
+      }
     }
   }
 

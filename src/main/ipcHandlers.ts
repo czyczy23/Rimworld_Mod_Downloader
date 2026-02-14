@@ -55,11 +55,14 @@ export function setupIpcHandlers(): void {
 
       steamCMD.on('progress', progressHandler)
 
-      // Execute download
-      const downloadResult = await steamCMD.downloadMod(id)
-
-      // Remove progress listener
-      steamCMD.off('progress', progressHandler)
+      let downloadResult
+      try {
+        // Execute download
+        downloadResult = await steamCMD.downloadMod(id)
+      } finally {
+        // Always remove progress listener, even if download throws
+        steamCMD.off('progress', progressHandler)
+      }
 
       if (!downloadResult.success) {
         throw new Error(downloadResult.error || 'Download failed')
@@ -223,8 +226,13 @@ export function setupIpcHandlers(): void {
     }
 
     steamCMD.on('progress', progressHandler)
-    const downloadResult = await steamCMD.downloadMod(id)
-    steamCMD.off('progress', progressHandler)
+
+    let downloadResult
+    try {
+      downloadResult = await steamCMD.downloadMod(id)
+    } finally {
+      steamCMD.off('progress', progressHandler)
+    }
 
     if (!downloadResult.success) {
       throw new Error(downloadResult.error || 'Download failed')

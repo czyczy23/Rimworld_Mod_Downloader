@@ -1,8 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm create electron-vite:*)",
-      "Bash(npx:*)"
+      "Edit",
+      "Bash(npm run typecheck)",
+      "Bash(git add:*)"
     ]
   }
 }
