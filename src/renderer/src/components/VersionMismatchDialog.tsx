@@ -146,7 +146,7 @@ export function VersionMismatchDialog({
               style={{
                 color: '#8f98a0',
                 fontSize: '13px',
-                cursor: 'pointer'
+                cursor: 'pointer',
                 userSelect: 'none'
               }
             }
