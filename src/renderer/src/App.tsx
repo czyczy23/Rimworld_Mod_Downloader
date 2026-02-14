@@ -5,6 +5,7 @@ import { Toolbar } from './components/Toolbar'
 import { DownloadQueue } from './components/DownloadQueue'
 import { SettingsPanel } from './components/SettingsPanel'
 import { DependencyDialog } from './components/DependencyDialog'
+import { VersionMismatchDialog } from './components/VersionMismatchDialog'
 
 // Extend Window interface for our API
 declare global {
@@ -15,6 +16,7 @@ declare global {
       downloadMod: (id: string, isCollection: boolean) => Promise<any>
       downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]) => Promise<any[]>
       checkDependencies: (id: string) => Promise<any[]>
+      checkModVersion: (modId: string) => Promise<{ supportedVersions: string[], modName: string, dependencies: any[] }>
       selectFolder: () => Promise<string | null>
       onDownloadProgress: (callback: (data: {
         id: string
@@ -49,14 +51,31 @@ interface BatchDownloadInfo {
   id: string
 }
 
+interface AppConfig {
+  download?: {
+    dependencyMode?: 'ask' | 'auto' | 'ignore'
+    autoDownloadDependencies?: boolean
+    skipVersionCheck?: boolean
+  }
+  version?: {
+    onMismatch?: 'ask' | 'force' | 'skip'
+  }
+  rimworld?: {
+    currentVersion?: string
+  }
+}
+
 function App() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [batchInfo, setBatchInfo] = useState<BatchDownloadInfo | undefined>()
-  const [, setConfig] = useState<any>(null)
+  const [config, setConfig] = useState<AppConfig | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showDependencyDialog, setShowDependencyDialog] = useState(false)
+  const [showVersionMismatchDialog, setShowVersionMismatchDialog] = useState(false)
   const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
   const [pendingDependencies, setPendingDependencies] = useState<{ id: string; name: string; dependencies: any[] } | null>(null)
+  const [pendingVersionCheck, setPendingVersionCheck] = useState<{ id: string; name: string; isCollection: boolean; modVersions: string[] } | null>(null)
+  const [gameVersion, setGameVersion] = useState<string>('')
   const webviewRef = useRef<WebviewContainerRef>(null)
 
   // Load config on mount
@@ -65,6 +84,13 @@ function App() {
       window.api.getConfig().then((cfg) => {
         console.log('Config loaded:', cfg)
         setConfig(cfg)
+      })
+
+      // Also load game version
+      window.api.detectGameVersion().then((version) => {
+        setGameVersion(version)
+      }).catch(() => {
+        setGameVersion('')
       })
     }
   }, [])
@@ -152,43 +178,19 @@ function App() {
     setCurrentPageInfo(info)
   }, [])
 
-  // Handle download request from Toolbar
-  const handleDownloadClick = useCallback(async (modId: string, isCollection: boolean) => {
-    console.log('Download clicked:', { modId, isCollection })
-
-    // Check dependencies first
-    try {
-      if (window.api) {
-        const dependencies = await window.api.checkDependencies(modId)
-        console.log(`Found ${dependencies.length} dependencies`)
-
-        if (dependencies.length > 0) {
-          // Show dependency dialog
-          setPendingDependencies({
-            id: modId,
-            name: currentPageInfo?.modName || `Mod ${modId}`,
-            dependencies
-          })
-          setShowDependencyDialog(true)
-        } else {
-          // No dependencies, download directly
-          startSingleDownload(modId, isCollection)
-        }
-      }
-    } catch (error) {
-      console.error('Error checking dependencies:', error)
-      // Fallback to direct download if dependency check fails
-      startSingleDownload(modId, isCollection)
-    }
-  }, [currentPageInfo?.modName])
+  // Check if mod version is compatible
+  const isVersionCompatible = (modVersions: string[]): boolean => {
+    if (!gameVersion || modVersions.length === 0) return true
+    return modVersions.includes(gameVersion)
+  }
 
   // Start single download
-  const startSingleDownload = async (modId: string, isCollection: boolean) => {
+  const startSingleDownload = async (modId: string, isCollection: boolean, name?: string) => {
     setDownloads(prev => {
       if (prev.find(d => d.id === modId)) return prev
       return [...prev, {
         id: modId,
-        name: isCollection ? `Collection ${modId}` : `Mod ${modId}`,
+        name: name || (isCollection ? `Collection ${modId}` : `Mod ${modId}`),
         progress: 0,
         status: 'downloading',
         message: 'Starting download...'
@@ -205,25 +207,14 @@ function App() {
     }
   }
 
-  // Handle dependency dialog confirm
-  const handleDependencyConfirm = useCallback(async (selectedIds: string[]) => {
-    if (!pendingDependencies) return
-
-    setShowDependencyDialog(false)
-    setBatchInfo({
-      isBatch: true,
-      current: 1,
-      total: selectedIds.length + 1, // Include main mod
-      currentName: pendingDependencies.name,
-      id: pendingDependencies.id
-    })
-
-    // Add all selected items to download queue
+  // Start batch download with dependencies
+  const startBatchDownload = async (modId: string, isCollection: boolean, modName: string, dependencies: any[]) => {
     const allItems = [
-      { id: pendingDependencies.id, name: pendingDependencies.name, isCollection: currentPageInfo?.isCollection || false },
-      ...selectedIds.map(id => ({ id, name: `Mod ${id}`, isCollection: false }))
+      { id: modId, name: modName, isCollection },
+      ...dependencies.map((dep: any) => ({ id: dep.id, name: dep.name || `Mod ${dep.id}`, isCollection: false }))
     ]
 
+    // Add all to queue
     allItems.forEach(item => {
       setDownloads(prev => {
         if (prev.find(d => d.id === item.id)) return prev
@@ -238,6 +229,14 @@ function App() {
     })
 
     // Start batch download
+    setBatchInfo({
+      isBatch: true,
+      current: 1,
+      total: allItems.length,
+      currentName: modName,
+      id: modId
+    })
+
     try {
       if (window.api) {
         const results = await window.api.downloadBatch(allItems)
@@ -248,6 +247,114 @@ function App() {
       console.error('Batch download failed:', error)
       setBatchInfo(undefined)
     }
+  }
+
+  // Handle download after version check passes
+  const proceedWithDownload = useCallback(async (modId: string, isCollection: boolean, modName: string) => {
+    if (!window.api) return
+
+    const dependencyMode = config?.download?.dependencyMode || 'ask'
+    const autoDownloadDependencies = config?.download?.autoDownloadDependencies || false
+
+    try {
+      const dependencies = await window.api.checkDependencies(modId)
+      console.log(`Found ${dependencies.length} dependencies`)
+
+      if (dependencies.length > 0) {
+        if (dependencyMode === 'ignore') {
+          startSingleDownload(modId, isCollection, modName)
+        } else if (dependencyMode === 'auto' || autoDownloadDependencies) {
+          startBatchDownload(modId, isCollection, modName, dependencies)
+        } else {
+          setPendingDependencies({ id: modId, name: modName, dependencies })
+          setShowDependencyDialog(true)
+        }
+      } else {
+        startSingleDownload(modId, isCollection, modName)
+      }
+    } catch (error) {
+      console.error('Error checking dependencies:', error)
+      startSingleDownload(modId, isCollection, modName)
+    }
+  }, [config])
+
+  // Handle download request from Toolbar
+  const handleDownloadClick = useCallback(async (modId: string, isCollection: boolean) => {
+    console.log('Download clicked:', { modId, isCollection })
+
+    if (!window.api) return
+
+    const onMismatch = config?.version?.onMismatch || 'ask'
+    const skipVersionCheck = config?.download?.skipVersionCheck || false
+
+    try {
+      // Step 1: Check version compatibility first (unless skipped)
+      let modVersions: string[] = []
+      let modName = currentPageInfo?.modName || `Mod ${modId}`
+
+      if (!skipVersionCheck) {
+        try {
+          const versionInfo = await window.api.checkModVersion(modId)
+          modVersions = versionInfo.supportedVersions || []
+          modName = versionInfo.modName || modName
+
+          // Check version mismatch
+          if (!isVersionCompatible(modVersions)) {
+            if (onMismatch === 'skip') {
+              console.log('[App] Skipping download due to version mismatch')
+              return
+            } else if (onMismatch === 'ask') {
+              // Show version mismatch dialog
+              setPendingVersionCheck({ id: modId, name: modName, isCollection, modVersions })
+              setShowVersionMismatchDialog(true)
+              return
+            }
+            // onMismatch === 'force' - continue without asking
+          }
+        } catch (error) {
+          console.error('[App] Failed to check mod version, continuing anyway:', error)
+        }
+      }
+
+      // Proceed with dependency check and download
+      proceedWithDownload(modId, isCollection, modName)
+    } catch (error) {
+      console.error('Error in download flow:', error)
+      // Fallback to direct download if anything fails
+      startSingleDownload(modId, isCollection)
+    }
+  }, [config, currentPageInfo?.modName, gameVersion, proceedWithDownload])
+
+  // Handle version mismatch dialog confirm
+  const handleVersionMismatchConfirm = useCallback(() => {
+    if (!pendingVersionCheck) return
+    setShowVersionMismatchDialog(false)
+    const { id, name, isCollection } = pendingVersionCheck
+    setPendingVersionCheck(null)
+    proceedWithDownload(id, isCollection, name)
+  }, [pendingVersionCheck, proceedWithDownload])
+
+  // Handle version mismatch dialog cancel
+  const handleVersionMismatchCancel = useCallback(() => {
+    setShowVersionMismatchDialog(false)
+    setPendingVersionCheck(null)
+  }, [])
+
+  // Handle dependency dialog confirm
+  const handleDependencyConfirm = useCallback(async (selectedIds: string[]) => {
+    if (!pendingDependencies) return
+
+    setShowDependencyDialog(false)
+
+    const selectedDeps = pendingDependencies.dependencies.filter((d: any) => selectedIds.includes(d.id))
+    startBatchDownload(
+      pendingDependencies.id,
+      currentPageInfo?.isCollection || false,
+      pendingDependencies.name,
+      selectedDeps
+    )
+
+    setPendingDependencies(null)
   }, [pendingDependencies, currentPageInfo?.isCollection])
 
   // Handle dependency dialog cancel
@@ -258,11 +365,6 @@ function App() {
 
   return (
     <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}>
-      {/* Debug indicator */}
-      <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', padding: '4px 8px', zIndex: 99999, fontSize: '12px' }}>
-        App Loaded v2
-      </div>
-
       {/* Header / Toolbar with Download Button */}
       <Toolbar
         onSettingsClick={() => setShowSettings(!showSettings)}
@@ -287,6 +389,18 @@ function App() {
           onClose={() => setShowSettings(false)}
         />
       </div>
+
+      {/* Version Mismatch Dialog */}
+      {pendingVersionCheck && (
+        <VersionMismatchDialog
+          isOpen={showVersionMismatchDialog}
+          modName={pendingVersionCheck.name}
+          modVersions={pendingVersionCheck.modVersions}
+          gameVersion={gameVersion}
+          onConfirm={handleVersionMismatchConfirm}
+          onCancel={handleVersionMismatchCancel}
+        />
+      )}
 
       {/* Dependency Dialog */}
       {pendingDependencies && (

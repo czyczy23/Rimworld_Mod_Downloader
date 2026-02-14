@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import https from 'https'
 import type { Dependency } from '../../shared/types'
 
 export interface ModVersionInfo {
@@ -62,7 +63,10 @@ export class WorkshopScraper {
         'Upgrade-Insecure-Requests': '1',
         'Cache-Control': 'max-age=0'
       },
-      timeout: 10000
+      timeout: 10000,
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
     })
 
     return response.data

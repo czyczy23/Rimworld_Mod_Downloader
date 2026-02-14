@@ -30,25 +30,32 @@ export class SteamCMDError extends Error {
 }
 
 export class SteamCMD extends EventEmitter {
-  private executablePath: string
-  private downloadPath: string
   private timeout: number = 300000 // 5 minutes
 
   constructor() {
     super()
+  }
+
+  /**
+   * Get current config paths (read fresh from config each time)
+   */
+  private getPaths() {
     const config = configManager.get() as any
-    this.executablePath = config.steamcmd?.executablePath || ''
-    this.downloadPath = config.steamcmd?.downloadPath || ''
+    return {
+      executablePath: config.steamcmd?.executablePath || '',
+      downloadPath: config.steamcmd?.downloadPath || ''
+    }
   }
 
   /**
    * Validate SteamCMD setup
    */
   async validate(): Promise<{ valid: boolean; error?: string }> {
-    if (!existsSync(this.executablePath)) {
+    const { executablePath } = this.getPaths()
+    if (!existsSync(executablePath)) {
       return {
         valid: false,
-        error: `SteamCMD not found at: ${this.executablePath}`
+        error: `SteamCMD not found at: ${executablePath}`
       }
     }
 
@@ -61,6 +68,8 @@ export class SteamCMD extends EventEmitter {
    * @returns Promise resolving to download result
    */
   async downloadMod(modId: string): Promise<SteamCMDResult> {
+    const { executablePath, downloadPath } = this.getPaths()
+
     // Validate first
     const validation = await this.validate()
     if (!validation.valid) {
@@ -85,9 +94,9 @@ export class SteamCMD extends EventEmitter {
       ]
 
       console.log(`[SteamCMD] Starting download for mod ${modId}`)
-      console.log(`[SteamCMD] Command: ${this.executablePath} ${args.join(' ')}`)
+      console.log(`[SteamCMD] Command: ${executablePath} ${args.join(' ')}`)
 
-      const process = spawn(this.executablePath, args, {
+      const process = spawn(executablePath, args, {
         windowsHide: true, // Hide console window
         timeout: this.timeout
       })
@@ -160,7 +169,7 @@ export class SteamCMD extends EventEmitter {
 
         if (code === 0 && hasSuccessIndicator && !hasErrorIndicator) {
           // Download successful
-          const modPath = `${this.downloadPath}/${modId}`
+          const modPath = `${downloadPath}/${modId}`
 
           this.emit('progress', {
             stage: 'completed',
@@ -223,7 +232,7 @@ export class SteamCMD extends EventEmitter {
       // Timeout handling
       const timeoutId = setTimeout(() => {
         console.error('[SteamCMD] Download timeout after 5 minutes')
-        process.kill()
+        process.kill('SIGTERM')
 
         this.emit('progress', {
           stage: 'error',

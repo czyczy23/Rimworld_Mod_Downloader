@@ -5,7 +5,8 @@
 
 import Store from 'electron-store'
 import { app } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { promises as fs, existsSync } from 'fs'
 import { AppConfig, ModsPath } from '../../shared/types'
 import { randomUUID } from 'crypto'
 
@@ -103,31 +104,38 @@ class ConfigManager {
   async detectGameVersion(): Promise<string> {
     const activePath = this.getActiveModsPath()
     if (!activePath) {
+      console.log('[ConfigManager] No active mods path found')
       return this.get('rimworld').currentVersion
     }
 
     try {
-      const path = require('path')
-      const fs = require('fs').promises
-
       // Get game root directory (parent of Mods folder)
-      const gameRoot = path.dirname(activePath.path)
-      const versionFile = path.join(gameRoot, 'Version.txt')
+      const gameRoot = dirname(activePath.path)
+      const versionFile = join(gameRoot, 'Version.txt')
+
+      console.log(`[ConfigManager] Looking for Version.txt at: ${versionFile}`)
+      console.log(`[ConfigManager] Active mods path: ${activePath.path}`)
+      console.log(`[ConfigManager] Game root: ${gameRoot}`)
 
       // Check if Version.txt exists
       try {
         await fs.access(versionFile)
       } catch {
+        console.log(`[ConfigManager] Version.txt not found at ${versionFile}`)
         return this.get('rimworld').currentVersion
       }
 
       // Read and parse version file
       const content = await fs.readFile(versionFile, 'utf-8')
-      const match = content.match(/^version (\d+\.\d+)/m)
+      console.log(`[ConfigManager] Version.txt content: ${content}`)
+
+      // Match patterns like: 1.5.4063 rev1071 or version 1.5.4063 rev1071
+      const match = content.match(/(?:version\s+)?(\d+\.\d+)\.\d+/)
 
       if (match && match[1]) {
         // Cache detected version
         const currentVersion = match[1]
+        console.log(`[ConfigManager] Detected game version: ${currentVersion}`)
         this.set('rimworld', {
           ...this.get('rimworld'),
           currentVersion
@@ -135,6 +143,7 @@ class ConfigManager {
         return currentVersion
       }
 
+      console.log(`[ConfigManager] Could not parse version from: ${content}`)
       return this.get('rimworld').currentVersion
     } catch (error) {
       console.error('Failed to detect game version:', error)

@@ -14,8 +14,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   useEffect(() => {
     if (window.api) {
       window.api.getConfig().then((cfg) => {
-        setConfig(cfg)
-        setTempConfig({ ...cfg })
+        // Ensure default values are set
+        const mergedConfig = {
+          ...cfg,
+          download: {
+            ...cfg.download,
+            dependencyMode: cfg.download?.dependencyMode || 'ask'
+          },
+          version: {
+            ...cfg.version,
+            onMismatch: cfg.version?.onMismatch || 'ask'
+          }
+        }
+        setConfig(mergedConfig)
+        setTempConfig({ ...mergedConfig })
+
+        // Initialize detectedVersion from config
+        if (mergedConfig.rimworld?.currentVersion) {
+          setDetectedVersion(mergedConfig.rimworld.currentVersion)
+        }
+
+        // Also call detectGameVersion to get the real version
+        window.api.detectGameVersion().then((version) => {
+          setDetectedVersion(version)
+        }).catch(console.error)
       })
     }
   }, [])
@@ -39,26 +61,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   }
 
   // Handle version detection
-  const handleDetectVersion = () => {
-    // In a real implementation, this would read Version.txt from RimWorld folder
-    const versions = ['1.4', '1.5', '1.6']
-    const randomVersion = versions[Math.floor(Math.random() * versions.length)]
-    setDetectedVersion(randomVersion)
+  const handleDetectVersion = async () => {
+    if (window.api) {
+      try {
+        const version = await window.api.detectGameVersion()
+        setDetectedVersion(version)
 
-    setTempConfig(prev => ({
-      ...prev,
-      version: {
-        ...prev.version,
-        autoDetect: true
-      },
-      rimworld: {
-        ...prev.rimworld,
-        currentVersion: randomVersion
+        setTempConfig(prev => ({
+          ...prev,
+          version: {
+            ...prev.version,
+            autoDetect: true
+          },
+          rimworld: {
+            ...prev.rimworld,
+            currentVersion: version
+          }
+        }))
+
+        alert(`检测到 RimWorld 版本: ${version}`)
+      } catch (error) {
+        console.error('Failed to detect version:', error)
+        alert('检测版本失败')
       }
-    }))
-
-    // Show success message
-    alert(`Detected RimWorld version: ${randomVersion}`)
+    }
   }
 
   // Handle manual version change
@@ -142,7 +168,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         marginBottom: '24px'
       }}>
         <h3 style={{ color: '#c6d4df', marginTop: 0, fontSize: '18px' }}>
-          ⚙️ Settings
+          ⚙️ 设置
         </h3>
         <button
           onClick={onClose}
@@ -169,7 +195,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       {/* Game Version Settings */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          Game Version Settings
+          游戏版本设置
         </h4>
 
         {/* Auto Detect */}
@@ -198,7 +224,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               cursor: 'pointer'
             }}
           >
-            Auto Detect RimWorld Version
+            自动检测 RimWorld 版本
           </label>
         </div>
 
@@ -208,7 +234,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           marginBottom: '12px',
           fontSize: '13px'
         }}>
-          <span style={{ color: '#8f98a0' }}>Detected Version: </span>
+          <span style={{ color: '#8f98a0' }}>检测到的版本: </span>
           <span style={{ color: '#66c0f4', fontWeight: 500 }}>
             {detectedVersion}
           </span>
@@ -231,7 +257,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
           >
-            Re-detect Version
+            重新检测版本
           </button>
         </div>
 
@@ -246,14 +272,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               marginBottom: '8px'
             }}
           >
-            Manual Version (if auto-detect fails):
+            手动设置版本（当自动检测失败时）:
           </label>
           <input
             type="text"
             id="manualVersion"
             value={tempConfig.version?.manualVersion}
             onChange={handleManualVersionChange}
-            placeholder="e.g. 1.6"
+            placeholder="例如: 1.6"
             disabled={tempConfig.version?.autoDetect}
             style={{
               width: '100px',
@@ -272,14 +298,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       {/* Version Mismatch Behavior */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          Version Mismatch Behavior
+          版本不匹配处理
         </h4>
 
         <div style={{ marginLeft: '8px' }}>
           {[
-            { value: 'ask', label: 'Ask (show warning and let user decide)' },
-            { value: 'force', label: 'Force Download (skip version check)' },
-            { value: 'skip', label: 'Skip Download (reject incompatible mods)' }
+            { value: 'ask', label: '询问 (显示警告让用户决定)' },
+            { value: 'force', label: '强制下载 (跳过版本检查)' },
+            { value: 'skip', label: '跳过下载 (拒绝不兼容的Mod)' }
           ].map((option) => (
             <div key={option.value} style={{
               display: 'flex',
@@ -318,14 +344,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       {/* Dependency Handling */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          Dependency Handling
+          依赖处理
         </h4>
 
         <div style={{ marginLeft: '8px' }}>
           {[
-            { value: 'ask', label: 'Ask (show dependencies and let user select)' },
-            { value: 'auto', label: 'Auto Download (download all dependencies)' },
-            { value: 'ignore', label: 'Ignore Dependencies (only download main mod)' }
+            { value: 'ask', label: '询问 (显示依赖项让用户选择)' },
+            { value: 'auto', label: '自动下载 (下载所有依赖)' },
+            { value: 'ignore', label: '忽略依赖 (仅下载主Mod)' }
           ].map((option) => (
             <div key={option.value} style={{
               display: 'flex',
@@ -391,7 +417,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             e.currentTarget.style.color = '#c6d4df'
           }}
         >
-          Cancel
+          取消
         </button>
 
         <button
@@ -409,7 +435,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           onMouseEnter={(e) => (e.currentTarget.style.background = '#45a049')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#4CAF50')}
         >
-          Save Settings
+          保存设置
         </button>
       </div>
     </div>
