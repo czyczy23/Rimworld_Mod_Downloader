@@ -148,7 +148,8 @@ export function VersionMismatchDialog({
                 fontSize: '13px',
                 cursor: 'pointer'
                 userSelect: 'none'
-              }}
+              }
+            }
             >
               记住我的选择，下次不再询问
             </label>
