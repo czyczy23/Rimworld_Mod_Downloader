@@ -53,25 +53,27 @@
   function findSubscribeButton() {
     // Try multiple selectors to find the subscribe button
     // Support both English and Chinese Steam interfaces
-    // Based on real Steam Workshop page analysis
+    // Based on real Steam Workshop page analysis (2026-02-14)
     const selectors = [
-      // Real Steam Workshop selectors (from actual page analysis)
-      '#SubscribeItemBtn',                           // Subscribe button ID
+      // ===== REAL STEAM WORKSHOP SELECTORS (from actual page analysis) =====
+      '#SubscribeItemBtn',                           // Subscribe button ID - MAIN TARGET
       '.btn_green_white_innerfade',                // Button style class
-      '.subscribeOption.subscribe.selected',       // Active subscribe option
-      '.subscribeOption.subscribed',               // Subscribed state
+      '.subscribeOption.subscribe.selected',       // Active subscribe option text
+      '.subscribeOption.subscribed',               // Subscribed state text
+      '.subscribeIcon',                            // Subscribe icon
+      '.subscribeText',                            // Subscribe text container
 
-      // Legacy selectors (for compatibility)
+      // ===== LEGACY SELECTORS (for compatibility with old code/tests) =====
       '.workshopItemSubscribeBtn',
       '[class*="workshopItemSubscribeBtn"]',
       '.workshopItemSubscriptionButtons',
 
-      // Container selectors
+      // ===== CONTAINER SELECTORS =====
       '.apphub_OtherSiteActions',
       '.apphub_HeaderBottomRight',
       '.workshopItemAuthorLine',
 
-      // Text-based selectors
+      // ===== TEXT-BASED SELECTORS =====
       '[class*="subscribe"]',
       '[class*="订阅"]',
       '.btn_green',
