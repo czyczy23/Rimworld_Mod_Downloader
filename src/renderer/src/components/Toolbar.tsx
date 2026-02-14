@@ -8,6 +8,13 @@ interface ModsPath {
   isActive: boolean
 }
 
+interface ModVersionInfo {
+  supportedVersions: string[]
+  modName: string
+  dependencies: any[]
+}
+
+
 interface ToolbarProps {
   onSettingsClick: () => void
   onDownloadClick?: (modId: string, isCollection: boolean) => void
@@ -18,6 +25,41 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
   const [modsPaths, setModsPaths] = useState<ModsPath[]>([])
   const [activePath, setActivePath] = useState<string>('')
   const [isDownloading, setIsDownloading] = useState(false)
+  const [gameVersion, setGameVersion] = useState<string>('检测中...')
+  const [versionInfo, setVersionInfo] = useState<ModVersionInfo | null>(null)
+  const [isCheckingVersion, setIsCheckingVersion] = useState(false)
+  const [versionMismatch, setVersionMismatch] = useState(false)
+
+  // Check mod version when page info changes
+  useEffect(() => {
+    const checkVersion = async () => {
+      if (currentPageInfo?.isModDetailPage && currentPageInfo.modId && window.api) {
+        setIsCheckingVersion(true)
+        setVersionInfo(null)
+        setVersionMismatch(false)
+
+        try {
+          const info = await (window.api as any).checkModVersion(currentPageInfo.modId)
+          setVersionInfo(info)
+
+          // Check compatibility
+          if (gameVersion && gameVersion !== '检测中...' && gameVersion !== '未知版本') {
+            const isCompatible = info.supportedVersions.includes(gameVersion)
+            setVersionMismatch(!isCompatible)
+          }
+        } catch (error) {
+          console.error('Failed to check mod version:', error)
+        } finally {
+          setIsCheckingVersion(false)
+        }
+      } else {
+        setVersionInfo(null)
+        setVersionMismatch(false)
+      }
+    }
+
+    checkVersion()
+  }, [currentPageInfo?.modId, currentPageInfo?.isModDetailPage, gameVersion])
 
   // Load config on mount
   useEffect(() => {
@@ -30,6 +72,13 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
         if (active) {
           setActivePath(active.path)
         }
+      })
+
+      // Detect game version
+      window.api.detectGameVersion().then((version) => {
+        setGameVersion(version)
+      }).catch(() => {
+        setGameVersion('未知版本')
       })
     }
   }, [])
@@ -179,13 +228,38 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
           </button>
         </div>
 
-        {/* Right: Download & Settings Buttons */}
+        {/* Right: Game Version, Download & Settings Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Game Version Display */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 12px',
+            background: '#2a475e',
+            borderRadius: '3px',
+            border: '1px solid #3d6c8d'
+          }}>
+            <span style={{ color: '#8f98a0', fontSize: '12px' }}>Game:</span>
+            <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
+              {gameVersion}
+            </span>
+            {gameVersion !== '1.6' && (
+              <span
+                style={{
+                  color: '#e6b800',
+                  fontSize: '14px',
+                  cursor: 'help'
+                }}
+                title="版本可能不匹配"
+              >⚠️</span>
+            )}
+          </div>
+
           {/* Download Button */}
           <button
             onClick={handleDownload}
             disabled={!canDownload}
-            title={canDownload ? 'Download this mod' : 'Navigate to a mod page to download'}
             style={{
               background: canDownload ? '#4CAF50' : '#2a475e',
               color: canDownload ? 'white' : '#8f98a0',
@@ -307,6 +381,65 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
               <span style={{ color: '#8f98a0', fontSize: '12px' }}>Name: </span>
               <span style={{ color: '#c6d4df', fontSize: '13px' }}>
                 {currentPageInfo.modName}
+              </span>
+            </div>
+          )}
+
+          {/* Version Check Status */}
+          {isCheckingVersion && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span style={{
+                display: 'inline-block',
+                width: '14px',
+                height: '14px',
+                border: '2px solid rgba(102, 192, 244, 0.3)',
+                borderTopColor: '#66c0f4',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              <span style={{ color: '#66c0f4', fontSize: '12px' }}>检查版本...</span>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          )}
+
+          {versionInfo && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span style={{ color: '#8f98a0', fontSize: '12px' }}>支持版本:</span>
+              <span style={{
+                color: versionMismatch ? '#e6b800' : '#66c0f4',
+                fontSize: '13px',
+                fontWeight: 500
+              }}>
+                {versionInfo.supportedVersions.length > 0 ?
+                  versionInfo.supportedVersions.join(', ') : '未指定'}
+              </span>
+              {versionMismatch && (
+                <span style={{
+                  color: '#e6b800',
+                  fontSize: '14px',
+                  cursor: 'help'
+                }} title={`版本不匹配！游戏版本 ${gameVersion}，Mod支持版本 ${versionInfo?.supportedVersions.join(', ')}`}>⚠️</span>
+              )}
+            </div>
+          )}
+
+          {versionInfo?.dependencies && versionInfo.dependencies.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span style={{ color: '#8f98a0', fontSize: '12px' }}>依赖:</span>
+              <span style={{ color: '#66c0f4', fontSize: '13px' }}>
+                {versionInfo.dependencies.length}个
               </span>
             </div>
           )}

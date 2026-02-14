@@ -11,9 +11,10 @@ interface DownloadItem {
 
 interface DownloadQueueProps {
   downloads?: DownloadItem[]
+  batchInfo?: any
 }
 
-export function DownloadQueue({ downloads: externalDownloads }: DownloadQueueProps = {}) {
+export function DownloadQueue({ downloads: externalDownloads, batchInfo }: DownloadQueueProps = {}) {
   const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
 
   // Use external downloads if provided, otherwise use internal state
@@ -202,6 +203,33 @@ export function DownloadQueue({ downloads: externalDownloads }: DownloadQueuePro
             overflowY: 'auto'
           }}
         >
+          {batchInfo && batchInfo.isBatch && (
+            <div
+              style={{
+                background: '#171a21',
+                border: '1px solid #3d6c8d',
+                borderRadius: '4px',
+                padding: '12px',
+                marginBottom: '8px'
+              }}
+            >
+              <div style={{
+                color: '#66c0f4',
+                fontSize: '13px',
+                fontWeight: '500',
+                marginBottom: '8px'
+              }}>
+                批量下载 ({batchInfo.current}/{batchInfo.total})
+              </div>
+              <div style={{
+                color: '#c6d4df',
+                fontSize: '12px'
+              }}>
+                当前正在下载: {batchInfo.currentName}
+              </div>
+            </div>
+          )}
+
           {downloads.length === 0 ? (
             <div
               style={{

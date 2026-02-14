@@ -3,6 +3,8 @@ import './App.css'
 import { WebviewContainer, type WebviewContainerRef, type CurrentPageInfo } from './components/WebviewContainer'
 import { Toolbar } from './components/Toolbar'
 import { DownloadQueue } from './components/DownloadQueue'
+import { SettingsPanel } from './components/SettingsPanel'
+import { DependencyDialog } from './components/DependencyDialog'
 
 // Extend Window interface for our API
 declare global {
@@ -11,6 +13,8 @@ declare global {
       getConfig: (key?: string) => Promise<any>
       setConfig: (key: string, value: any) => Promise<void>
       downloadMod: (id: string, isCollection: boolean) => Promise<any>
+      downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]) => Promise<any[]>
+      checkDependencies: (id: string) => Promise<any[]>
       selectFolder: () => Promise<string | null>
       onDownloadProgress: (callback: (data: {
         id: string
@@ -22,6 +26,8 @@ declare global {
       }) => void) => () => void
       onDownloadComplete: (callback: (data: any) => void) => () => void
       onDownloadError: (callback: (data: { id: string; error: string }) => void) => () => void
+      onBatchProgress: (callback: (data: any) => void) => () => void
+      detectGameVersion: () => Promise<string>
     }
   }
 }
@@ -35,11 +41,22 @@ interface DownloadItem {
   message?: string
 }
 
+interface BatchDownloadInfo {
+  isBatch: boolean
+  current: number
+  total: number
+  currentName: string
+  id: string
+}
+
 function App() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
+  const [batchInfo, setBatchInfo] = useState<BatchDownloadInfo | undefined>()
   const [, setConfig] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showDependencyDialog, setShowDependencyDialog] = useState(false)
   const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
+  const [pendingDependencies, setPendingDependencies] = useState<{ id: string; name: string; dependencies: any[] } | null>(null)
   const webviewRef = useRef<WebviewContainerRef>(null)
 
   // Load config on mount
@@ -107,11 +124,25 @@ function App() {
       } : d))
     })
 
+    // Listen for batch progress
+    const unsubscribeBatchProgress = window.api.onBatchProgress((data) => {
+      console.log(`[App] Batch progress: ${data.current}/${data.total} - ${data.currentName}`)
+
+      setBatchInfo({
+        isBatch: data.isBatch,
+        current: data.current,
+        total: data.total,
+        currentName: data.currentName,
+        id: data.id
+      })
+    })
+
     // Cleanup
     return () => {
       unsubscribeProgress()
       unsubscribeComplete()
       unsubscribeError()
+      unsubscribeBatchProgress()
     }
   }, [])
 
@@ -125,7 +156,34 @@ function App() {
   const handleDownloadClick = useCallback(async (modId: string, isCollection: boolean) => {
     console.log('Download clicked:', { modId, isCollection })
 
-    // Add to downloads list
+    // Check dependencies first
+    try {
+      if (window.api) {
+        const dependencies = await window.api.checkDependencies(modId)
+        console.log(`Found ${dependencies.length} dependencies`)
+
+        if (dependencies.length > 0) {
+          // Show dependency dialog
+          setPendingDependencies({
+            id: modId,
+            name: currentPageInfo?.modName || `Mod ${modId}`,
+            dependencies
+          })
+          setShowDependencyDialog(true)
+        } else {
+          // No dependencies, download directly
+          startSingleDownload(modId, isCollection)
+        }
+      }
+    } catch (error) {
+      console.error('Error checking dependencies:', error)
+      // Fallback to direct download if dependency check fails
+      startSingleDownload(modId, isCollection)
+    }
+  }, [currentPageInfo?.modName])
+
+  // Start single download
+  const startSingleDownload = async (modId: string, isCollection: boolean) => {
     setDownloads(prev => {
       if (prev.find(d => d.id === modId)) return prev
       return [...prev, {
@@ -137,7 +195,6 @@ function App() {
       }]
     })
 
-    // Call main process to download
     try {
       if (window.api) {
         const result = await window.api.downloadMod(modId, isCollection)
@@ -146,6 +203,57 @@ function App() {
     } catch (error) {
       console.error('Download failed:', error)
     }
+  }
+
+  // Handle dependency dialog confirm
+  const handleDependencyConfirm = useCallback(async (selectedIds: string[]) => {
+    if (!pendingDependencies) return
+
+    setShowDependencyDialog(false)
+    setBatchInfo({
+      isBatch: true,
+      current: 1,
+      total: selectedIds.length + 1, // Include main mod
+      currentName: pendingDependencies.name,
+      id: pendingDependencies.id
+    })
+
+    // Add all selected items to download queue
+    const allItems = [
+      { id: pendingDependencies.id, name: pendingDependencies.name, isCollection: currentPageInfo?.isCollection || false },
+      ...selectedIds.map(id => ({ id, name: `Mod ${id}`, isCollection: false }))
+    ]
+
+    allItems.forEach(item => {
+      setDownloads(prev => {
+        if (prev.find(d => d.id === item.id)) return prev
+        return [...prev, {
+          id: item.id,
+          name: item.name,
+          progress: 0,
+          status: 'pending',
+          message: 'Pending...'
+        }]
+      })
+    })
+
+    // Start batch download
+    try {
+      if (window.api) {
+        const results = await window.api.downloadBatch(allItems)
+        console.log('Batch download complete:', results)
+        setBatchInfo(undefined)
+      }
+    } catch (error) {
+      console.error('Batch download failed:', error)
+      setBatchInfo(undefined)
+    }
+  }, [pendingDependencies, currentPageInfo?.isCollection])
+
+  // Handle dependency dialog cancel
+  const handleDependencyCancel = useCallback(() => {
+    setShowDependencyDialog(false)
+    setPendingDependencies(null)
   }, [])
 
   return (
@@ -173,25 +281,26 @@ function App() {
           />
         </div>
 
-        {/* Settings Panel (conditionally shown) */}
-        {showSettings && (
-          <div style={{
-            width: '350px',
-            background: '#1b2838',
-            borderLeft: '1px solid #2a475e',
-            padding: '20px',
-            overflow: 'auto'
-          }}>
-            <h3 style={{ color: '#c6d4df', marginTop: 0 }}>Settings</h3>
-            <p style={{ color: '#8f98a0', fontSize: '14px' }}>
-              Settings panel will be implemented in Phase 4.
-            </p>
-          </div>
-        )}
+        {/* Settings Panel */}
+        <SettingsPanel
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+        />
       </div>
 
+      {/* Dependency Dialog */}
+      {pendingDependencies && (
+        <DependencyDialog
+          isOpen={showDependencyDialog}
+          modName={pendingDependencies.name}
+          dependencies={pendingDependencies.dependencies}
+          onConfirm={handleDependencyConfirm}
+          onCancel={handleDependencyCancel}
+        />
+      )}
+
       {/* Bottom Status Bar - Download Queue */}
-      <DownloadQueue downloads={downloads} />
+      <DownloadQueue downloads={downloads} batchInfo={batchInfo} />
     </div>
   )
 }
