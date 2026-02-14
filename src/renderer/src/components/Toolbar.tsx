@@ -18,17 +18,24 @@ interface ModVersionInfo {
 interface ToolbarProps {
   onSettingsClick: () => void
   onDownloadClick?: (modId: string, isCollection: boolean) => void
+  onAddToQueue?: (modId: string, isCollection: boolean) => void
   currentPageInfo?: CurrentPageInfo | null
+  gameVersion?: string
+  onRefreshGameVersion?: () => Promise<string>
 }
 
-export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: ToolbarProps) {
+export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion }: ToolbarProps) {
   const [modsPaths, setModsPaths] = useState<ModsPath[]>([])
   const [activePath, setActivePath] = useState<string>('')
   const [isDownloading, setIsDownloading] = useState(false)
-  const [gameVersion, setGameVersion] = useState<string>('检测中...')
+  const [isAddingToQueue, setIsAddingToQueue] = useState(false)
   const [versionInfo, setVersionInfo] = useState<ModVersionInfo | null>(null)
   const [isCheckingVersion, setIsCheckingVersion] = useState(false)
   const [versionMismatch, setVersionMismatch] = useState(false)
+
+  // 使用传入的 gameVersion，如果没有则使用本地状态
+  const [localGameVersion, setLocalGameVersion] = useState<string>('检测中...')
+  const gameVersion = propGameVersion !== undefined ? propGameVersion : localGameVersion
 
   // Check mod version when page info changes
   useEffect(() => {
@@ -40,11 +47,14 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
 
         try {
           const info = await (window.api as any).checkModVersion(currentPageInfo.modId)
+          console.log('[Toolbar] Version info:', info)
+          console.log('[Toolbar] Game version:', gameVersion)
           setVersionInfo(info)
 
-          // Check compatibility
-          if (gameVersion && gameVersion !== '检测中...' && gameVersion !== '未知版本') {
+          // Check compatibility - 使用与 App.tsx 相同的逻辑
+          if (gameVersion && gameVersion !== '检测中...' && gameVersion !== '未知版本' && info.supportedVersions.length > 0) {
             const isCompatible = info.supportedVersions.includes(gameVersion)
+            console.log('[Toolbar] Is compatible:', isCompatible, 'Supported versions:', info.supportedVersions)
             setVersionMismatch(!isCompatible)
           }
         } catch (error) {
@@ -74,14 +84,16 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
         }
       })
 
-      // Detect game version
-      window.api.detectGameVersion().then((version) => {
-        setGameVersion(version)
-      }).catch(() => {
-        setGameVersion('未知版本')
-      })
+      // 如果没有传入 gameVersion，则本地检测
+      if (propGameVersion === undefined) {
+        window.api.detectGameVersion().then((version) => {
+          setLocalGameVersion(version)
+        }).catch(() => {
+          setLocalGameVersion('未知版本')
+        })
+      }
     }
-  }, [])
+  }, [propGameVersion])
 
   // Handle path selection change
   const handlePathChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -103,12 +115,16 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
       })
 
       // Re-detect game version after path change
-      setGameVersion('检测中...')
-      try {
-        const version = await window.api.detectGameVersion()
-        setGameVersion(version)
-      } catch {
-        setGameVersion('未知版本')
+      if (onRefreshGameVersion) {
+        await onRefreshGameVersion()
+      } else if (propGameVersion === undefined) {
+        setLocalGameVersion('检测中...')
+        try {
+          const version = await window.api.detectGameVersion()
+          setLocalGameVersion(version)
+        } catch {
+          setLocalGameVersion('未知版本')
+        }
       }
     }
   }
@@ -139,12 +155,16 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
       })
 
       // Re-detect game version after adding new path
-      setGameVersion('检测中...')
-      try {
-        const version = await window.api.detectGameVersion()
-        setGameVersion(version)
-      } catch {
-        setGameVersion('未知版本')
+      if (onRefreshGameVersion) {
+        await onRefreshGameVersion()
+      } else if (propGameVersion === undefined) {
+        setLocalGameVersion('检测中...')
+        try {
+          const version = await window.api.detectGameVersion()
+          setLocalGameVersion(version)
+        } catch {
+          setLocalGameVersion('未知版本')
+        }
       }
     }
   }
@@ -168,8 +188,25 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
     }
   }
 
+  // Handle add to queue button click
+  const handleAdd = async () => {
+    if (!currentPageInfo?.isModDetailPage || !currentPageInfo.modId || isAddingToQueue) return
+
+    setIsAddingToQueue(true)
+    try {
+      if (onAddToQueue) {
+        await onAddToQueue(currentPageInfo.modId, currentPageInfo.isCollection || false)
+      }
+    } catch (error) {
+      console.error('Add to queue failed:', error)
+    } finally {
+      setIsAddingToQueue(false)
+    }
+  }
+
   // Check if download button should be enabled
   const canDownload = currentPageInfo?.isModDetailPage && !isDownloading
+  const canAdd = currentPageInfo?.isModDetailPage && !isAddingToQueue
 
   return (
     <div
@@ -272,17 +309,57 @@ export function Toolbar({ onSettingsClick, onDownloadClick, currentPageInfo }: T
             <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
               {gameVersion}
             </span>
-            {gameVersion !== '1.6' && (
-              <span
-                style={{
-                  color: '#e6b800',
-                  fontSize: '14px',
-                  cursor: 'help'
-                }}
-                title="版本可能不匹配"
-              >⚠️</span>
-            )}
           </div>
+
+          {/* Add to Queue Button */}
+          <button
+            onClick={handleAdd}
+            disabled={!canAdd}
+            style={{
+              background: canAdd ? '#3d6c8d' : '#2a475e',
+              color: canAdd ? 'white' : '#8f98a0',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '3px',
+              cursor: canAdd ? 'pointer' : 'not-allowed',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s',
+              opacity: canAdd ? 1 : 0.6
+            }}
+            onMouseEnter={(e) => {
+              if (canAdd) {
+                e.currentTarget.style.background = '#4a7ba3'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (canAdd) {
+                e.currentTarget.style.background = '#3d6c8d'
+              }
+            }}
+          >
+            {isAddingToQueue ? (
+              <>
+                <span className="spinner" style={{
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                Adding...
+              </>
+            ) : (
+              <>
+                ➕ Add
+              </>
+            )}
+          </button>
 
           {/* Download Button */}
           <button
