@@ -150,55 +150,54 @@ interface AppConfig {
    - `allowpopups` (for login flows)
    - `webpreferences="contextIsolation=no, nodeIntegration=no"`
 
-2. Inject script on `dom-ready` event:
-   ```javascript
-   // Injected code (workshopInjector.js)
-   (function() {
-     if (window.location.pathname.includes('/filedetails/')) {
-       const id = new URLSearchParams(window.location.search).get('id');
-       if (!id) return;
-       
-       // Check if already injected
-       if (document.getElementById('rw-downloader-btn')) return;
-       
-       const btn = document.createElement('button');
-       btn.id = 'rw-downloader-btn';
-       btn.innerHTML = '📥 Download to Local';
-       btn.style.cssText = 'background:#4CAF50;color:white;border:none;padding:8px 16px;margin-left:10px;cursor:pointer;border-radius:4px;';
-       
-       btn.onclick = () => {
-         window.postMessage({ 
-           type: 'DOWNLOAD_REQUEST', 
-           id: id,
-           isCollection: document.querySelector('.collectionItem') !== null
-         }, '*');
-       };
-       
-       // Insert after subscribe button
-       const subBtn = document.querySelector('.workshopItemSubscribeBtn') || 
-                      document.querySelector('[data-appid="294100"]');
-       if (subBtn) subBtn.parentNode.appendChild(btn);
-     }
-   })();
-   ```
-
-3. Message handling in preload script:
-   ```typescript
-   window.addEventListener('message', (e) => {
-     if (e.data?.type === 'DOWNLOAD_REQUEST') {
-       ipcRenderer.invoke('mod:download', {
-         id: e.data.id,
-         isCollection: e.data.isCollection
-       });
-     }
-   });
-   ```
+2. Track page navigation to detect mod detail pages:
+   - Listen to `did-navigate` and `did-navigate-in-page` events
+   - Parse URL to extract `id` parameter when on `/sharedfiles/filedetails/` pages
+   - Expose current page info via IPC (`webview:getCurrentPage`)
 
 **Acceptance Criteria**:
 - [ ] Webview loads Steam Workshop without console errors
 - [ ] Login state persists between app restarts
-- [ ] Download button appears on all Mod detail pages within 2 seconds of load
-- [ ] Button does not duplicate on SPA navigation (Steam uses History API)
+- [ ] Page navigation tracking correctly identifies mod detail pages
+- [ ] Current mod ID can be retrieved via IPC call
+
+### 4.1.1 App Toolbar Download Button
+
+**Implementation**: `src/renderer/components/Toolbar.tsx` (updated)
+
+**Requirements**:
+1. Add Download button to the top toolbar:
+   - Position: Between Path Selector and Settings button
+   - Label: "📥 Download" or icon + "Download"
+   - Disabled state when not on a mod detail page
+
+2. Mod Info Display Panel (below toolbar):
+   - Shows current page mod information when on a mod detail page
+   - Display: Mod name, type (Mod/Collection), Workshop ID
+   - Collapse/hide when not on a mod detail page
+
+3. IPC Integration:
+   - Invoke `webview:getCurrentPage` to get current page info
+   - Invoke `mod:download` when download button clicked
+   - Listen for `webview:pageChanged` events to update UI
+
+**Data Interface**:
+```typescript
+interface CurrentPageInfo {
+  url: string;
+  isModDetailPage: boolean;
+  modId?: string;
+  modName?: string;
+  isCollection?: boolean;
+}
+```
+
+**Acceptance Criteria**:
+- [ ] Download button appears in toolbar between Path Selector and Settings
+- [ ] Button is disabled when not on a mod detail page
+- [ ] Mod info panel shows when on a mod detail page with name, type, and ID
+- [ ] Clicking Download invokes mod:download with correct mod ID
+- [ ] Download works for both single mods and collections
 
 ### 4.2 SteamCMD Automation
 
@@ -448,7 +447,11 @@ private generateCommitMessage(context: string, details?: any): string {
 ### 5.1 Main Window Layout
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ [Path Selector ▼] [Settings ⚙️]          RimWorld Mod Sync  │
+│ [Path Selector ▼] [📥 Download] [Settings ⚙️]    RimWorld  │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Current: Harmony (Mod) - ID: 2009463077               │ │
+│ └─────────────────────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                    Webview Container                        │
@@ -531,7 +534,8 @@ private generateCommitMessage(context: string, details?: any): string {
 - [ ] Error handling for download flow
 
 ### Phase 3: Intelligence
-- [ ] Inject download button into Steam pages
+- [x] ~~Inject download button into Steam pages~~ (Changed to App Toolbar button)
+- [x] App Toolbar download button with mod info display
 - [ ] Version checker (XML parser)
 - [ ] Dependency resolver (Cheerio scraper)
 - [ ] Compatibility warnings

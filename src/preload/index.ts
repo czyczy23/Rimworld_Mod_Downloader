@@ -1,6 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ModMetadata, Dependency, DownloadProgress, GitStatus, VersionMismatchInfo } from '../shared/types'
+import type { ModMetadata } from '../shared/types'
+
+// Type for download progress callback
+export type DownloadProgressCallback = (progress: {
+  id: string
+  status: string
+  progress: number
+  message?: string
+  current?: number
+  total?: number
+}) => void
 
 // Custom APIs for renderer
 const api = {
@@ -14,6 +24,33 @@ const api = {
 
   // Dialog
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+
+  // Download progress listener
+  onDownloadProgress: (callback: DownloadProgressCallback) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('download:progress', handler)
+    return () => {
+      ipcRenderer.removeListener('download:progress', handler)
+    }
+  },
+
+  // Download complete listener
+  onDownloadComplete: (callback: (data: ModMetadata) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('download:complete', handler)
+    return () => {
+      ipcRenderer.removeListener('download:complete', handler)
+    }
+  },
+
+  // Download error listener
+  onDownloadError: (callback: (data: { id: string; error: string }) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('download:error', handler)
+    return () => {
+      ipcRenderer.removeListener('download:error', handler)
+    }
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

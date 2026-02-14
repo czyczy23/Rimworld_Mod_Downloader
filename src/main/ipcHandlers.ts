@@ -1,5 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { configManager } from './utils/ConfigManager'
+import { steamCMD, DownloadProgress } from './services/SteamCMD'
+import { modProcessor } from './services/ModProcessor'
 import type { ModMetadata, Dependency } from '../shared/types'
 
 /**
@@ -17,32 +19,121 @@ export function setupIpcHandlers(): void {
   })
 
   // ===== Mod Download Handler =====
-  ipcMain.handle('mod:download', async (_, { id, isCollection }): Promise<ModMetadata> => {
+  ipcMain.handle('mod:download', async (event, { id, isCollection }): Promise<ModMetadata> => {
     console.log(`[IPC] Download requested for mod ${id}, collection: ${isCollection}`)
     console.log(`[IPC] 收到下载请求: ${id}`)
 
-    // Phase 2: Return mock response to test the flow
-    // In Phase 3, this will call SteamCMD to actually download
+    const sender = event.sender
+    const mainWindow = BrowserWindow.fromWebContents(sender)
 
-    // Simulate a delay to test the UI flow
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      // Step 1: Download using SteamCMD
+      console.log(`[IPC] Starting SteamCMD download for mod ${id}`)
 
-    // Return mock metadata (for testing)
-    const mockMetadata: ModMetadata = {
-      id,
-      name: isCollection ? `Test Collection ${id}` : `Test Mod ${id}`,
-      author: 'Test Author',
-      description: 'Test description',
-      supportedVersions: ['1.5'],
-      dependencies: [],
-      isCollection: isCollection || false,
-      collectionItems: isCollection ? [] : undefined,
-      localPath: '',
-      downloadStatus: 'completed'
+      // Set up progress listener
+      const progressHandler = (progress: DownloadProgress) => {
+        console.log(`[SteamCMD] Progress: ${progress.percent}% - ${progress.message}`)
+
+        // Send progress to renderer
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('download:progress', {
+            id,
+            status: progress.stage,
+            progress: progress.percent,
+            message: progress.message,
+            current: progress.current,
+            total: progress.total
+          })
+        }
+      }
+
+      steamCMD.on('progress', progressHandler)
+
+      // Execute download
+      const downloadResult = await steamCMD.downloadMod(id)
+
+      // Remove progress listener
+      steamCMD.off('progress', progressHandler)
+
+      if (!downloadResult.success) {
+        throw new Error(downloadResult.error || 'Download failed')
+      }
+
+      console.log(`[IPC] SteamCMD download completed: ${downloadResult.downloadPath}`)
+
+      // Step 2: Process the mod (move to target location)
+      console.log(`[IPC] Starting file processing for mod ${id}`)
+
+      // Send processing status
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download:progress', {
+          id,
+          status: 'moving',
+          progress: 95,
+          message: 'Moving files to Mods folder...'
+        })
+      }
+
+      const processResult = await modProcessor.processMod(id)
+
+      if (!processResult.success) {
+        throw new Error(processResult.error || 'File processing failed')
+      }
+
+      console.log(`[IPC] File processing completed: ${processResult.targetPath}`)
+
+      // Validate the final mod
+      const validation = await modProcessor.validateMod(id, processResult.targetPath)
+
+      // Build the final metadata
+      const metadata: ModMetadata = {
+        id,
+        name: validation.details?.modName || (isCollection ? `Collection ${id}` : `Mod ${id}`),
+        author: 'Unknown', // Could be extracted from About.xml
+        description: validation.valid ? 'Mod downloaded successfully' : (validation.error || 'Validation failed'),
+        supportedVersions: validation.details?.supportedVersions || [],
+        dependencies: [], // TODO: Extract from About.xml
+        isCollection: isCollection || false,
+        collectionItems: isCollection ? [] : undefined,
+        localPath: processResult.targetPath,
+        downloadStatus: validation.valid ? 'completed' : 'error',
+        errorMessage: validation.valid ? undefined : validation.error
+      }
+
+      // Send completion notification
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download:complete', metadata)
+      }
+
+      console.log(`[IPC] Download workflow completed for mod ${id}`)
+      return metadata
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`[IPC] Download failed for mod ${id}:`, error)
+
+      // Send error notification
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download:error', {
+          id,
+          error: errorMessage
+        })
+      }
+
+      // Return error metadata
+      return {
+        id,
+        name: isCollection ? `Collection ${id}` : `Mod ${id}`,
+        author: 'Unknown',
+        description: `Download failed: ${errorMessage}`,
+        supportedVersions: [],
+        dependencies: [],
+        isCollection: isCollection || false,
+        localPath: '',
+        downloadStatus: 'error',
+        errorMessage
+      }
     }
-
-    console.log(`[IPC] Mock download completed for ${id}`)
-    return mockMetadata
   })
 
   // ===== Dependency Check Handler =====
