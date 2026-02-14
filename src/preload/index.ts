@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ModMetadata } from '../shared/types'
+import type { ModMetadata, Dependency } from '../shared/types'
 
 // Type for download progress callback
 export type DownloadProgressCallback = (progress: {
@@ -12,15 +12,38 @@ export type DownloadProgressCallback = (progress: {
   total?: number
 }) => void
 
+// Type for batch progress callback
+export type BatchProgressCallback = (progress: {
+  isBatch: boolean
+  current: number
+  total: number
+  currentName: string
+  id: string
+}) => void
+
 // Custom APIs for renderer
 const api = {
   // Config operations
   getConfig: (key?: string) => ipcRenderer.invoke('config:get', key),
   setConfig: (key: string, value: any) => ipcRenderer.invoke('config:set', { key, value }),
 
+  // Version detection
+  detectGameVersion: () => ipcRenderer.invoke('version:detect'),
+
+  // Mod version check
+  checkModVersion: (modId: string) => ipcRenderer.invoke('mod:checkVersion', modId),
+
   // Mod download
   downloadMod: (id: string, isCollection: boolean): Promise<ModMetadata> =>
     ipcRenderer.invoke('mod:download', { id, isCollection }),
+
+  // Batch download
+  downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]): Promise<ModMetadata[]> =>
+    ipcRenderer.invoke('mod:downloadBatch', { items }),
+
+  // Dependency check
+  checkDependencies: (id: string): Promise<Dependency[]> =>
+    ipcRenderer.invoke('mod:checkDependencies', id),
 
   // Dialog
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
@@ -49,6 +72,15 @@ const api = {
     ipcRenderer.on('download:error', handler)
     return () => {
       ipcRenderer.removeListener('download:error', handler)
+    }
+  },
+
+  // Batch progress listener
+  onBatchProgress: (callback: (data: any) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('batch:progress', handler)
+    return () => {
+      ipcRenderer.removeListener('batch:progress', handler)
     }
   }
 }

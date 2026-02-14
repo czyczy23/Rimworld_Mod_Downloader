@@ -53,7 +53,13 @@ const defaults: AppConfig = {
   download: {
     autoDownloadDependencies: false,
     skipVersionCheck: false,
-    extractCollectionToSubfolder: true
+    extractCollectionToSubfolder: true,
+    dependencyMode: 'ask'
+  },
+  version: {
+    autoDetect: true,
+    manualVersion: '1.6',
+    onMismatch: 'ask'
   },
   git: {
     enabled: false,
@@ -91,6 +97,49 @@ class ConfigManager {
   // Get current active mods path
   getActiveModsPath(): ModsPath | undefined {
     return this.store.get('rimworld').modsPaths.find((p) => p.isActive)
+  }
+
+  // Detect game version from Version.txt
+  async detectGameVersion(): Promise<string> {
+    const activePath = this.getActiveModsPath()
+    if (!activePath) {
+      return this.get('rimworld').currentVersion
+    }
+
+    try {
+      const path = require('path')
+      const fs = require('fs').promises
+
+      // Get game root directory (parent of Mods folder)
+      const gameRoot = path.dirname(activePath.path)
+      const versionFile = path.join(gameRoot, 'Version.txt')
+
+      // Check if Version.txt exists
+      try {
+        await fs.access(versionFile)
+      } catch {
+        return this.get('rimworld').currentVersion
+      }
+
+      // Read and parse version file
+      const content = await fs.readFile(versionFile, 'utf-8')
+      const match = content.match(/^version (\d+\.\d+)/m)
+
+      if (match && match[1]) {
+        // Cache detected version
+        const currentVersion = match[1]
+        this.set('rimworld', {
+          ...this.get('rimworld'),
+          currentVersion
+        })
+        return currentVersion
+      }
+
+      return this.get('rimworld').currentVersion
+    } catch (error) {
+      console.error('Failed to detect game version:', error)
+      return this.get('rimworld').currentVersion
+    }
   }
 }
 

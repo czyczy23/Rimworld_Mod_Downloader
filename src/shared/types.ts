@@ -44,6 +44,12 @@ export interface AppConfig {
     autoDownloadDependencies: boolean;
     skipVersionCheck: boolean;
     extractCollectionToSubfolder: boolean;
+    dependencyMode: 'ask' | 'auto' | 'ignore';
+  };
+  version: {
+    autoDetect: boolean;
+    manualVersion: string;
+    onMismatch: 'ask' | 'force' | 'skip';
   };
   git: {
     enabled: boolean;
@@ -81,8 +87,10 @@ export type IpcChannel =
   | 'git:status'
   | 'version:mismatch'
   | 'mod:download'
+  | 'mod:downloadBatch'
   | 'mod:checkDependencies'
   | 'mod:resolveVersion'
+  | 'batch:progress'
   | 'config:get'
   | 'config:set'
   | 'git:init'

@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Version Control
+
+This project uses **Git** for version management. All changes are tracked and synchronized to the GitHub repository:
+
+**Repository URL:** https://github.com/czyczy23/Rimworld_Mod_Downloader
+
+When making changes:
+1. Commit changes with descriptive messages
+2. Push to the remote repository to sync with GitHub
+3. Check repository status with `git status` and `git log`
+
 ## Project Overview
 
 **RimWorld Mod Downloader** is an Electron-based Windows desktop application for downloading and managing RimWorld mods from Steam Workshop. It provides a GUI wrapper around SteamCMD with features like dependency resolution, Git integration for version control, and automatic mod organization.
@@ -154,11 +165,34 @@ Config categories:
 - ❌ Removed: Zustand (not used, using React useState)
 - ✅ Added: Real-time progress via IPC events (not polling)
 
-### Phase 3: Intelligence (Planned)
-- [ ] Steam Workshop page scraping for dependency detection
-- [ ] About.xml parsing for version compatibility
-- [ ] Automatic dependency download
-- [ ] Version mismatch warnings
+### Phase 3: Intelligence ✅ COMPLETED (2026-02-14)
+
+**Implemented:**
+- [x] Steam Workshop page scraping (axios + cheerio)
+- [x] Game version auto-detection from Version.txt
+- [x] Mod version compatibility checking
+- [x] Dependency resolution and batch download
+- [x] Settings panel for version/dependency configuration
+- [x] Version mismatch warning dialog
+
+**New Files Created:**
+- `src/main/services/WorkshopScraper.ts` - HTTP scraping service
+- `src/renderer/src/components/SettingsPanel.tsx` - Settings UI
+- `src/renderer/src/components/DependencyDialog.tsx` - Dependency selector
+- `src/renderer/src/components/VersionMismatchDialog.tsx` - Warning dialog
+
+### Phase 3: Intelligence ✅ COMPLETED (2026-02-14)
+- [x] Steam Workshop page scraping for dependency detection
+- [x] About.xml parsing for version compatibility
+- [x] Automatic dependency download
+- [x] Version mismatch warnings
+
+**Key Implementation Details:**
+- `WorkshopScraper.ts` - HTTP-based Steam page scraping with cheerio
+- `ConfigManager.ts` - Game version detection from Version.txt
+- `DependencyDialog.tsx` - UI for selecting dependencies
+- `VersionMismatchDialog.tsx` - Warning dialog for version mismatches
+- `SettingsPanel.tsx` - Configuration UI for version/dependency settings
 
 **Key Implementation Details for Phase 3:**
 
