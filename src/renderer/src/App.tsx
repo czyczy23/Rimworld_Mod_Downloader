@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
-import { WebviewContainer } from './components/WebviewContainer'
+import { WebviewContainer, type WebviewContainerRef, type CurrentPageInfo } from './components/WebviewContainer'
 import { Toolbar } from './components/Toolbar'
 import { DownloadQueue } from './components/DownloadQueue'
 
@@ -12,6 +12,16 @@ declare global {
       setConfig: (key: string, value: any) => Promise<void>
       downloadMod: (id: string, isCollection: boolean) => Promise<any>
       selectFolder: () => Promise<string | null>
+      onDownloadProgress: (callback: (data: {
+        id: string
+        status: string
+        progress: number
+        message?: string
+        current?: number
+        total?: number
+      }) => void) => () => void
+      onDownloadComplete: (callback: (data: any) => void) => () => void
+      onDownloadError: (callback: (data: { id: string; error: string }) => void) => () => void
     }
   }
 }
@@ -22,12 +32,15 @@ interface DownloadItem {
   progress: number
   status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
   error?: string
+  message?: string
 }
 
 function App() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
-  const [config, setConfig] = useState<any>(null)
+  const [, setConfig] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
+  const webviewRef = useRef<WebviewContainerRef>(null)
 
   // Load config on mount
   useEffect(() => {
@@ -39,57 +52,125 @@ function App() {
     }
   }, [])
 
-  // Handle download request from webview
-  const handleDownloadRequest = useCallback(async (id: string, isCollection: boolean) => {
-    console.log('Download requested:', { id, isCollection })
+  // Set up download progress listeners
+  useEffect(() => {
+    if (!window.api) return
+
+    // Listen for progress updates
+    const unsubscribeProgress = window.api.onDownloadProgress((data) => {
+      console.log(`[App] Download progress for ${data.id}: ${data.progress}%`)
+
+      setDownloads(prev => {
+        const existing = prev.find(d => d.id === data.id)
+        if (existing) {
+          // Update existing
+          return prev.map(d => d.id === data.id ? {
+            ...d,
+            progress: data.progress,
+            status: data.status as any,
+            message: data.message
+          } : d)
+        } else {
+          // Add new
+          return [...prev, {
+            id: data.id,
+            name: `Mod ${data.id}`,
+            progress: data.progress,
+            status: data.status as any,
+            message: data.message
+          }]
+        }
+      })
+    })
+
+    // Listen for completion
+    const unsubscribeComplete = window.api.onDownloadComplete((data) => {
+      console.log(`[App] Download completed for ${data.id}`)
+
+      setDownloads(prev => prev.map(d => d.id === data.id ? {
+        ...d,
+        progress: 100,
+        status: 'completed',
+        message: 'Download completed'
+      } : d))
+    })
+
+    // Listen for errors
+    const unsubscribeError = window.api.onDownloadError((data) => {
+      console.error(`[App] Download error for ${data.id}:`, data.error)
+
+      setDownloads(prev => prev.map(d => d.id === data.id ? {
+        ...d,
+        status: 'error',
+        error: data.error,
+        message: data.error
+      } : d))
+    })
+
+    // Cleanup
+    return () => {
+      unsubscribeProgress()
+      unsubscribeComplete()
+      unsubscribeError()
+    }
+  }, [])
+
+  // Handle page change from WebviewContainer
+  const handlePageChanged = useCallback((info: CurrentPageInfo) => {
+    console.log('[App] Page changed:', info)
+    setCurrentPageInfo(info)
+  }, [])
+
+  // Handle download request from Toolbar
+  const handleDownloadClick = useCallback(async (modId: string, isCollection: boolean) => {
+    console.log('Download clicked:', { modId, isCollection })
 
     // Add to downloads list
     setDownloads(prev => {
-      if (prev.find(d => d.id === id)) return prev
+      if (prev.find(d => d.id === modId)) return prev
       return [...prev, {
-        id,
-        name: isCollection ? `Collection ${id}` : `Mod ${id}`,
+        id: modId,
+        name: isCollection ? `Collection ${modId}` : `Mod ${modId}`,
         progress: 0,
-        status: 'downloading'
+        status: 'downloading',
+        message: 'Starting download...'
       }]
     })
 
     // Call main process to download
     try {
       if (window.api) {
-        const result = await window.api.downloadMod(id, isCollection)
+        const result = await window.api.downloadMod(modId, isCollection)
         console.log('Download complete:', result)
-
-        setDownloads(prev => prev.map(d =>
-          d.id === id
-            ? { ...d, status: 'completed', progress: 100, name: result.name || d.name }
-            : d
-        ))
       }
     } catch (error) {
       console.error('Download failed:', error)
-      setDownloads(prev => prev.map(d =>
-        d.id === id
-          ? { ...d, status: 'error', error: String(error) }
-          : d
-      ))
     }
   }, [])
 
   return (
     <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}>
-      {/* Debug indicator - remove after fixing */}
+      {/* Debug indicator */}
       <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', padding: '4px 8px', zIndex: 99999, fontSize: '12px' }}>
-        App Loaded
+        App Loaded v2
       </div>
-      {/* Header / Toolbar */}
-      <Toolbar onSettingsClick={() => setShowSettings(!showSettings)} />
+
+      {/* Header / Toolbar with Download Button */}
+      <Toolbar
+        onSettingsClick={() => setShowSettings(!showSettings)}
+        onDownloadClick={handleDownloadClick}
+        currentPageInfo={currentPageInfo}
+      />
 
       {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         {/* Webview - Steam Workshop */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <WebviewContainer onDownloadRequest={handleDownloadRequest} />
+        <div style={{ flex: 1, display: 'flex', height: '100%' }}>
+          <WebviewContainer
+            ref={webviewRef}
+            onDownloadRequest={handleDownloadClick}
+            onPageChanged={handlePageChanged}
+          />
         </div>
 
         {/* Settings Panel (conditionally shown) */}
@@ -110,7 +191,7 @@ function App() {
       </div>
 
       {/* Bottom Status Bar - Download Queue */}
-      <DownloadQueue />
+      <DownloadQueue downloads={downloads} />
     </div>
   )
 }

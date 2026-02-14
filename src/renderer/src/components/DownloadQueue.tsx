@@ -6,10 +6,19 @@ interface DownloadItem {
   progress: number
   status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
   error?: string
+  message?: string
 }
 
-export function DownloadQueue() {
-  const [downloads, setDownloads] = useState<DownloadItem[]>([])
+interface DownloadQueueProps {
+  downloads?: DownloadItem[]
+}
+
+export function DownloadQueue({ downloads: externalDownloads }: DownloadQueueProps = {}) {
+  const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
+
+  // Use external downloads if provided, otherwise use internal state
+  const downloads = externalDownloads || internalDownloads
+  const setDownloads = externalDownloads ? () => {} : setInternalDownloads
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Listen for download updates from main process
