@@ -9,17 +9,41 @@ interface DownloadItem {
   message?: string
 }
 
+interface PendingDownloadItem {
+  id: string
+  name: string
+  isCollection: boolean
+  modName?: string
+}
+
 interface DownloadQueueProps {
   downloads?: DownloadItem[]
   batchInfo?: any
+  pendingQueue?: PendingDownloadItem[]
+  selectedForDelete?: string[]
+  onToggleSelectForDelete?: (id: string) => void
+  onSelectAllForDelete?: () => void
+  onRequestDelete?: (id?: string) => void
+  onClearCompleted?: () => void
+  onClearAll?: () => void
 }
 
-export function DownloadQueue({ downloads: externalDownloads, batchInfo }: DownloadQueueProps = {}) {
+export function DownloadQueue({
+  downloads: externalDownloads,
+  batchInfo,
+  pendingQueue,
+  selectedForDelete,
+  onToggleSelectForDelete,
+  onSelectAllForDelete,
+  onRequestDelete,
+  onClearCompleted,
+  onClearAll
+}: DownloadQueueProps = {}) {
   const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
 
   // Use external downloads if provided, otherwise use internal state
   const downloads = externalDownloads || internalDownloads
-  const setDownloads = externalDownloads ? () => {} : setInternalDownloads
+  const setDownloads = externalDownloads ? undefined : setInternalDownloads
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Listen for download updates from main process
@@ -28,15 +52,17 @@ export function DownloadQueue({ downloads: externalDownloads, batchInfo }: Downl
     // For now, we'll use a placeholder
     const handleDownloadUpdate = (event: CustomEvent) => {
       const { id, name, progress, status, error } = event.detail
-      setDownloads((prev) => {
-        const existing = prev.find((d) => d.id === id)
-        if (existing) {
-          return prev.map((d) =>
-            d.id === id ? { ...d, progress, status, error } : d
-          )
-        }
-        return [...prev, { id, name, progress, status, error }]
-      })
+      if (setDownloads) {
+        setDownloads((prev) => {
+          const existing = prev.find((d) => d.id === id)
+          if (existing) {
+            return prev.map((d) =>
+              d.id === id ? { ...d, progress, status, error } : d
+            )
+          }
+          return [...prev, { id, name, progress, status, error }]
+        })
+      }
     }
 
     window.addEventListener(
@@ -50,7 +76,7 @@ export function DownloadQueue({ downloads: externalDownloads, batchInfo }: Downl
         handleDownloadUpdate as any
       )
     }
-  }, [])
+  }, [setDownloads])
 
   // Calculate summary stats
   const activeDownloads = downloads.filter(
@@ -96,12 +122,20 @@ export function DownloadQueue({ downloads: externalDownloads, batchInfo }: Downl
 
   // Clear completed downloads
   const clearCompleted = () => {
-    setDownloads((prev) => prev.filter((d) => d.status !== 'completed'))
+    if (onClearCompleted) {
+      onClearCompleted()
+    } else if (setDownloads) {
+      setDownloads((prev) => prev.filter((d) => d.status !== 'completed'))
+    }
   }
 
   // Clear all downloads
   const clearAll = () => {
-    setDownloads([])
+    if (onClearAll) {
+      onClearAll()
+    } else if (setDownloads) {
+      setDownloads([])
+    }
   }
 
   return (
@@ -203,6 +237,134 @@ export function DownloadQueue({ downloads: externalDownloads, batchInfo }: Downl
             overflowY: 'auto'
           }}
         >
+          {/* 待下载队列 */}
+          {pendingQueue && pendingQueue.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
+                    📋 待下载 ({pendingQueue.length})
+                  </span>
+                  {/* 全选/取消全选按钮 */}
+                  {onSelectAllForDelete && (
+                    <button
+                      onClick={onSelectAllForDelete}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #3d6c8d',
+                        color: '#8f98a0',
+                        padding: '4px 10px',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {selectedForDelete?.length === pendingQueue.length ? '取消全选' : '全选'}
+                    </button>
+                  )}
+                  {/* 批量删除按钮 */}
+                  {selectedForDelete && selectedForDelete.length > 0 && onRequestDelete && (
+                    <button
+                      onClick={() => onRequestDelete()}
+                      style={{
+                        background: '#f44336',
+                        border: 'none',
+                        color: 'white',
+                        padding: '4px 10px',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      删除选中 ({selectedForDelete.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {pendingQueue.map(item => {
+                  const isSelected = selectedForDelete?.includes(item.id)
+                  return (
+                    <div key={item.id} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      background: isSelected ? '#3a2c47' : '#2a475e',
+                      borderRadius: '6px',
+                      borderLeft: `3px solid ${isSelected ? '#f44336' : '#e6b800'}`
+                    }}>
+                      {/* 复选框 */}
+                      {onToggleSelectForDelete && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleSelectForDelete(item.id)}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      )}
+
+                      {/* Icon */}
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#1b2838',
+                        borderRadius: '50%',
+                        fontSize: '16px'
+                      }}>
+                        📋
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: 500,
+                          color: '#c6d4df',
+                          marginBottom: '4px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {item.modName || item.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#8f98a0' }}>
+                          {item.isCollection ? 'Collection' : 'Mod'} • ID: {item.id}
+                        </div>
+                      </div>
+
+                      {/* 单独删除按钮 */}
+                      {onRequestDelete && (
+                        <button
+                          onClick={() => onRequestDelete(item.id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#8f98a0',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            lineHeight: 1
+                          }}
+                          title="从队列移除"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {batchInfo && batchInfo.isBatch && (
             <div
               style={{

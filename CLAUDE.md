@@ -24,6 +24,7 @@
 ✅ Phase 2: Download Pipeline  - 完成
 ✅ Phase 3: Intelligence      - 完成
 ✅ Bug Fixes: 2025-02-15     - 完成 (SteamCMD配置, IPC监听器, 版本对话框, 配置集成)
+✅ Phase 3.5: Pending Queue   - 完成 (待下载队列, Add按钮, 统一版本检测)
 ⏳ Phase 4: Git Integration   - 骨架有了，未集成
 ```
 
@@ -51,11 +52,13 @@ src/
 │       ├── App.css                # 全局样式
 │       └── components/
 │           ├── WebviewContainer.tsx    # Steam Workshop 浏览器
-│           ├── Toolbar.tsx              # 工具栏 + 下载按钮
+│           ├── Toolbar.tsx              # 工具栏 + 下载/添加按钮
 │           ├── DownloadQueue.tsx        # 下载队列状态栏
 │           ├── SettingsPanel.tsx        # 设置面板
 │           ├── DependencyDialog.tsx     # 依赖选择对话框
-│           └── VersionMismatchDialog.tsx # 版本不匹配警告 (已集成!)
+│           ├── VersionMismatchDialog.tsx # 版本不匹配警告
+│           ├── PendingQueueDialog.tsx   # 待下载队列确认对话框
+│           └── DeleteConfirmDialog.tsx  # 删除确认对话框
 └── shared/
     └── types.ts                   # 共享类型定义
 ```
@@ -247,7 +250,7 @@ UI 重新渲染
 
 #### ConfigManager (配置管理)
 
-**文件**: `src/main/utils/ConfigManager.ts
+**文件**: `src/main/utils/ConfigManager.ts`
 
 **默认配置:**
 ```typescript
@@ -310,7 +313,7 @@ configManager.detectGameVersion() // 自动检测版本
 
 #### SteamCMD (SteamCMD 进程包装器)
 
-**文件**: `src/main/services/SteamCMD.ts
+**文件**: `src/main/services/SteamCMD.ts`
 
 **执行的命令:**
 ```batch
@@ -338,7 +341,7 @@ steamCMD.on('progress', (progress) => { ... })  // 监听进度
 
 #### ModProcessor (Mod 文件处理)
 
-**文件**: `src/main/services/ModProcessor.ts
+**文件**: `src/main/services/ModProcessor.ts`
 
 **原子文件操作:**
 ```
@@ -368,7 +371,7 @@ modProcessor.processMod(modId)             // 处理 (移动) mod
 
 #### WorkshopScraper (Steam Workshop 网页抓取)
 
-**文件**: `src/main/services/WorkshopScraper.ts
+**文件**: `src/main/services/WorkshopScraper.ts`
 
 **HTTP 请求配置:**
 ```typescript
@@ -405,7 +408,7 @@ workshopScraper.scrapeModVersion(modId)
 
 #### WebviewContainer (Steam 浏览器)
 
-**文件**: `src/renderer/src/components/WebviewContainer.tsx
+**文件**: `src/renderer/src/components/WebviewContainer.tsx`
 
 **重要特性:**
 - `<webview partition="persist:steam"` - 持久化登录状态!
@@ -431,7 +434,7 @@ interface CurrentPageInfo {
 
 #### Toolbar (工具栏)
 
-**文件**: `src/renderer/src/components/Toolbar.tsx
+**文件**: `src/renderer/src/components/Toolbar.tsx`
 
 **布局:**
 ```
@@ -448,7 +451,7 @@ interface CurrentPageInfo {
 
 #### App.tsx (主应用)
 
-**文件**: `src/renderer/src/App.tsx
+**文件**: `src/renderer/src/App.tsx`
 
 **State:**
 ```typescript
@@ -473,31 +476,93 @@ const [gameVersion, setGameVersion] = useState<string>('')
 2. 检查依赖 (根据 `download.dependencyMode` 配置)
 3. 开始下载
 
+### 待下载队列功能 (Phase 3.5)
+
+#### 功能概述
+用户可以将 mod 添加到待下载队列，然后批量下载。Add 按钮与 Download 按钮使用完全相同的配置约束和版本匹配逻辑。
+
+#### 新增组件
+- **PendingQueueDialog.tsx** - 待下载队列确认对话框，显示队列中的所有 mod 并确认开始下载
+- **DeleteConfirmDialog.tsx** - 删除确认对话框，确认从队列中删除选中的 mod
+
+#### Toolbar 修改
+- 添加了 "Add" 按钮，与 "Download" 按钮并排
+- Add 按钮使用完全相同的版本检查逻辑
+- 两个按钮都受相同的设置约束（`version.onMismatch`, `download.skipVersionCheck`, `download.dependencyMode`）
+
+#### App.tsx State
+```typescript
+const [pendingQueue, setPendingQueue] = useState<PendingDownloadItem[]>([])
+const [showPendingQueueDialog, setShowPendingQueueDialog] = useState(false)
+const [selectedForDelete, setSelectedForDelete] = useState<string[]>([])
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<...>(null)
+```
+
+#### 下载 vs 添加到队列对比
+
+| 特性 | Download 按钮 | Add 按钮 |
+|------|--------------|----------|
+| 版本检查 | ✅ | ✅ |
+| 依赖检查 | ✅ | ✅ |
+| 配置约束 | ✅ | ✅ |
+| 版本不匹配对话框 | ✅ 显示"强制下载"/"跳过" | ✅ 显示"强制添加"/"取消" |
+| 依赖对话框 | ✅ | ✅ |
+| 立即执行 | ✅ 直接下载 | ❌ 添加到队列 |
+
+#### 统一的版本数据源
+**重要：** App.tsx 作为唯一的 `gameVersion` 数据源：
+- App.tsx 管理 `gameVersion` state
+- 通过 props 传递给 Toolbar 和 SettingsPanel
+- Toolbar 和 SettingsPanel 不再维护自己的本地 gameVersion state
+- 提供 `onRefreshGameVersion` 回调让子组件可以触发刷新
+- 切换 mod 路径时自动检测版本，并同步到设置面板
+
+#### DownloadQueue 增强
+- 添加 `pendingQueue` prop 显示待下载列表
+- 添加 `selectedForDelete`, `onToggleSelectForDelete`, `onSelectAllForDelete`, `onRequestDelete` 用于删除功能
+- 添加 `onClearCompleted` 和 `onClearAll` 回调 props（修复了 clear 按钮不工作的问题！）
+
+#### 循环依赖避免
+使用 useRef 来避免 useCallback 中的循环依赖：
+```typescript
+const pendingQueueRef = useRef<PendingDownloadItem[]>([])
+const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
+
+useEffect(() => {
+  pendingQueueRef.current = pendingQueue
+}, [pendingQueue])
+
+useEffect(() => {
+  currentPageInfoRef.current = currentPageInfo
+}, [currentPageInfo])
+```
+
 ### 开发注意事项 (纯 Vibe Coding)
 
-⚠️ **SteamCMD 路径有空格? → `spawn()` 自动处理，不用引号
+⚠️ **SteamCMD 路径有空格?** → `spawn()` 自动处理，不用引号
 
-⚠️ **文件移动? → 用 ModProcessor 的原子操作，不要直接 fs.rename
+⚠️ **文件移动?** → 用 ModProcessor 的原子操作，不要直接 fs.rename
 
-⚠️ **IPC 监听器? → 一定要在 useEffect 返回 unsubscribe
+⚠️ **IPC 监听器?** → 一定要在 useEffect 返回 unsubscribe
 
-⚠️ **configManager.set? → 只能设置顶级键 (如 'rimworld'，不能 'rimworld.currentVersion')
+⚠️ **configManager.set?** → 只能设置顶级键 (如 'rimworld'，不能 'rimworld.currentVersion')
 
-⚠️ **SteamCMD 事件监听器? → 用 try/finally 保证 off() 被调用
+⚠️ **SteamCMD 事件监听器?** → 用 try/finally 保证 off() 被调用
 
-⚠️ **Webview 导航? → 监听 did-navigate-in-page (Steam 是 SPA!)
+⚠️ **Webview 导航?** → 监听 did-navigate-in-page (Steam 是 SPA!)
 
-⚠️ **不要注入脚本到 Steam 页面! → 下载按钮在应用工具栏，不在页面里
+⚠️ **不要注入脚本到 Steam 页面!** → 下载按钮在应用工具栏，不在页面里
 
 ### Vite 配置注意事项
 
-**文件**: `electron.vite.config.ts
+**文件**: `electron.vite.config.ts`
 
 有一个 polyfill 注入到 main process 顶部，给 axios/undici 用：
 - File API polyfill
 - FormData API polyfill
 
-**不要删除这个！否则 axios 会在 main process 报错。
+**不要删除这个！** 否则 axios 会在 main process 报错。
 
 ### 配色方案 (Steam 风格)
 
@@ -596,6 +661,17 @@ GitManager 已经写好了 (`src/main/services/GitManager.ts`)，但没集成。
 - 确认 `download.skipVersionCheck` 为 false
 - 确认 Mod 页面能正确解析到支持版本
 
+### Clear 按钮不工作
+- DownloadQueue 现在使用 `onClearCompleted` 和 `onClearAll` 回调 props
+- 这些回调必须由 App.tsx 提供并传入
+- 不要依赖 DownloadQueue 内部的 setDownloads 来处理外部 downloads state
+
+### 版本检测不同步
+- 确认 App.tsx 是唯一的 gameVersion 数据源
+- Toolbar 和 SettingsPanel 通过 props 接收 gameVersion
+- 使用 onRefreshGameVersion 回调来触发刷新
+- 切换 mod 路径时会自动检测并同步更新
+
 ## Preload API (window.api)
 
 ```typescript
@@ -635,4 +711,4 @@ window.api = {
 
 ---
 
-**好了，继续 Vibe Coding！🚀
+**好了，继续 Vibe Coding！🚀**

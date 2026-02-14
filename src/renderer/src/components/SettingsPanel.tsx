@@ -3,16 +3,22 @@ import { useState, useEffect } from 'react'
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  gameVersion?: string;
+  onRefreshGameVersion?: () => Promise<string>;
+  onConfigSaved?: (newConfig: any) => void;
 }
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, onRefreshGameVersion, onConfigSaved }: SettingsPanelProps) {
   const [config, setConfig] = useState<any>(null)
   const [tempConfig, setTempConfig] = useState<any>(null)
-  const [detectedVersion, setDetectedVersion] = useState<string>('1.6')
+  const [localDetectedVersion, setLocalDetectedVersion] = useState<string>('1.6')
 
-  // Load config on mount
+  // 使用传入的 gameVersion，如果没有则使用本地状态
+  const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
+
+  // Load config on mount and when panel opens
   useEffect(() => {
-    if (window.api) {
+    if (window.api && isOpen) {
       window.api.getConfig().then((cfg) => {
         // Ensure default values are set
         const mergedConfig = {
@@ -31,16 +37,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
         // Initialize detectedVersion from config
         if (mergedConfig.rimworld?.currentVersion) {
-          setDetectedVersion(mergedConfig.rimworld.currentVersion)
+          if (propGameVersion === undefined) {
+            setLocalDetectedVersion(mergedConfig.rimworld.currentVersion)
+          }
         }
 
-        // Also call detectGameVersion to get the real version
-        window.api.detectGameVersion().then((version) => {
-          setDetectedVersion(version)
-        }).catch(console.error)
+        // Also call detectGameVersion to get the real version if not provided
+        if (propGameVersion === undefined) {
+          window.api.detectGameVersion().then((version) => {
+            setLocalDetectedVersion(version)
+          }).catch(console.error)
+        }
       })
     }
-  }, [])
+  }, [propGameVersion, isOpen])
 
   // Handle save
   const handleSave = async () => {
@@ -50,6 +60,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         await window.api.setConfig(key, value)
       }
       setConfig({ ...tempConfig })
+      // 通知父组件配置已更新
+      if (onConfigSaved) {
+        onConfigSaved(tempConfig)
+      }
       onClose()
     }
   }
@@ -64,8 +78,15 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const handleDetectVersion = async () => {
     if (window.api) {
       try {
-        const version = await window.api.detectGameVersion()
-        setDetectedVersion(version)
+        let version: string
+        if (onRefreshGameVersion) {
+          version = await onRefreshGameVersion()
+        } else {
+          version = await window.api.detectGameVersion()
+          if (propGameVersion === undefined) {
+            setLocalDetectedVersion(version)
+          }
+        }
 
         setTempConfig(prev => ({
           ...prev,

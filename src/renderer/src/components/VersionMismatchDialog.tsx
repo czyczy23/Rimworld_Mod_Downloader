@@ -5,8 +5,8 @@ interface VersionMismatchDialogProps {
   modName: string
   modVersions: string[]
   gameVersion: string
-  onConfirm: () => void
-  onCancel: () => void
+  onConfirm: (rememberChoice: boolean, action: 'force' | 'skip') => void
+  actionType?: 'download' | 'add'
 }
 
 export function VersionMismatchDialog({
@@ -15,11 +15,32 @@ export function VersionMismatchDialog({
   modVersions,
   gameVersion,
   onConfirm,
-  onCancel
+  actionType = 'download'
 }: VersionMismatchDialogProps) {
   const [dontAskAgain, setDontAskAgain] = useState(false)
+  const [rememberAction, setRememberAction] = useState<'force' | 'skip'>('force')
 
   if (!isOpen) return null
+
+  const handleSkip = () => {
+    onConfirm(dontAskAgain, 'skip')
+  }
+
+  const handleForce = () => {
+    onConfirm(dontAskAgain, 'force')
+  }
+
+  const forceButtonText = actionType === 'download' ? '强制下载' : '强制添加'
+  const skipButtonText = actionType === 'download' ? '跳过' : '取消'
+  const warningText = actionType === 'download'
+    ? '强制下载不兼容的模组可能导致游戏崩溃或存档损坏。请确保您知道自己在做什么。'
+    : '强制添加不兼容的模组可能导致游戏崩溃或存档损坏。请确保您知道自己在做什么。'
+  const rememberForceText = actionType === 'download'
+    ? '总是强制下载（跳过版本检查）'
+    : '总是强制添加（跳过版本检查）'
+  const rememberSkipText = actionType === 'download'
+    ? '总是跳过（拒绝不兼容的Mod）'
+    : '总是取消（拒绝不兼容的Mod）'
 
   return (
     <div style={{
@@ -110,7 +131,8 @@ export function VersionMismatchDialog({
             padding: '12px',
             display: 'flex',
             alignItems: 'flex-start',
-            gap: '8px'
+            gap: '8px',
+            marginBottom: '16px'
           }}>
             <span>💡</span>
             <p style={{
@@ -119,40 +141,108 @@ export function VersionMismatchDialog({
               margin: 0,
               lineHeight: 1.4
             }}>
-              强制下载不兼容的模组可能导致游戏崩溃或存档损坏。请确保您知道自己在做什么。
+              {warningText}
             </p>
           </div>
 
-          {/* Don't Ask Again Checkbox */}
+          {/* Remember choice options */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginTop: '16px'
+            background: '#243447',
+            borderRadius: '4px',
+            padding: '12px',
+            marginBottom: '8px'
           }}>
-            <input
-              type="checkbox"
-              id="dontAskAgain"
-              checked={dontAskAgain}
-              onChange={(e) => setDontAskAgain(e.target.checked)}
-              style={{
-                width: '16px',
-                height: '16px',
-                cursor: 'pointer'
-              }}
-            />
-            <label
-              htmlFor="dontAskAgain"
-              style={{
-                color: '#8f98a0',
-                fontSize: '13px',
-                cursor: 'pointer',
-                userSelect: 'none'
-              }
-            }
-            >
-              记住我的选择，下次不再询问
-            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px'
+            }}>
+              <input
+                type="checkbox"
+                id="dontAskAgain"
+                checked={dontAskAgain}
+                onChange={(e) => setDontAskAgain(e.target.checked)}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'pointer'
+                }}
+              />
+              <label
+                htmlFor="dontAskAgain"
+                style={{
+                  color: '#c6d4df',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+              >
+                记住我的选择，下次不再询问
+              </label>
+            </div>
+
+            {dontAskAgain && (
+              <div style={{
+                marginLeft: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    id="rememberForce"
+                    name="rememberAction"
+                    value="force"
+                    checked={rememberAction === 'force'}
+                    onChange={() => setRememberAction('force')}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <label
+                    htmlFor="rememberForce"
+                    style={{
+                      color: '#8f98a0',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {rememberForceText}
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    id="rememberSkip"
+                    name="rememberAction"
+                    value="skip"
+                    checked={rememberAction === 'skip'}
+                    onChange={() => setRememberAction('skip')}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <label
+                    htmlFor="rememberSkip"
+                    style={{
+                      color: '#8f98a0',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {rememberSkipText}
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -165,7 +255,7 @@ export function VersionMismatchDialog({
           gap: '12px'
         }}>
           <button
-            onClick={onCancel}
+            onClick={handleSkip}
             style={{
               background: '#2a475e',
               color: '#c6d4df',
@@ -185,10 +275,10 @@ export function VersionMismatchDialog({
               e.currentTarget.style.color = '#c6d4df'
             }}
           >
-            取消
+            {skipButtonText}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={handleForce}
             style={{
               background: '#e6b800',
               color: '#1b2838',
@@ -203,7 +293,7 @@ export function VersionMismatchDialog({
             onMouseEnter={(e) => (e.currentTarget.style.background = '#f0c000')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#e6b800')}
           >
-            强制下载
+            {forceButtonText}
           </button>
         </div>
       </div>
