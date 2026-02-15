@@ -64,6 +64,23 @@ export function setupIpcHandlers(): void {
         steamCMD.off('progress', progressHandler)
       }
 
+      // Check if was cancelled by user
+      if (!downloadResult.success && downloadResult.error === 'CANCELLED') {
+        console.log(`[IPC] Download cancelled for mod ${id}`)
+        return {
+          id,
+          name: isCollection ? `Collection ${id}` : `Mod ${id}`,
+          author: 'Unknown',
+          description: 'Download cancelled by user',
+          supportedVersions: [],
+          dependencies: [],
+          isCollection: isCollection || false,
+          localPath: '',
+          downloadStatus: 'cancelled' as any,
+          errorMessage: 'CANCELLED'
+        }
+      }
+
       if (!downloadResult.success) {
         throw new Error(downloadResult.error || 'Download failed')
       }
@@ -143,6 +160,13 @@ export function setupIpcHandlers(): void {
         errorMessage
       }
     }
+  })
+
+  // ===== Cancel Download Handler =====
+  ipcMain.handle('mod:cancelDownload', async () => {
+    console.log('[IPC] Cancel download requested')
+    const success = steamCMD.cancelDownload()
+    return { success }
   })
 
   // ===== Mod Version Check Handler =====
@@ -302,6 +326,22 @@ export function setupIpcHandlers(): void {
     const { dialog } = await import('electron')
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory']
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+
+  ipcMain.handle('dialog:selectFile', async (_, options?: {
+    title?: string,
+    defaultPath?: string,
+    filters?: { name: string, extensions: string[] }[],
+    properties?: ('openFile' | 'multiSelections')[]
+  }) => {
+    const { dialog } = await import('electron')
+    const result = await dialog.showOpenDialog({
+      title: options?.title || '选择文件',
+      defaultPath: options?.defaultPath,
+      filters: options?.filters,
+      properties: options?.properties || ['openFile']
     })
     return result.canceled ? null : result.filePaths[0]
   })

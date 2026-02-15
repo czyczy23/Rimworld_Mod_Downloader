@@ -23,6 +23,11 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         // Ensure default values are set
         const mergedConfig = {
           ...cfg,
+          steamcmd: {
+            ...cfg.steamcmd,
+            executablePath: cfg.steamcmd?.executablePath || '',
+            downloadPath: cfg.steamcmd?.downloadPath || ''
+          },
           download: {
             ...cfg.download,
             dependencyMode: cfg.download?.dependencyMode || 'ask'
@@ -55,6 +60,16 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Handle save
   const handleSave = async () => {
     if (window.api) {
+      // Validate SteamCMD path
+      const steamCmdPath = tempConfig.steamcmd?.executablePath
+      if (steamCmdPath) {
+        const isValid = await validateSteamCmdPath(steamCmdPath)
+        if (!isValid) {
+          alert('请选择有效的 steamcmd.exe 文件！\n\n文件名必须是 steamcmd.exe (不区分大小写)。')
+          return
+        }
+      }
+
       // Save all config changes
       for (const [key, value] of Object.entries(tempConfig)) {
         await window.api.setConfig(key, value)
@@ -147,6 +162,38 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     }))
   }
 
+  // Handle SteamCMD executable path browse
+  const handleBrowseSteamCmdPath = async () => {
+    if (window.api) {
+      const api = window.api as any
+      const selectedPath = await api.selectFile?.({
+        title: '选择 SteamCMD 可执行文件',
+        defaultPath: tempConfig.steamcmd?.executablePath,
+        filters: [
+          { name: '可执行文件', extensions: ['exe'] }
+        ],
+        properties: ['openFile']
+      })
+      if (selectedPath) {
+        setTempConfig(prev => ({
+          ...prev,
+          steamcmd: {
+            ...prev.steamcmd,
+            executablePath: selectedPath
+          }
+        }))
+      }
+    }
+  }
+
+  // Validate SteamCMD path
+  const validateSteamCmdPath = async (path: string): Promise<boolean> => {
+    if (!path) return false
+    // Basic client-side validation: check if filename is steamcmd.exe (case-insensitive)
+    const filename = path.split(/[/\\]/).pop() || ''
+    return filename.toLowerCase() === 'steamcmd.exe'
+  }
+
   // Handle auto detect toggle
   const handleAutoDetectToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const autoDetect = e.target.checked
@@ -211,6 +258,65 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         >
           ×
         </button>
+      </div>
+
+      {/* SteamCMD Settings */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+          🔧 SteamCMD 设置
+        </h4>
+
+        {/* SteamCMD Executable Path */}
+        <div style={{ marginBottom: '12px' }}>
+          <label
+            style={{
+              color: '#c6d4df',
+              fontSize: '13px',
+              display: 'block',
+              marginBottom: '8px'
+            }}
+          >
+            SteamCMD 可执行文件路径:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={tempConfig.steamcmd?.executablePath || ''}
+              readOnly
+              style={{
+                flex: 1,
+                background: '#2a475e',
+                color: '#c6d4df',
+                border: '1px solid #3d6c8d',
+                padding: '6px 10px',
+                borderRadius: '3px',
+                fontSize: '12px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+              title={tempConfig.steamcmd?.executablePath || ''}
+            />
+            <button
+              onClick={handleBrowseSteamCmdPath}
+              style={{
+                background: '#3d6c8d',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+            >
+              Browse
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Game Version Settings */}

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 
-interface DownloadItem {
+export interface DownloadItem {
   id: string
   name: string
   progress: number
-  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
+  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error' | 'cancelled'
   error?: string
   message?: string
 }
@@ -26,6 +26,7 @@ interface DownloadQueueProps {
   onRequestDelete?: (id?: string) => void
   onClearCompleted?: () => void
   onClearAll?: () => void
+  onCancelDownload?: (id: string) => void
 }
 
 export function DownloadQueue({
@@ -37,7 +38,8 @@ export function DownloadQueue({
   onSelectAllForDelete,
   onRequestDelete,
   onClearCompleted,
-  onClearAll
+  onClearAll,
+  onCancelDownload
 }: DownloadQueueProps = {}) {
   const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
 
@@ -84,13 +86,25 @@ export function DownloadQueue({
   )
   const completedDownloads = downloads.filter((d) => d.status === 'completed')
   const errorDownloads = downloads.filter((d) => d.status === 'error')
+  const stuckDownloads = downloads.filter((d) => d.progress < 0)
 
   // Get status display info
   const getStatusInfo = () => {
+    if (stuckDownloads.length > 0) {
+      return {
+        text: `${stuckDownloads.length} download${stuckDownloads.length > 1 ? 's' : ''} may be stuck...`,
+        progress: 0,
+        color: '#e6b800'
+      }
+    }
     if (activeDownloads.length > 0) {
-      const avgProgress = Math.round(
-        activeDownloads.reduce((sum, d) => sum + d.progress, 0) / activeDownloads.length
-      )
+      // Filter out negative (stuck) progress values for average
+      const validProgressDownloads = activeDownloads.filter(d => d.progress >= 0)
+      const avgProgress = validProgressDownloads.length > 0
+        ? Math.round(
+            validProgressDownloads.reduce((sum, d) => sum + d.progress, 0) / validProgressDownloads.length
+          )
+        : 0
       return {
         text: `Downloading ${activeDownloads.length} mod${activeDownloads.length > 1 ? 's' : ''}...`,
         progress: avgProgress,
@@ -527,6 +541,8 @@ export function DownloadQueue({
                           ? `Error: ${download.error || 'Unknown error'}`
                           : download.status === 'completed'
                           ? 'Completed'
+                          : download.progress < 0 && download.message
+                          ? download.message
                           : download.status === 'downloading'
                           ? 'Downloading...'
                           : download.status === 'moving'
@@ -536,10 +552,10 @@ export function DownloadQueue({
                           : 'Pending...'}
                       </div>
 
-                      {/* Progress bar for active downloads */}
+                      {/* Progress bar for active downloads (only show if progress >= 0) */}
                       {(download.status === 'downloading' ||
                         download.status === 'moving' ||
-                        download.status === 'checking') && (
+                        download.status === 'checking') && download.progress >= 0 && (
                         <div
                           style={{
                             width: '100%',
@@ -564,21 +580,54 @@ export function DownloadQueue({
                       )}
                     </div>
 
-                    {/* Progress percentage */}
+                    {/* Progress percentage - only show if progress >= 0 */}
                     {(download.status === 'downloading' ||
                       download.status === 'moving' ||
-                      download.status === 'checking') && (
+                      download.status === 'checking') && download.progress >= 0 && (
                       <div
                         style={{
                           fontSize: '14px',
                           fontWeight: 500,
-                          color: '#66c0f4',
+                          color: download.progress < 0 ? '#e6b800' : '#66c0f4',
                           minWidth: '40px',
                           textAlign: 'right'
                         }}
                       >
                         {download.progress}%
                       </div>
+                    )}
+                    {/* Warning icon for stuck downloads */}
+                    {download.progress < 0 && (
+                      <div style={{ fontSize: '16px' }}>⚠️</div>
+                    )}
+                    {/* Cancel button for active downloads */}
+                    {(download.status === 'downloading' ||
+                      download.status === 'checking' ||
+                      download.status === 'moving' ||
+                      download.progress < 0) && onCancelDownload && (
+                      <button
+                        onClick={() => onCancelDownload(download.id)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid #f44336',
+                          color: '#f44336',
+                          padding: '4px 10px',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          whiteSpace: 'nowrap'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#f44336'
+                          e.currentTarget.style.color = 'white'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = '#f44336'
+                        }}
+                      >
+                        取消
+                      </button>
                     )}
                   </div>
                 ))}

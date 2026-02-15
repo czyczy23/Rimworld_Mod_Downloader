@@ -47,6 +47,10 @@ const api = {
 
   // Dialog
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+  selectFile: (options?: any) => ipcRenderer.invoke('dialog:selectFile', options),
+
+  // Cancel download
+  cancelDownload: () => ipcRenderer.invoke('mod:cancelDownload'),
 
   // Download progress listener
   onDownloadProgress: (callback: DownloadProgressCallback) => {

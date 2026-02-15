@@ -25,6 +25,8 @@ An Electron + TypeScript + Vite desktop application for downloading and managing
 ✅ Bug Fixes: 2026-02-15     - Completed (SteamCMD config, IPC listeners, version dialog, config integration)
 ✅ Phase 3.5: Pending Queue   - Completed (pending download queue, Add button, unified version checking)
 ✅ Dependency & Version Parsing Improvements - Completed (improved multi-version parsing, enhanced dependency detection)
+✅ SteamCMD Path Configuration - Completed (custom steamcmd.exe path selection in Settings)
+✅ Download Cancellation & Stuck Detection - Completed (cancel button, activity timeout, stuck process warning)
 ```
 
 ## Directory Structure
@@ -130,9 +132,11 @@ return unsubscribe
 | `version:detect` | invoke | Detect game version |
 | `mod:download` | invoke | Download single mod |
 | `mod:downloadBatch` | invoke | Batch download |
+| `mod:cancelDownload` | invoke | Cancel active download |
 | `mod:checkVersion` | invoke | Check mod version info |
 | `mod:checkDependencies` | invoke | Check dependencies |
 | `dialog:selectFolder` | invoke | Open folder picker |
+| `dialog:selectFile` | invoke | Open file picker |
 | `window:minimize` | invoke | Minimize window |
 | `window:maximize` | invoke | Maximize window |
 | `window:close` | invoke | Close window |
@@ -271,7 +275,8 @@ UI re-renders
     autoDownloadDependencies: false,
     skipVersionCheck: false,
     extractCollectionToSubfolder: true,
-    dependencyMode: 'ask'
+    dependencyMode: 'ask',
+    maxConcurrentDownloads: 1
   },
   version: {
     autoDetect: true,
@@ -324,12 +329,24 @@ Matches from stdout: `Downloading update (X of Y)" → percentage `(X/Y)*100`
 | `Downloaded item` | `Failure` |
 | `isDownloading = true` | stderr output |
 
-**Timeout:** 5 minutes (300,000 ms)
+**Timeouts:**
+- **Total timeout**: 5 minutes (300,000 ms)
+- **Connection timeout**: 30 seconds (warns if no output)
+- **Activity timeout**: 2 minutes (warns if no output after download started)
+
+**Stuck Process Detection:**
+- Monitors time since last stdout/stderr output
+- Sends warning message if no activity for 2 minutes
+- Uses `progress: -1` to indicate stuck state in UI
+- Shows ⚠️ icon in DownloadQueue
 
 **API:**
 ```typescript
 steamCMD.validate()           // Check if steamcmd.exe exists
 steamCMD.downloadMod(modId)   // Download mod
+steamCMD.cancelDownload(modId?) // Cancel download (specific mod or all)
+steamCMD.isDownloading()      // Check if any download active
+steamCMD.getCurrentModId()    // Get current downloading mod
 steamCMD.on('progress', (progress) => { ... })  // Listen for progress
 ```
 
@@ -538,6 +555,73 @@ useEffect(() => {
 }, [currentPageInfo])
 ```
 
+### SteamCMD Custom Path Configuration (New)
+
+**Feature Overview**
+Users can now specify a custom path to `steamcmd.exe` in the Settings Panel, rather than relying solely on the default location.
+
+**Settings Panel Additions**
+- Added "SteamCMD Settings" section at the top
+- SteamCMD executable path input field (read-only)
+- "Browse" button to open file picker dialog
+- Validation: Checks if selected file is actually `steamcmd.exe`
+- Alert shown if invalid file selected on save
+
+**IPC Handlers Added**
+- `dialog:selectFile` - File picker with filters for `.exe` files
+- `mod:cancelDownload` - Cancel the currently active download
+
+**Preload API Added**
+```typescript
+window.api = {
+  // ... existing
+  selectFile: (options?: {
+    title?: string
+    defaultPath?: string
+    filters?: { name: string, extensions: string[] }[]
+    properties?: ('openFile' | 'multiSelections')[]
+  }) => Promise<string | null>
+
+  cancelDownload: () => Promise<{ success: boolean }>
+}
+```
+
+### Download Cancellation & Stuck Process Detection (New)
+
+**Feature Overview**
+Enhanced SteamCMD process monitoring with user cancellation and automatic stuck process detection.
+
+**Cancellation Features**
+- "取消" (Cancel) button shown for active downloads in DownloadQueue
+- Clicking cancel sends `SIGTERM` then `SIGKILL` if needed
+- Download status changes to `'cancelled'` in UI
+- Cancelled mods are added back to pending queue for retry
+
+**Stuck Process Detection**
+- **Connection timeout**: 30 seconds - warns if no initial output
+- **Activity timeout**: 120 seconds - warns if no output during download
+- **Hard timeout**: 300 seconds (5 minutes) - terminates process
+- Shows warning message in UI: "Process seems stuck - no activity for Xs. Waiting..."
+- Uses `progress: -1` to signal stuck state
+- Shows ⚠️ icon in DownloadQueue
+
+**SteamCMD Class Enhancements**
+```typescript
+class SteamCMD extends EventEmitter {
+  private activeDownloads = new Map<string, { process, cancelRequested, cancelResolve }>()
+
+  cancelDownload(modId?: string): boolean
+  isDownloading(): boolean
+  getCurrentModId(): string | null
+}
+```
+
+**Download Item Status Extended**
+```typescript
+type DownloadStatus = 'pending' | 'downloading' | 'checking' | 'moving' |
+                      'completed' | 'error' | 'cancelled'
+```
+
 ### Development Notes (Pure Vibe Coding)
 
 ⚠️ **SteamCMD path with spaces?** → `spawn()` handles it automatically, no quotes needed
@@ -594,10 +678,10 @@ There's a polyfill injected at the top of main process for axios/undici:
 
 The following issues are left as-is since they don't affect core functionality and the code is still in development:
 
-1. **Batch download code duplication** - `mod:download` and `downloadSingleMod()` have duplicate logic
+1. **Parallel downloads - Parallel downloads (maxConcurrentDownloads config exists but implementation pending
 2. **About.xml parsed with regex** - `fast-xml-parser` installed but not used
 3. **Unused dependencies** - `zustand` installed but not used (using React useState)
-4. **Hardcoded timeout** - SteamCMD 5-minute timeout should be in config
+4. **SteamCMD timeout config** - SteamCMD timeouts should be in config
 5. **Too many console.logs** - Production may need logging system
 6. **WorkshopScraper disables SSL verification** - `rejectUnauthorized: false` (security risk)
 
@@ -678,6 +762,10 @@ window.api = {
 
   // Dialog
   selectFolder: () => Promise<string | null>
+  selectFile: (options?: FileSelectOptions) => Promise<string | null>
+
+  // Download control
+  cancelDownload: () => Promise<{ success: boolean }>
 
   // Event listeners (returns unsubscribe function!)
   onDownloadProgress: (callback) => (() => void)
