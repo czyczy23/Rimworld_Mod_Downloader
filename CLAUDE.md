@@ -27,6 +27,7 @@ An Electron + TypeScript + Vite desktop application for downloading and managing
 ✅ Dependency & Version Parsing Improvements - Completed (improved multi-version parsing, enhanced dependency detection)
 ✅ SteamCMD Path Configuration - Completed (custom steamcmd.exe path selection in Settings)
 ✅ Download Cancellation & Stuck Detection - Completed (cancel button, activity timeout, stuck process warning)
+✅ Config Isolation Fixes - Completed (prevent steamcmd path overwrite when changing mod paths)
 ```
 
 ## Directory Structure
@@ -622,6 +623,27 @@ type DownloadStatus = 'pending' | 'downloading' | 'checking' | 'moving' |
                       'completed' | 'error' | 'cancelled'
 ```
 
+### Config Isolation Fixes (2026-02-15)
+
+**Problem**: Changing mod paths in Toolbar would overwrite steamcmd path, and custom paths wouldn't persist after restart.
+
+**Root Cause**: SettingsPanel was saving all config keys (including `rimworld`) using stale `tempConfig` data from when the panel was first opened.
+
+**Fix Applied**:
+1. **SettingsPanel initialization**: Removed `|| ''` that was forcing undefined values to empty strings
+2. **SettingsPanel save logic**: Changed from saving all keys to only saving `steamcmd`, `download`, and `version` - the fields actually managed by the SettingsPanel
+3. **Config defaults**: Added `maxConcurrentDownloads` back to default config
+
+**Key Files Modified**:
+- `src/renderer/src/components/SettingsPanel.tsx:60-88` - Save only relevant config fields
+- `src/renderer/src/components/SettingsPanel.tsx:24-39` - Removed destructive `|| ''`
+- `src/main/utils/ConfigManager.ts:54-59` - Added missing `maxConcurrentDownloads`
+
+**Result**:
+- Toolbar can change mod paths without affecting steamcmd path
+- Custom paths persist correctly across app restarts
+- SettingsPanel and Toolbar configs are properly isolated
+
 ### Development Notes (Pure Vibe Coding)
 
 ⚠️ **SteamCMD path with spaces?** → `spawn()` handles it automatically, no quotes needed
@@ -637,6 +659,8 @@ type DownloadStatus = 'pending' | 'downloading' | 'checking' | 'moving' |
 ⚠️ **Webview navigation?** → Listen for did-navigate-in-page (Steam is SPA!)
 
 ⚠️ **Don't inject scripts into Steam pages!** → Download button is in app toolbar, not in page
+
+⚠️ **SettingsPanel should only save its own fields!** → SettingsPanel saves `steamcmd`, `download`, `version` only - never `rimworld` (that's Toolbar's responsibility)
 
 ### Vite Config Notes
 

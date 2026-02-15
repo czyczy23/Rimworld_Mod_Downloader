@@ -55,7 +55,8 @@ const defaults: AppConfig = {
     autoDownloadDependencies: false,
     skipVersionCheck: false,
     extractCollectionToSubfolder: true,
-    dependencyMode: 'ask'
+    dependencyMode: 'ask',
+    maxConcurrentDownloads: 1
   },
   version: {
     autoDetect: true,
