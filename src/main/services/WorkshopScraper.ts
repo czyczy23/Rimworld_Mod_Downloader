@@ -77,7 +77,11 @@ export class WorkshopScraper {
    */
   private parseVersionFromPage($: cheerio.CheerioAPI): string[] {
     const versions: string[] = []
-    const versionPattern = /Mod[,\s]+(\d+\.\d+)/g
+    const addedVersions = new Set<string>()
+
+    // 首先找到包含 "Mod" 开头的行，然后提取其中所有版本号
+    const modLinePattern = /Mod[,\s]+([\d\.,\s]+)/gi
+    const versionExtractPattern = /\b(\d+\.\d+(?:\.\d+)?)\b/g
 
     // 尝试多种可能的选择器
     const selectors = [
@@ -92,12 +96,52 @@ export class WorkshopScraper {
       const element = $(selector)
       if (element.length > 0) {
         const text = element.text().trim()
-        let match
-        while ((match = versionPattern.exec(text)) !== null) {
-          const version = match[1]
-          if (!versions.includes(version)) {
-            versions.push(version)
+        console.log(`[WorkshopScraper] Checking selector ${selector}, text:`, text.substring(0, 200))
+
+        // 首先查找包含 "Mod" 的行，然后提取其中所有版本号
+        let lineMatch
+        modLinePattern.lastIndex = 0
+        while ((lineMatch = modLinePattern.exec(text)) !== null) {
+          const versionString = lineMatch[1]
+          console.log(`[WorkshopScraper] Found mod line with versions:`, versionString)
+          // 在版本字符串中提取所有版本号
+          let verMatch
+          versionExtractPattern.lastIndex = 0
+          while ((verMatch = versionExtractPattern.exec(versionString)) !== null) {
+            const fullVersion = verMatch[1]
+            // 只提取主版本和次版本（1.5, 1.6），忽略补丁号
+            const mainVersion = fullVersion.match(/^(\d+\.\d+)/)?.[1]
+            if (mainVersion && !addedVersions.has(mainVersion)) {
+              addedVersions.add(mainVersion)
+              versions.push(mainVersion)
+            }
           }
+        }
+
+        // 如果找到了版本，就不用继续找其他选择器了
+        if (versions.length > 0) {
+          console.log(`[WorkshopScraper] Found versions from ${selector}:`, versions)
+          break
+        }
+
+        // 备用：如果文本中包含 "mod"，查找所有版本号
+        if (text.toLowerCase().includes('mod')) {
+          let verMatch
+          versionExtractPattern.lastIndex = 0
+          while ((verMatch = versionExtractPattern.exec(text)) !== null) {
+            const fullVersion = verMatch[1]
+            const mainVersion = fullVersion.match(/^(\d+\.\d+)/)?.[1]
+            if (mainVersion && !addedVersions.has(mainVersion)) {
+              addedVersions.add(mainVersion)
+              versions.push(mainVersion)
+            }
+          }
+        }
+
+        // 如果找到了版本，就不用继续找其他选择器了
+        if (versions.length > 0) {
+          console.log(`[WorkshopScraper] Found versions from ${selector} (fallback):`, versions)
+          break
         }
       }
     }
@@ -105,15 +149,25 @@ export class WorkshopScraper {
     // 如果仍未找到版本信息，尝试更通用的搜索
     if (versions.length === 0) {
       const bodyText = $('body').text()
-      let match
-      while ((match = versionPattern.exec(bodyText)) !== null) {
-        const version = match[1]
-        if (!versions.includes(version)) {
-          versions.push(version)
+      // 先找包含 "Mod" 的行
+      let lineMatch
+      modLinePattern.lastIndex = 0
+      while ((lineMatch = modLinePattern.exec(bodyText)) !== null) {
+        const versionString = lineMatch[1]
+        let verMatch
+        const versionExtractPattern2 = /\b(\d+\.\d+(?:\.\d+)?)\b/g
+        while ((verMatch = versionExtractPattern2.exec(versionString)) !== null) {
+          const fullVersion = verMatch[1]
+          const mainVersion = fullVersion.match(/^(\d+\.\d+)/)?.[1]
+          if (mainVersion && !addedVersions.has(mainVersion)) {
+            addedVersions.add(mainVersion)
+            versions.push(mainVersion)
+          }
         }
       }
     }
 
+    console.log(`[WorkshopScraper] Final versions found:`, versions)
     return versions
   }
 
@@ -145,12 +199,51 @@ export class WorkshopScraper {
    */
   private parseDependenciesFromPage($: cheerio.CheerioAPI): Dependency[] {
     const dependencies: Dependency[] = []
+    const addedIds = new Set<string>()
 
-    // 尝试找到 "Required Items" 或类似的依赖部分
-    const requiredSections = $('.workshopItemRequiredItems, .requiredItems, .dependencyList')
+    // 尝试多种选择器来找到"必需物品"区域
+    const selectors = [
+      '.workshopItemRequiredItems',
+      '.requiredItems',
+      '.dependencyList',
+      '[class*="requiredItems"]',
+      '[class*="RequiredItems"]'
+    ]
 
-    if (requiredSections.length > 0) {
-      requiredSections.find('a').each((_, element) => {
+    let requiredSection: cheerio.Cheerio<any> | null = null
+
+    // 尝试各个选择器
+    for (const selector of selectors) {
+      const element = $(selector)
+      if (element.length > 0) {
+        requiredSection = element
+        console.log(`[WorkshopScraper] Found required items section with selector: ${selector}`)
+        break
+      }
+    }
+
+    // 备用方案：查找包含"Required Items"或"必需物品"文本的区域
+    if (!requiredSection || requiredSection.length === 0) {
+      console.log('[WorkshopScraper] Trying fallback search for required items')
+      $('div').each((_, element) => {
+        const text = $(element).text()
+        if (text.includes('Required Items') || text.includes('必需物品')) {
+          // 找到这个区域后，查找附近的链接
+          const parent = $(element).parent()
+          const links = parent.find('a')
+          if (links.length > 0) {
+            requiredSection = parent
+            console.log('[WorkshopScraper] Found required items via text search')
+            return false // 跳出 each 循环
+          }
+        }
+      })
+    }
+
+    // 如果找到了依赖区域，解析其中的链接
+    if (requiredSection && requiredSection.length > 0) {
+      // 查找该区域内的所有链接
+      requiredSection.find('a').each((_, element) => {
         const href = $(element).attr('href')
         const name = $(element).text().trim()
 
@@ -159,17 +252,23 @@ export class WorkshopScraper {
           const modIdMatch = href.match(/filedetails\/\?id=(\d+)/)
           if (modIdMatch) {
             const modId = modIdMatch[1]
-            dependencies.push({
-              id: modId,
-              name: name,
-              isOptional: false,
-              willDownload: true
-            })
+            // 避免重复添加同一个依赖
+            if (!addedIds.has(modId)) {
+              addedIds.add(modId)
+              dependencies.push({
+                id: modId,
+                name: name,
+                isOptional: false,
+                willDownload: true
+              })
+              console.log(`[WorkshopScraper] Found dependency: ${name} (${modId})`)
+            }
           }
         }
       })
     }
 
+    console.log(`[WorkshopScraper] Total dependencies found: ${dependencies.length}`)
     return dependencies
   }
 
