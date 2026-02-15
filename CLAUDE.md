@@ -1,107 +1,105 @@
 # RimWorld Mod Downloader
 
-一个 Electron + TypeScript + Vite 桌面应用，用于从 Steam Workshop 下载和管理 RimWorld 模组。
+An Electron + TypeScript + Vite desktop application for downloading and managing RimWorld mods from Steam Workshop.
 
-## 技术栈
+## Tech Stack
 
-| 类别 | 技术 |
-|------|------|
-| 框架 | Electron 28.1.3 |
-| 构建 | electron-vite 2.0.0 |
+| Category | Technology |
+|----------|------------|
+| Framework | Electron 28.1.3 |
+| Build | electron-vite 2.0.0 |
 | UI | React 18.2.0 + TypeScript 5.3.3 |
-| 样式 | Tailwind CSS 3.4.1 (主要用内联样式) |
-| 配置 | electron-store 8.1.0 |
+| Styling | Tailwind CSS 3.4.1 (mostly inline styles) |
+| Config | electron-store 8.1.0 |
 | HTTP | axios 1.13.5 |
-| HTML 解析 | cheerio 1.2.0 |
-| XML 解析 | fast-xml-parser 4.3.4 (已安装但未用) |
-| Git | simple-git 3.21.0 (已安装但未集成) |
-| 状态管理 | React useState (**NOT Zustand** - 虽然装了但没用) |
+| HTML Parsing | cheerio 1.2.0 |
+| XML Parsing | fast-xml-parser 4.3.4 (installed but unused) |
+| State Management | React useState (**NOT Zustand** - installed but unused) |
 
-## 项目状态
+## Project Status
 
 ```
-✅ Phase 1: Core Shell        - 完成
-✅ Phase 2: Download Pipeline  - 完成
-✅ Phase 3: Intelligence      - 完成
-✅ Bug Fixes: 2025-02-15     - 完成 (SteamCMD配置, IPC监听器, 版本对话框, 配置集成)
-✅ Phase 3.5: Pending Queue   - 完成 (待下载队列, Add按钮, 统一版本检测)
-⏳ Phase 4: Git Integration   - 骨架有了，未集成
+✅ Phase 1: Core Shell        - Completed
+✅ Phase 2: Download Pipeline  - Completed
+✅ Phase 3: Intelligence      - Completed
+✅ Bug Fixes: 2026-02-15     - Completed (SteamCMD config, IPC listeners, version dialog, config integration)
+✅ Phase 3.5: Pending Queue   - Completed (pending download queue, Add button, unified version checking)
+✅ Dependency & Version Parsing Improvements - Completed (improved multi-version parsing, enhanced dependency detection)
 ```
 
-## 目录结构
+## Directory Structure
 
 ```
 src/
-├── main/                          # 主进程 (Node.js)
-│   ├── index.ts                   # 窗口创建, 应用入口
-│   ├── ipcHandlers.ts            # IPC 路由注册 ✨
-│   ├── polyfills.ts              # File/FormData polyfill (给 axios 用)
+├── main/                          # Main process (Node.js)
+│   ├── index.ts                   # Window creation, app entry
+│   ├── ipcHandlers.ts            # IPC route registration ✨
+│   ├── polyfills.ts              # File/FormData polyfill for axios
 │   ├── services/
-│   │   ├── SteamCMD.ts           # SteamCMD 进程包装器
-│   │   ├── ModProcessor.ts       # 文件操作 + About.xml 验证
-│   │   ├── WorkshopScraper.ts    # Steam 网页抓取 (axios + cheerio)
-│   │   └── GitManager.ts         # Git 自动化 (Phase 4, 未集成)
+│   │   ├── SteamCMD.ts           # SteamCMD process wrapper
+│   │   ├── ModProcessor.ts       # File operations + About.xml validation
+│   │   └── WorkshopScraper.ts    # Steam web scraping (axios + cheerio)
 │   └── utils/
-│       └── ConfigManager.ts      # 配置管理 (electron-store)
+│       └── ConfigManager.ts      # Config management (electron-store)
 ├── preload/
-│   └── index.ts                   # ContextBridge API 定义
-├── renderer/                      # 渲染进程 (React)
+│   └── index.ts                   # ContextBridge API definition
+├── renderer/                      # Renderer process (React)
 │   └── src/
-│       ├── App.tsx                # 主应用, 下载状态管理
-│       ├── main.tsx               # React 入口
-│       ├── App.css                # 全局样式
+│       ├── App.tsx                # Main app, download state management
+│       ├── main.tsx               # React entry
+│       ├── App.css                # Global styles
 │       └── components/
-│           ├── WebviewContainer.tsx    # Steam Workshop 浏览器
-│           ├── Toolbar.tsx              # 工具栏 + 下载/添加按钮
-│           ├── DownloadQueue.tsx        # 下载队列状态栏
-│           ├── SettingsPanel.tsx        # 设置面板
-│           ├── DependencyDialog.tsx     # 依赖选择对话框
-│           ├── VersionMismatchDialog.tsx # 版本不匹配警告
-│           ├── PendingQueueDialog.tsx   # 待下载队列确认对话框
-│           └── DeleteConfirmDialog.tsx  # 删除确认对话框
+│           ├── WebviewContainer.tsx    # Steam Workshop browser
+│           ├── Toolbar.tsx              # Toolbar + download/add buttons
+│           ├── DownloadQueue.tsx        # Download queue status bar
+│           ├── SettingsPanel.tsx        # Settings panel
+│           ├── DependencyDialog.tsx     # Dependency selection dialog
+│           ├── VersionMismatchDialog.tsx # Version mismatch warning
+│           ├── PendingQueueDialog.tsx   # Pending queue confirmation dialog
+│           └── DeleteConfirmDialog.tsx  # Delete confirmation dialog
 └── shared/
-    └── types.ts                   # 共享类型定义
+    └── types.ts                   # Shared type definitions
 ```
 
-**关键文件行数:**
-- `src/main/ipcHandlers.ts` - 325 行
-- `src/main/services/SteamCMD.ts` - 252 行
-- `src/main/services/ModProcessor.ts` - 264 行
-- `src/renderer/src/App.tsx` - 422 行
-- `src/renderer/src/components/Toolbar.tsx` - 469 行
+**Key file line counts:**
+- `src/main/ipcHandlers.ts` - 325 lines
+- `src/main/services/SteamCMD.ts` - 252 lines
+- `src/main/services/ModProcessor.ts` - 264 lines
+- `src/renderer/src/App.tsx` - 422 lines
+- `src/renderer/src/components/Toolbar.tsx` - 469 lines
 
-## 开发指南
+## Development Guide
 
-### 快速开始
+### Quick Start
 
 ```bash
-npm run dev          # 开发模式
-npm run typecheck    # 类型检查
-npm run build        # 构建
-npm run build:win    # 打包 Windows
+npm run dev          # Development mode
+npm run typecheck    # Type checking
+npm run build        # Build
+npm run build:win    # Package Windows
 ```
 
-### 核心架构模式
+### Core Architecture Patterns
 
-#### 1. IPC 通信
+#### 1. IPC Communication
 
 ```
 Renderer (React)
     ↓ window.api.xxx() (preload ContextBridge)
 Main (ipcHandlers.ts)
-    ↓ 调用 services
-返回结果
+    ↓ calls services
+Returns result
 ```
 
 **Renderer → Main (invoke):**
 ```typescript
-// 渲染进程调用
+// Renderer call
 const result = await window.api.downloadMod(modId, isCollection)
 
-// preload 转发
+// preload forward
 ipcRenderer.invoke('mod:download', { id, isCollection })
 
-// main 处理
+// main handle
 ipcMain.handle('mod:download', async (event, { id, isCollection }) => {
   return await steamCMD.downloadMod(id)
 })
@@ -109,43 +107,43 @@ ipcMain.handle('mod:download', async (event, { id, isCollection }) => {
 
 **Main → Renderer (send):**
 ```typescript
-// main 发送事件
+// main sends event
 mainWindow.webContents.send('download:progress', { id, progress: 50 })
 
-// preload 监听
+// preload listens
 ipcRenderer.on('download:progress', handler)
 
-// 渲染进程使用
+// renderer uses
 const unsubscribe = window.api.onDownloadProgress((data) => {
-  // 更新状态
+  // update state
 })
-// 记得 cleanup!
+// remember cleanup!
 return unsubscribe
 ```
 
-**已注册的 IPC 通道:**
+**Registered IPC Channels:**
 
-| 通道 | 类型 | 功能 |
-|------|------|------|
-| `config:get` | invoke | 获取配置 |
-| `config:set` | invoke | 设置配置 |
-| `version:detect` | invoke | 检测游戏版本 |
-| `mod:download` | invoke | 下载单个 mod |
-| `mod:downloadBatch` | invoke | 批量下载 |
-| `mod:checkVersion` | invoke | 检查 mod 版本信息 |
-| `mod:checkDependencies` | invoke | 检查依赖项 |
-| `dialog:selectFolder` | invoke | 打开文件夹选择器 |
-| `window:minimize` | invoke | 最小化窗口 |
-| `window:maximize` | invoke | 最大化窗口 |
-| `window:close` | invoke | 关闭窗口 |
-| `download:progress` | send | 实时下载进度 |
-| `download:complete` | send | 下载完成 |
-| `download:error` | send | 下载错误 |
-| `batch:progress` | send | 批量下载进度 |
+| Channel | Type | Function |
+|---------|------|----------|
+| `config:get` | invoke | Get config |
+| `config:set` | invoke | Set config |
+| `version:detect` | invoke | Detect game version |
+| `mod:download` | invoke | Download single mod |
+| `mod:downloadBatch` | invoke | Batch download |
+| `mod:checkVersion` | invoke | Check mod version info |
+| `mod:checkDependencies` | invoke | Check dependencies |
+| `dialog:selectFolder` | invoke | Open folder picker |
+| `window:minimize` | invoke | Minimize window |
+| `window:maximize` | invoke | Maximize window |
+| `window:close` | invoke | Close window |
+| `download:progress` | send | Real-time download progress |
+| `download:complete` | send | Download complete |
+| `download:error` | send | Download error |
+| `batch:progress` | send | Batch download progress |
 
-#### 2. 单例模式
+#### 2. Singleton Pattern
 
-所有服务都是单例，直接 export 实例：
+All services are singletons with direct export instances:
 
 ```typescript
 // src/main/utils/ConfigManager.ts
@@ -165,94 +163,94 @@ class WorkshopScraper { ... }
 export const workshopScraper = new WorkshopScraper()
 ```
 
-#### 3. 事件驱动进度更新
+#### 3. Event-Driven Progress Updates
 
-SteamCMD 继承 EventEmitter：
+SteamCMD inherits EventEmitter:
 
 ```
 SteamCMD.downloadMod()
     ↓ emit('progress', { stage, percent, ... })
-IPC Handler 监听
+IPC Handler listens
     ↓ mainWindow.webContents.send('download:progress')
 Preload ContextBridge
     ↓ callback
-React useState 更新
+React useState updates
     ↓
-UI 重新渲染
+UI re-renders
 ```
 
-### 完整下载流程
+### Complete Download Flow
 
 ```
-1. 用户在 Webview 中导航到 Mod 详情页
+1. User navigates to Mod detail page in Webview
    ↓
-2. WebviewContainer 解析 URL (did-navigate-in-page 事件!)
-   - 检查是否 /sharedfiles/filedetails/
-   - 提取 ?id= 参数
+2. WebviewContainer parses URL (did-navigate-in-page event!)
+   - Checks for /sharedfiles/filedetails/
+   - Extracts ?id= parameter
    ↓
-3. App.tsx 接收 pageChanged callback
-   - 更新 currentPageInfo state
+3. App.tsx receives pageChanged callback
+   - Updates currentPageInfo state
    ↓
-4. Toolbar 接收 currentPageInfo prop
-   - 启用下载按钮
-   - 自动调用 checkModVersion(modId)
-   - 显示支持版本和依赖数量
+4. Toolbar receives currentPageInfo prop
+   - Enables download button
+   - Automatically calls checkModVersion(modId)
+   - Displays supported versions and dependency count
    ↓
-5. 用户点击下载按钮
+5. User clicks download button
    ↓
 6. Toolbar.handleDownload() → App.handleDownloadClick()
    ↓
-7. 检查版本兼容性 (根据配置)
-   ├─ skipVersionCheck=true → 跳过
-   ├─ 版本不匹配 + onMismatch=skip → 取消下载
-   ├─ 版本不匹配 + onMismatch=ask → 显示 VersionMismatchDialog
-   └─ 版本匹配或 onMismatch=force → 继续
+7. Check version compatibility (per config)
+   ├─ skipVersionCheck=true → Skip
+   ├─ Version mismatch + onMismatch=skip → Cancel download
+   ├─ Version mismatch + onMismatch=ask → Show VersionMismatchDialog
+   └─ Version matches or onMismatch=force → Continue
    ↓
-8. 检查依赖 (根据配置)
-   ├─ 无依赖 → 直接下载
-   ├─ 有依赖 + dependencyMode=ignore → 仅下载主Mod
-   ├─ 有依赖 + dependencyMode=auto → 批量下载全部依赖
-   └─ 有依赖 + dependencyMode=ask → 显示 DependencyDialog
+8. Check dependencies (per config)
+   ├─ No dependencies → Download directly
+   ├─ With dependencies + dependencyMode=ignore → Only download main mod
+   ├─ With dependencies + dependencyMode=auto → Batch download all dependencies
+   └─ With dependencies + dependencyMode=ask → Show DependencyDialog
    ↓
-9. 开始下载: window.api.downloadMod(modId, isCollection)
+9. Start download: window.api.downloadMod(modId, isCollection)
    ↓
 10. IPC: mod:download → ipcHandlers.ts
     ↓
 11. SteamCMD.downloadMod()
-    ├─ 每次调用 getPaths() 读取最新配置
-    ├─ emit('progress') → 实时进度
-    ├─ 执行命令: steamcmd +login anonymous +workshop_download_item 294100 {modId} +quit
-    ├─ 解析 stdout: "Downloading update (X of Y)"
-    └─ 返回 SteamCMDResult
+    ├─ Reads latest config on each call with getPaths()
+    ├─ emit('progress') → Real-time progress
+    ├─ Executes command: steamcmd +login anonymous +workshop_download_item 294100 {modId} +quit
+    ├─ Parses stdout: "Downloading update (X of Y)"
+    └─ Returns SteamCMDResult
     ↓
 12. ModProcessor.processMod()
-    ├─ 源: {steamcmd.downloadPath}/{modId}
-    ├─ 临时: {modsPath}/.temp_{modId}_{timestamp}
-    ├─ 重命名到目标: {modsPath}/{modId} (原子操作!)
-    └─ 返回 ProcessResult
+    ├─ Source: {steamcmd.downloadPath}/{modId}
+    ├─ Temp: {modsPath}/.temp_{modId}_{timestamp}
+    ├─ Renames to target: {modsPath}/{modId} (atomic operation!)
+    └─ Returns ProcessResult
     ↓
 13. ModProcessor.validateMod()
-    ├─ 检查目录存在
-    ├─ 检查 About/About.xml
-    ├─ 用正则解析 (不是 fast-xml-parser!)
-    │   ├─ Mod 名称: <name>([^<]+)</name>
-    │   └─ 支持版本: <li>([\d.]+)</li>
-    └─ 返回 ValidationResult
+    ├─ Checks directory exists
+    ├─ Checks About/About.xml
+    ├─ Parses with regex (not fast-xml-parser!)
+    │   ├─ Mod name: <name>([^<]+)</name>
+    │   └─ Supported versions: <li>([\d.]+)</li>
+    └─ Returns ValidationResult
     ↓
-14. 发送 download:complete 事件
+14. Sends download:complete event
     ↓
-15. App.tsx 更新下载状态为 completed
+15. App.tsx updates download status to completed
     ↓
-16. DownloadQueue 显示完成 ✅
+16. DownloadQueue shows complete ✅
 ```
 
-### 关键模块详解
+### Key Module Details
 
-#### ConfigManager (配置管理)
+#### ConfigManager (Configuration Management)
 
-**文件**: `src/main/utils/ConfigManager.ts`
+**File**: `src/main/utils/ConfigManager.ts`
 
-**默认配置:**
+**Default Config:**
 ```typescript
 {
   steamcmd: {
@@ -273,107 +271,103 @@ UI 重新渲染
     autoDownloadDependencies: false,
     skipVersionCheck: false,
     extractCollectionToSubfolder: true,
-    dependencyMode: 'ask'  // 'ask' | 'auto' | 'ignore'
+    dependencyMode: 'ask'
   },
   version: {
     autoDetect: true,
     manualVersion: '1.6',
-    onMismatch: 'ask'     // 'ask' | 'force' | 'skip'
-  },
-  git: {
-    enabled: false,
-    autoCommit: true
+    onMismatch: 'ask'
   }
 }
 ```
 
-**版本检测逻辑:**
+**Version Detection Logic:**
 ```
-1. 获取激活的 Mods 路径
+1. Get active Mods path
    ↓
-2. 获取父目录 (游戏根目录)
+2. Get parent directory (game root)
    ↓
-3. 查找 Version.txt
+3. Find Version.txt
    ↓
-4. 解析格式: "version 1.5.4063 rev1071"
+4. Parse format: "version 1.5.4063 rev1071"
    ↓
-5. 正则匹配: /(?:version\s+)?(\d+\.\d+)\.\d+/
+5. Regex match: /(?:version\s+)?(\d+\.\d+)\.\d+/
    ↓
-6. 提取 "1.5"
+6. Extract "1.5"
 ```
 
 **API:**
 ```typescript
-configManager.get()              // 获取全部配置
-configManager.get('rimworld')    // 获取某个 key
-configManager.set('rimworld', { ... })  // 设置某个 key (只能设顶级!)
-configManager.getActiveModsPath() // 获取激活的 ModsPath
-configManager.detectGameVersion() // 自动检测版本
+configManager.get()              // Get all config
+configManager.get('rimworld')    // Get specific key
+configManager.set('rimworld', { ... })  // Set specific key (only top-level!)
+configManager.getActiveModsPath() // Get active ModsPath
+configManager.detectGameVersion() // Auto-detect version
 ```
 
-#### SteamCMD (SteamCMD 进程包装器)
+#### SteamCMD (SteamCMD Process Wrapper)
 
-**文件**: `src/main/services/SteamCMD.ts`
+**File**: `src/main/services/SteamCMD.ts`
 
-**执行的命令:**
+**Executed Command:**
 ```batch
 steamcmd.exe +login anonymous +workshop_download_item 294100 {modId} +quit
 ```
 
-**进度解析:**
-从 stdout 匹配: `Downloading update (X of Y)" → 百分比 `(X/Y)*100
+**Progress Parsing:**
+Matches from stdout: `Downloading update (X of Y)" → percentage `(X/Y)*100`
 
-**成功/失败判断:**
-| 成功标识 | 失败标识 |
-|----------|----------|
+**Success/Failure Detection:**
+| Success Indicator | Failure Indicator |
+|-------------------|-------------------|
 | `Success. Downloaded item` | `ERROR` |
 | `Downloaded item` | `Failure` |
-| `isDownloading = true` | stderr 输出 |
+| `isDownloading = true` | stderr output |
 
-**超时:** 5 分钟 (300,000 ms)
-
-**API:**
-```typescript
-steamCMD.validate()           // 检查 steamcmd.exe 存在
-steamCMD.downloadMod(modId)   // 下载 mod
-steamCMD.on('progress', (progress) => { ... })  // 监听进度
-```
-
-#### ModProcessor (Mod 文件处理)
-
-**文件**: `src/main/services/ModProcessor.ts`
-
-**原子文件操作:**
-```
-源路径: {steamcmd.downloadPath}/{modId}
-    ↓
-复制到临时: {modsPath}/.temp_{modId}_{timestamp}
-    ↓
-重命名到目标: {modsPath}/{modId} (原子操作!)
-    ↓
-验证
-```
-
-**验证内容:**
-- 检查目录存在
-- 检查 `About/About.xml 存在
-- 从 About.xml 提取 (用正则!):
-  - Mod 名称: `<name>([^<]+)</name>`
-  - 支持版本: `<li>([\d.]+)</li>`
-
-**⚠️ 注意:** `fast-xml-parser` 已安装但没用，当前用正则。
+**Timeout:** 5 minutes (300,000 ms)
 
 **API:**
 ```typescript
-modProcessor.validateMod(modId, path?)     // 验证 mod
-modProcessor.processMod(modId)             // 处理 (移动) mod
+steamCMD.validate()           // Check if steamcmd.exe exists
+steamCMD.downloadMod(modId)   // Download mod
+steamCMD.on('progress', (progress) => { ... })  // Listen for progress
 ```
 
-#### WorkshopScraper (Steam Workshop 网页抓取)
+#### ModProcessor (Mod File Processing)
 
-**文件**: `src/main/services/WorkshopScraper.ts`
+**File**: `src/main/services/ModProcessor.ts`
 
-**HTTP 请求配置:**
+**Atomic File Operations:**
+```
+Source path: {steamcmd.downloadPath}/{modId}
+    ↓
+Copy to temp: {modsPath}/.temp_{modId}_{timestamp}
+    ↓
+Rename to target: {modsPath}/{modId} (atomic operation!)
+    ↓
+Validate
+```
+
+**Validation Content:**
+- Checks directory exists
+- Checks `About/About.xml` exists
+- Extracts from About.xml (with regex!):
+  - Mod name: `<name>([^<]+)</name>`
+  - Supported versions: `<li>([\d.]+)</li>`
+
+**⚠️ Note:** `fast-xml-parser` is installed but not used, currently using regex.
+
+**API:**
+```typescript
+modProcessor.validateMod(modId, path?)     // Validate mod
+modProcessor.processMod(modId)             // Process (move) mod
+```
+
+#### WorkshopScraper (Steam Workshop Web Scraping)
+
+**File**: `src/main/services/WorkshopScraper.ts`
+
+**HTTP Request Config:**
 ```typescript
 {
   headers: {
@@ -385,36 +379,42 @@ modProcessor.processMod(modId)             // 处理 (移动) mod
 }
 ```
 
-**版本解析策略:**
-尝试多个 CSS 选择器:
+**Version Parsing Strategy:**
+Tries multiple CSS selectors:
 1. `.rightDetailsBlock`
 2. `.detailsStatsContainerRight`
 3. `.workshopItemTags`
 4. `.workshopItemDescription`
-5. 最后搜索整个 `body`
+5. Finally searches entire `body`
 
-正则匹配: `/Mod[,\s]+(\d+\.\d+)/g`
+Uses two-step regex matching:
+1. First matches line starting with "Mod" using `/Mod[,\s]+([\d\.,\s]+)/gi`
+2. Then extracts all versions from that line using `/\b(\d+\.\d+(?:\.\d+)?)\b/g`
 
-**依赖解析:**
-查找: `.workshopItemRequiredItems`, `.requiredItems`, `.dependencyList`
+Supports formats like: "Mod, 1.4, 1.5"
 
-从链接提取 modId: `/filedetails\/\?id=(\d+)/`
+**Dependency Parsing:**
+Looks for: `.workshopItemRequiredItems`, `.requiredItems`, `.dependencyList`, plus class name wildcard matches and text-based fallback search.
+
+Extracts modId from links: `/filedetails\/\?id=(\d+)/`
+
+Uses `Set` to avoid duplicate dependencies.
 
 **API:**
 ```typescript
 workshopScraper.scrapeModVersion(modId)
-// 返回: { supportedVersions, modName, dependencies }
+// Returns: { supportedVersions, modName, dependencies }
 ```
 
-#### WebviewContainer (Steam 浏览器)
+#### WebviewContainer (Steam Browser)
 
-**文件**: `src/renderer/src/components/WebviewContainer.tsx`
+**File**: `src/renderer/src/components/WebviewContainer.tsx`
 
-**重要特性:**
-- `<webview partition="persist:steam"` - 持久化登录状态!
-- 监听 `did-navigate` **和** `did-navigate-in-page` (Steam 是 SPA!)
-- 用 `parsePageInfo(url)` 提取 modId
-- 通过 ref 暴露 `getCurrentPageInfo()`
+**Key Features:**
+- `<webview partition="persist:steam"` - Persists login state!
+- Listens for `did-navigate` **and** `did-navigate-in-page` (Steam is SPA!)
+- Uses `parsePageInfo(url)` to extract modId
+- Exposes `getCurrentPageInfo()` via ref
 
 **Props:**
 ```typescript
@@ -432,26 +432,26 @@ interface CurrentPageInfo {
 }
 ```
 
-#### Toolbar (工具栏)
+#### Toolbar (Toolbar)
 
-**文件**: `src/renderer/src/components/Toolbar.tsx`
+**File**: `src/renderer/src/components/Toolbar.tsx`
 
-**布局:**
+**Layout:**
 ```
-[标题] [路径选择器] [浏览] [游戏版本] [下载按钮] [设置]
-[Mod 信息面板 (条件显示)]
+[Title] [Path Selector] [Browse] [Game Version] [Download Button] [Settings]
+[Mod Info Panel (conditional display)]
 ```
 
-**功能:**
-- 路径选择和切换 (设置整个 rimworld 对象，不能设嵌套属性)
-- 游戏版本显示
-- 下载按钮 (仅在 Mod 详情页启用)
-- Mod 信息显示 (类型、ID、支持版本、依赖数量)
-- 版本兼容性检查 (页面变化时自动调用 checkModVersion)
+**Features:**
+- Path selection and switching (sets entire rimworld object, can't set nested properties)
+- Game version display
+- Download button (only enabled on Mod detail page)
+- Mod info display (type, ID, supported versions, dependency count)
+- Version compatibility check (automatically calls checkModVersion on page change)
 
-#### App.tsx (主应用)
+#### App.tsx (Main App)
 
-**文件**: `src/renderer/src/App.tsx`
+**File**: `src/renderer/src/App.tsx`
 
 **State:**
 ```typescript
@@ -468,27 +468,27 @@ const [gameVersion, setGameVersion] = useState<string>('')
 ```
 
 **Effects:**
-- 加载配置和游戏版本
-- 设置下载进度监听器 (记得 cleanup unsubscribe!)
+- Load config and game version
+- Set up download progress listener (remember cleanup unsubscribe!)
 
-**下载流程逻辑:**
-1. 检查版本 (根据 `version.onMismatch` 配置)
-2. 检查依赖 (根据 `download.dependencyMode` 配置)
-3. 开始下载
+**Download Flow Logic:**
+1. Check version (based on `version.onMismatch` config)
+2. Check dependencies (based on `download.dependencyMode` config)
+3. Start download
 
-### 待下载队列功能 (Phase 3.5)
+### Pending Queue Feature (Phase 3.5)
 
-#### 功能概述
-用户可以将 mod 添加到待下载队列，然后批量下载。Add 按钮与 Download 按钮使用完全相同的配置约束和版本匹配逻辑。
+#### Feature Overview
+Users can add mods to a pending download queue and then download them in batch. The Add button uses exactly the same config constraints and version matching logic as the Download button.
 
-#### 新增组件
-- **PendingQueueDialog.tsx** - 待下载队列确认对话框，显示队列中的所有 mod 并确认开始下载
-- **DeleteConfirmDialog.tsx** - 删除确认对话框，确认从队列中删除选中的 mod
+#### New Components
+- **PendingQueueDialog.tsx** - Pending queue confirmation dialog, displays all mods in queue and confirms starting download
+- **DeleteConfirmDialog.tsx** - Delete confirmation dialog, confirms removing selected mods from queue
 
-#### Toolbar 修改
-- 添加了 "Add" 按钮，与 "Download" 按钮并排
-- Add 按钮使用完全相同的版本检查逻辑
-- 两个按钮都受相同的设置约束（`version.onMismatch`, `download.skipVersionCheck`, `download.dependencyMode`）
+#### Toolbar Modifications
+- Added "Add" button, side-by-side with "Download" button
+- Add button uses exactly the same version checking logic
+- Both buttons are constrained by the same settings (`version.onMismatch`, `download.skipVersionCheck`, `download.dependencyMode`)
 
 #### App.tsx State
 ```typescript
@@ -499,32 +499,32 @@ const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<...>(null)
 ```
 
-#### 下载 vs 添加到队列对比
+#### Download vs Add to Queue Comparison
 
-| 特性 | Download 按钮 | Add 按钮 |
-|------|--------------|----------|
-| 版本检查 | ✅ | ✅ |
-| 依赖检查 | ✅ | ✅ |
-| 配置约束 | ✅ | ✅ |
-| 版本不匹配对话框 | ✅ 显示"强制下载"/"跳过" | ✅ 显示"强制添加"/"取消" |
-| 依赖对话框 | ✅ | ✅ |
-| 立即执行 | ✅ 直接下载 | ❌ 添加到队列 |
+| Feature | Download Button | Add Button |
+|---------|-----------------|------------|
+| Version Check | ✅ | ✅ |
+| Dependency Check | ✅ | ✅ |
+| Config Constraints | ✅ | ✅ |
+| Version Mismatch Dialog | ✅ Shows "Force Download"/"Skip" | ✅ Shows "Force Add"/"Cancel" |
+| Dependency Dialog | ✅ | ✅ |
+| Immediate Execution | ✅ Direct download | ❌ Add to queue |
 
-#### 统一的版本数据源
-**重要：** App.tsx 作为唯一的 `gameVersion` 数据源：
-- App.tsx 管理 `gameVersion` state
-- 通过 props 传递给 Toolbar 和 SettingsPanel
-- Toolbar 和 SettingsPanel 不再维护自己的本地 gameVersion state
-- 提供 `onRefreshGameVersion` 回调让子组件可以触发刷新
-- 切换 mod 路径时自动检测版本，并同步到设置面板
+#### Unified Version Data Source
+**Important:** App.tsx acts as the single source of truth for `gameVersion`:
+- App.tsx manages `gameVersion` state
+- Passes to Toolbar and SettingsPanel via props
+- Toolbar and SettingsPanel no longer maintain their own local gameVersion state
+- Provides `onRefreshGameVersion` callback for child components to trigger refresh
+- Auto-detects version when switching mod paths and syncs to settings panel
 
-#### DownloadQueue 增强
-- 添加 `pendingQueue` prop 显示待下载列表
-- 添加 `selectedForDelete`, `onToggleSelectForDelete`, `onSelectAllForDelete`, `onRequestDelete` 用于删除功能
-- 添加 `onClearCompleted` 和 `onClearAll` 回调 props（修复了 clear 按钮不工作的问题！）
+#### DownloadQueue Enhancements
+- Added `pendingQueue` prop to display pending list
+- Added `selectedForDelete`, `onToggleSelectForDelete`, `onSelectAllForDelete`, `onRequestDelete` for deletion functionality
+- Added `onClearCompleted` and `onClearAll` callback props (fixed the issue where clear buttons weren't working!)
 
-#### 循环依赖避免
-使用 useRef 来避免 useCallback 中的循环依赖：
+#### Circular Dependency Avoidance
+Uses useRef to avoid circular dependencies in useCallback:
 ```typescript
 const pendingQueueRef = useRef<PendingDownloadItem[]>([])
 const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
@@ -538,48 +538,48 @@ useEffect(() => {
 }, [currentPageInfo])
 ```
 
-### 开发注意事项 (纯 Vibe Coding)
+### Development Notes (Pure Vibe Coding)
 
-⚠️ **SteamCMD 路径有空格?** → `spawn()` 自动处理，不用引号
+⚠️ **SteamCMD path with spaces?** → `spawn()` handles it automatically, no quotes needed
 
-⚠️ **文件移动?** → 用 ModProcessor 的原子操作，不要直接 fs.rename
+⚠️ **File moving?** → Use ModProcessor's atomic operations, don't directly fs.rename
 
-⚠️ **IPC 监听器?** → 一定要在 useEffect 返回 unsubscribe
+⚠️ **IPC listeners?** → Always return unsubscribe in useEffect
 
-⚠️ **configManager.set?** → 只能设置顶级键 (如 'rimworld'，不能 'rimworld.currentVersion')
+⚠️ **configManager.set?** → Can only set top-level keys (like 'rimworld', not 'rimworld.currentVersion')
 
-⚠️ **SteamCMD 事件监听器?** → 用 try/finally 保证 off() 被调用
+⚠️ **SteamCMD event listeners?** → Use try/finally to ensure off() is called
 
-⚠️ **Webview 导航?** → 监听 did-navigate-in-page (Steam 是 SPA!)
+⚠️ **Webview navigation?** → Listen for did-navigate-in-page (Steam is SPA!)
 
-⚠️ **不要注入脚本到 Steam 页面!** → 下载按钮在应用工具栏，不在页面里
+⚠️ **Don't inject scripts into Steam pages!** → Download button is in app toolbar, not in page
 
-### Vite 配置注意事项
+### Vite Config Notes
 
-**文件**: `electron.vite.config.ts`
+**File**: `electron.vite.config.ts`
 
-有一个 polyfill 注入到 main process 顶部，给 axios/undici 用：
+There's a polyfill injected at the top of main process for axios/undici:
 - File API polyfill
 - FormData API polyfill
 
-**不要删除这个！** 否则 axios 会在 main process 报错。
+**Don't delete this!** Otherwise axios will error in main process.
 
-### 配色方案 (Steam 风格)
+### Color Scheme (Steam Style)
 
-| 用途 | 颜色值 |
-|------|--------|
-| 主背景 | `#1b2838` |
-| 次背景 | `#171a21` |
-| 卡片背景 | `#243447` |
-| 边框 | `#2a475e` |
-| 主色 (Steam 蓝) | `#66c0f4` |
-| 成功 | `#4CAF50` |
-| 警告 | `#e6b800` |
-| 错误 | `#f44336` |
-| 文本 | `#c6d4df` |
-| 次要文本 | `#8f98a0` |
+| Purpose | Color Value |
+|---------|-------------|
+| Main Background | `#1b2838` |
+| Secondary Background | `#171a21` |
+| Card Background | `#243447` |
+| Border | `#2a475e` |
+| Primary (Steam Blue) | `#66c0f4` |
+| Success | `#4CAF50` |
+| Warning | `#e6b800` |
+| Error | `#f44336` |
+| Text | `#c6d4df` |
+| Secondary Text | `#8f98a0` |
 
-### 路径别名
+### Path Aliases
 
 ```json
 {
@@ -590,109 +590,96 @@ useEffect(() => {
 }
 ```
 
-## 剩余问题 (未修复 - 低优先级
+## Remaining Issues (Unfixed - Low Priority)
 
-以下问题暂时保留，因为不影响核心功能且代码还在开发阶段:
+The following issues are left as-is since they don't affect core functionality and the code is still in development:
 
-1. **批量下载代码重复** - `mod:download` 和 `downloadSingleMod()` 有重复逻辑
-2. **About.xml 用正则解析** - `fast-xml-parser` 已安装但未用
-3. **未使用的依赖** - `zustand` 已安装但未用 (用的 React useState)
-4. **硬编码的超时** - SteamCMD 5分钟超时应该放配置中
-5. **Console.log 过多** - 生产环境可能需要日志系统
-6. **WorkshopScraper 禁用 SSL 验证** - `rejectUnauthorized: false` (有安全风险)
+1. **Batch download code duplication** - `mod:download` and `downloadSingleMod()` have duplicate logic
+2. **About.xml parsed with regex** - `fast-xml-parser` installed but not used
+3. **Unused dependencies** - `zustand` installed but not used (using React useState)
+4. **Hardcoded timeout** - SteamCMD 5-minute timeout should be in config
+5. **Too many console.logs** - Production may need logging system
+6. **WorkshopScraper disables SSL verification** - `rejectUnauthorized: false` (security risk)
 
-## Phase 4 Git 集成提示
+## Troubleshooting
 
-GitManager 已经写好了 (`src/main/services/GitManager.ts`)，但没集成。
+### Dev Server Won't Start
+- Check if port 5173 is in use
+- Clear electron-vite cache: Delete `node_modules/.electron-vite`
 
-需要做的：
-1. 在 ipcHandlers.ts 注册 git:init, git:commit, git:push, git:status
-2. 在 preload/index.ts 暴露 API
-3. 在 SettingsPanel.tsx 添加 Git 设置 UI
-4. 在下载完成后自动提交 (ipcHandlers.ts 中)
-5. 在 Toolbar 显示 Git 状态
+### Steam Workshop Webview Won't Load
+- Check network connection
+- Verify webview has `partition="persist:steam"`
+- Check DevTools Console for CSP errors
 
-详细的集成指南可以看 GitManager.ts 的代码，它已经完整实现了。
+### Download Button Not Working
+**Note:** Download button is in app toolbar, **NOT** injected into Steam page!
 
-## 故障排除
+Check:
+1. Is Toolbar receiving currentPageInfo? Look for "[App] Page changed:" in console
+2. Is currentPageInfo.isModDetailPage true?
+3. Is handleDownloadClick calling window.api.downloadMod?
 
-### Dev Server 不启动
-- 检查端口 5173 是否被占用
-- 清除 electron-vite 缓存: 删除 `node_modules/.electron-vite`
+### SteamCMD Download Fails
+- Verify steamcmd.exe exists at configured path
+- Check Windows Defender/antivirus isn't blocking SteamCMD
+- Verify sufficient disk space
+- Look for "[SteamCMD]" errors in console
 
-### Steam Workshop Webview 不加载
-- 检查网络连接
-- 确认 webview 有 `partition="persist:steam"`
-- 看 DevTools Console 有没有 CSP 错误
+### File Move Fails
+- Verify Mods folder exists and is writable
+- Check antivirus isn't blocking file operations
+- Verify sufficient disk space
+- Verify no file locks (close RimWorld!)
+- Look for "[ModProcessor]" errors in console
 
-### 下载按钮不工作
-**注意:** 下载按钮在应用工具栏，**不是**注入到 Steam 页面里！
+### Progress Not Showing
+- Verify window.api.onDownloadProgress is set in App.tsx
+- Verify steamCMD.on('progress', ...) is registered in ipcHandlers.ts
+- Verify mainWindow.webContents.send() is called
+- Look at DevTools Network tab for IPC messages
 
-检查：
-1. Toolbar 是否收到 currentPageInfo？看 console 有没有 "[App] Page changed:"
-2. currentPageInfo.isModDetailPage 是否为 true？
-3. handleDownloadClick 是否调用 window.api.downloadMod？
+### Config Changes Not Taking Effect
+- Verify correct top-level key is set (like 'rimworld' not 'rimworld.currentVersion')
+- SteamCMD now re-reads config on each download, no app restart needed
 
-### SteamCMD 下载失败
-- 确认 steamcmd.exe 存在于配置的路径
-- 检查 Windows Defender/杀毒软件没屏蔽 SteamCMD
-- 确认磁盘空间足够
-- 看 console 有没有 "[SteamCMD]" 错误
+### Version Mismatch Dialog Not Showing
+- Verify `version.onMismatch` is set to 'ask'
+- Verify `download.skipVersionCheck` is false
+- Verify Mod page correctly parses supported versions
 
-### 文件移动失败
-- 确认 Mods 文件夹存在且可写
-- 检查杀毒软件没屏蔽文件操作
-- 确认磁盘空间足够
-- 确认没有文件锁 (关闭 RimWorld!)
-- 看 console 有没有 "[ModProcessor]" 错误
+### Clear Button Not Working
+- DownloadQueue now uses `onClearCompleted` and `onClearAll` callback props
+- These callbacks must be provided by App.tsx and passed in
+- Don't rely on DownloadQueue's internal setDownloads for external downloads state
 
-### 进度不显示
-- 确认 App.tsx 里设置了 window.api.onDownloadProgress
-- 确认 ipcHandlers.ts 里注册了 steamCMD.on('progress', ...)
-- 确认 mainWindow.webContents.send() 被调用
-- 看 DevTools Network tab 有没有 IPC 消息
-
-### 配置更改不生效
-- 确认设置了正确的顶级键 (如 'rimworld' 而不是 'rimworld.currentVersion')
-- SteamCMD 现在会在每次下载时重新读取配置，不需要重启应用
-
-### 版本不匹配对话框不显示
-- 确认 `version.onMismatch` 设置为 'ask'
-- 确认 `download.skipVersionCheck` 为 false
-- 确认 Mod 页面能正确解析到支持版本
-
-### Clear 按钮不工作
-- DownloadQueue 现在使用 `onClearCompleted` 和 `onClearAll` 回调 props
-- 这些回调必须由 App.tsx 提供并传入
-- 不要依赖 DownloadQueue 内部的 setDownloads 来处理外部 downloads state
-
-### 版本检测不同步
-- 确认 App.tsx 是唯一的 gameVersion 数据源
-- Toolbar 和 SettingsPanel 通过 props 接收 gameVersion
-- 使用 onRefreshGameVersion 回调来触发刷新
-- 切换 mod 路径时会自动检测并同步更新
+### Version Detection Not Syncing
+- Verify App.tsx is the single source of truth for gameVersion
+- Toolbar and SettingsPanel receive gameVersion via props
+- Use onRefreshGameVersion callback to trigger refresh
+- Auto-detects and syncs when switching mod paths
 
 ## Preload API (window.api)
 
 ```typescript
 window.api = {
-  // 配置
+  // Config
   getConfig: (key?: string) => Promise<any>
   setConfig: (key: string, value: any) => Promise<void>
 
-  // 版本检测
+  // Version detection
   detectGameVersion: () => Promise<string>
 
-  // Mod 操作
+  // Mod operations
   checkModVersion: (modId: string) => Promise<ModVersionInfo>
   downloadMod: (id: string, isCollection: boolean) => Promise<ModMetadata>
   downloadBatch: (items: Item[]) => Promise<ModMetadata[]>
   checkDependencies: (id: string) => Promise<Dependency[]>
 
-  // 对话框
+  // Dialog
   selectFolder: () => Promise<string | null>
 
-  // 事件监听器 (返回取消订阅函数!)
+  // Event listeners (returns unsubscribe function!)
   onDownloadProgress: (callback) => (() => void)
   onDownloadComplete: (callback) => (() => void)
   onDownloadError: (callback) => (() => void)
@@ -700,15 +687,15 @@ window.api = {
 }
 ```
 
-## Git 仓库
+## Git Repository
 
 **Repository:** https://github.com/czyczy23/Rimworld_Mod_Downloader
 
-提交代码时：
-1. `git status` / `git diff` 看看改了啥
-2. 写清晰的 commit message
-3. push 到 remote
+When committing:
+1. `git status` / `git diff` to see what changed
+2. Write clear commit message
+3. Push to remote
 
 ---
 
-**好了，继续 Vibe Coding！🚀**
+**Okay, keep Vibe Coding!🚀**
