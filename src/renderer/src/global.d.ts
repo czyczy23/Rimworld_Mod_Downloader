@@ -29,6 +29,15 @@ declare global {
 
       // Dialog
       selectFolder: () => Promise<string | null>
+      selectFile: (options?: {
+        title?: string
+        defaultPath?: string
+        filters?: { name: string, extensions: string[] }[]
+        properties?: ('openFile' | 'multiSelections')[]
+      }) => Promise<string | null>
+
+      // Cancel download
+      cancelDownload: () => Promise<{ success: boolean }>
 
       // Download progress listener
       onDownloadProgress: (callback: DownloadProgressCallback) => () => void

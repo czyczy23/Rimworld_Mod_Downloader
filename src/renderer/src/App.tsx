@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
 import { WebviewContainer, type WebviewContainerRef, type CurrentPageInfo } from './components/WebviewContainer'
 import { Toolbar } from './components/Toolbar'
-import { DownloadQueue } from './components/DownloadQueue'
+import { DownloadQueue, type DownloadItem as DownloadQueueItem } from './components/DownloadQueue'
 import { SettingsPanel } from './components/SettingsPanel'
 import { DependencyDialog } from './components/DependencyDialog'
 import { VersionMismatchDialog } from './components/VersionMismatchDialog'
@@ -20,6 +20,7 @@ declare global {
       checkDependencies: (id: string) => Promise<any[]>
       checkModVersion: (modId: string) => Promise<{ supportedVersions: string[], modName: string, dependencies: any[] }>
       selectFolder: () => Promise<string | null>
+      cancelDownload: () => Promise<{ success: boolean }>
       onDownloadProgress: (callback: (data: {
         id: string
         status: string
@@ -36,13 +37,10 @@ declare global {
   }
 }
 
-interface DownloadItem {
-  id: string
-  name: string
-  progress: number
-  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
-  error?: string
-  message?: string
+// Use the same DownloadItem type from DownloadQueue, extend it with cancelled status
+interface DownloadItem extends DownloadQueueItem {
+  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error' | 'cancelled'
+  isCollection?: boolean
 }
 
 interface BatchDownloadInfo {
@@ -172,12 +170,22 @@ function App() {
     const unsubscribeError = window.api.onDownloadError((data) => {
       console.error(`[App] Download error for ${data.id}:`, data.error)
 
-      setDownloads(prev => prev.map(d => d.id === data.id ? {
-        ...d,
-        status: 'error',
-        error: data.error,
-        message: data.error
-      } : d))
+      // Don't show as error if it was a user cancellation
+      if (data.error === 'CANCELLED') {
+        console.log(`[App] Download was cancelled by user for ${data.id}`)
+        setDownloads(prev => prev.map(d =>
+          d.id === data.id
+            ? { ...d, status: 'cancelled' as any, message: 'Download cancelled' }
+            : d
+        ))
+      } else {
+        setDownloads(prev => prev.map(d => d.id === data.id ? {
+          ...d,
+          status: 'error',
+          error: data.error,
+          message: data.error
+        } : d))
+      }
     })
 
     // Listen for batch progress
@@ -223,7 +231,8 @@ function App() {
         name: name || (isCollection ? `Collection ${modId}` : `Mod ${modId}`),
         progress: 0,
         status: 'downloading',
-        message: 'Starting download...'
+        message: 'Starting download...',
+        isCollection
       }]
     })
 
@@ -231,6 +240,12 @@ function App() {
       if (window.api) {
         const result = await window.api.downloadMod(modId, isCollection)
         console.log('Download complete:', result)
+
+        // Check if was cancelled
+        if (result.downloadStatus === 'cancelled' || result.errorMessage === 'CANCELLED') {
+          console.log('[App] Download was cancelled:', result)
+          // Don't show as error, let handleCancelDownload handle it
+        }
       }
     } catch (error) {
       console.error('Download failed:', error)
@@ -538,6 +553,44 @@ function App() {
     setDownloads([])
   }, [])
 
+  // 取消下载
+  const handleCancelDownload = useCallback(async (id: string) => {
+    console.log(`[App] Cancelling download for mod ${id}`)
+
+    if (!window.api) return
+
+    // Find the download item to get name and isCollection
+    const downloadItem = downloads.find(d => d.id === id)
+
+    // Call cancel API
+    try {
+      await window.api.cancelDownload()
+    } catch (error) {
+      console.error('[App] Failed to cancel download:', error)
+    }
+
+    // Update the download status to cancelled locally
+    setDownloads(prev => prev.map(d =>
+      d.id === id
+        ? { ...d, status: 'cancelled' as any, message: 'Download cancelled' }
+        : d
+    ))
+
+    // Add back to pending queue if we have the info
+    if (downloadItem) {
+      setPendingQueue(prev => {
+        // Don't add if already in queue
+        if (prev.some(item => item.id === id)) return prev
+        return [...prev, {
+          id,
+          name: downloadItem.name,
+          isCollection: downloadItem.isCollection || false,
+          modName: downloadItem.name
+        }]
+      })
+    }
+  }, [downloads])
+
   // 刷新游戏版本（供子组件调用）
   const refreshGameVersion = useCallback(async (): Promise<string> => {
     if (!window.api) return ''
@@ -772,6 +825,7 @@ function App() {
         onRequestDelete={handleRequestDelete}
         onClearCompleted={handleClearCompleted}
         onClearAll={handleClearAll}
+        onCancelDownload={handleCancelDownload}
       />
 
       {/* Pending Queue Confirmation Dialog */}

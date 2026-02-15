@@ -45,6 +45,7 @@ export interface AppConfig {
     skipVersionCheck: boolean;
     extractCollectionToSubfolder: boolean;
     dependencyMode: 'ask' | 'auto' | 'ignore';
+    maxConcurrentDownloads: number;
   };
   version: {
     autoDetect: boolean;
