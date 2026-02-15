@@ -20,21 +20,21 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   useEffect(() => {
     if (window.api && isOpen) {
       window.api.getConfig().then((cfg) => {
-        // Ensure default values are set
+        // Ensure default values are set - use nullish coalescing to preserve user config
         const mergedConfig = {
           ...cfg,
           steamcmd: {
-            ...cfg.steamcmd,
-            executablePath: cfg.steamcmd?.executablePath || '',
-            downloadPath: cfg.steamcmd?.downloadPath || ''
+            ...cfg.steamcmd
+            // Don't force empty string, keep undefined as-is
           },
           download: {
             ...cfg.download,
-            dependencyMode: cfg.download?.dependencyMode || 'ask'
+            dependencyMode: cfg.download?.dependencyMode ?? 'ask',
+            maxConcurrentDownloads: cfg.download?.maxConcurrentDownloads ?? 1
           },
           version: {
             ...cfg.version,
-            onMismatch: cfg.version?.onMismatch || 'ask'
+            onMismatch: cfg.version?.onMismatch ?? 'ask'
           }
         }
         setConfig(mergedConfig)
@@ -70,14 +70,18 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         }
       }
 
-      // Save all config changes
-      for (const [key, value] of Object.entries(tempConfig)) {
-        await window.api.setConfig(key, value)
-      }
-      setConfig({ ...tempConfig })
+      // 只保存这个面板负责的字段，避免覆盖 Toolbar 修改的 rimworld 配置
+      await window.api.setConfig('steamcmd', tempConfig.steamcmd)
+      await window.api.setConfig('download', tempConfig.download)
+      await window.api.setConfig('version', tempConfig.version)
+
+      // 获取最新完整配置用于更新本地状态
+      const latestConfig = await window.api.getConfig()
+      setConfig({ ...latestConfig })
+      setTempConfig({ ...latestConfig })
       // 通知父组件配置已更新
       if (onConfigSaved) {
-        onConfigSaved(tempConfig)
+        onConfigSaved(latestConfig)
       }
       onClose()
     }
