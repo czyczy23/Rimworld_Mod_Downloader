@@ -12,6 +12,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   const [config, setConfig] = useState<any>(null)
   const [tempConfig, setTempConfig] = useState<any>(null)
   const [localDetectedVersion, setLocalDetectedVersion] = useState<string>('1.6')
+  const [showResetWarning, setShowResetWarning] = useState(false)
 
   // 使用传入的 gameVersion，如果没有则使用本地状态
   const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
@@ -23,6 +24,11 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         // Ensure default values are set
         const mergedConfig = {
           ...cfg,
+          steamcmd: {
+            ...cfg.steamcmd,
+            executablePath: cfg.steamcmd?.executablePath || '',
+            downloadPath: cfg.steamcmd?.downloadPath || ''
+          },
           download: {
             ...cfg.download,
             dependencyMode: cfg.download?.dependencyMode || 'ask'
@@ -55,6 +61,14 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Handle save
   const handleSave = async () => {
     if (window.api) {
+      // Validate SteamCMD executable path if provided
+      if (tempConfig.steamcmd?.executablePath) {
+        const exeName = tempConfig.steamcmd.executablePath.split(/[/\\]/).pop()?.toLowerCase()
+        if (exeName && exeName !== 'steamcmd.exe') {
+          alert('警告：选择的文件不是 steamcmd.exe，请确认路径正确！')
+        }
+      }
+
       // Save all config changes
       for (const [key, value] of Object.entries(tempConfig)) {
         await window.api.setConfig(key, value)
@@ -163,6 +177,45 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     }
   }
 
+  // Handle selecting SteamCMD executable
+  const handleSelectSteamCMDExe = async () => {
+    if (window.api) {
+      const filePath = await window.api.selectFile({
+        title: 'Select steamcmd.exe',
+        filters: [
+          { name: 'Executable Files', extensions: ['exe'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      })
+      if (filePath) {
+        setTempConfig(prev => ({
+          ...prev,
+          steamcmd: {
+            ...prev.steamcmd,
+            executablePath: filePath
+          }
+        }))
+      }
+    }
+  }
+
+  // Handle selecting SteamCMD download path
+  const handleSelectSteamCMDDownloadPath = async () => {
+    if (window.api) {
+      const folderPath = await window.api.selectFolder()
+      if (folderPath) {
+        setTempConfig(prev => ({
+          ...prev,
+          steamcmd: {
+            ...prev.steamcmd,
+            downloadPath: folderPath
+          }
+        }))
+      }
+    }
+  }
+
   if (!config || !tempConfig) {
     return null
   }
@@ -211,6 +264,109 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         >
           ×
         </button>
+      </div>
+
+      {/* SteamCMD Settings */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+          SteamCMD 设置
+        </h4>
+
+        {/* SteamCMD Executable Path */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{
+            color: '#c6d4df',
+            fontSize: '13px',
+            display: 'block',
+            marginBottom: '8px'
+          }}>
+            SteamCMD 可执行文件路径:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={tempConfig.steamcmd?.executablePath || ''}
+              readOnly
+              placeholder="请选择 steamcmd.exe"
+              style={{
+                flex: 1,
+                background: '#2a475e',
+                color: tempConfig.steamcmd?.executablePath ? '#c6d4df' : '#8f98a0',
+                border: '1px solid #3d6c8d',
+                padding: '6px',
+                borderRadius: '3px',
+                fontSize: '12px',
+                cursor: 'not-allowed'
+              }}
+            />
+            <button
+              onClick={handleSelectSteamCMDExe}
+              style={{
+                background: '#3d6c8d',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'background 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+            >
+              浏览
+            </button>
+          </div>
+        </div>
+
+        {/* SteamCMD Download Path */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{
+            color: '#c6d4df',
+            fontSize: '13px',
+            display: 'block',
+            marginBottom: '8px'
+          }}>
+            SteamCMD 下载路径:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={tempConfig.steamcmd?.downloadPath || ''}
+              readOnly
+              placeholder="请选择下载文件夹"
+              style={{
+                flex: 1,
+                background: '#2a475e',
+                color: tempConfig.steamcmd?.downloadPath ? '#c6d4df' : '#8f98a0',
+                border: '1px solid #3d6c8d',
+                padding: '6px',
+                borderRadius: '3px',
+                fontSize: '12px',
+                cursor: 'not-allowed'
+              }}
+            />
+            <button
+              onClick={handleSelectSteamCMDDownloadPath}
+              style={{
+                background: '#3d6c8d',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'background 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+            >
+              浏览
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Game Version Settings */}
@@ -411,12 +567,40 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       {/* Buttons */}
       <div style={{
         display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '8px',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginTop: '32px',
         paddingTop: '16px',
         borderTop: '1px solid #2a475e'
       }}>
+        <button
+          onClick={() => setShowResetWarning(true)}
+          style={{
+            background: 'transparent',
+            color: '#f44336',
+            border: '1px solid #f44336',
+            padding: '8px 16px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f44336'
+            e.currentTarget.style.color = 'white'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = '#f44336'
+          }}
+        >
+          重置所有设置
+        </button>
+
+        <div style={{
+          display: 'flex',
+          gap: '8px'
+        }}>
         <button
           onClick={handleCancel}
           style={{
@@ -458,7 +642,125 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         >
           保存设置
         </button>
+        </div>
       </div>
+
+      {/* Reset Confirmation Dialog - Red Warning */}
+      {showResetWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#243447',
+            border: '2px solid #f44336',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 4px 20px rgba(244, 67, 54, 0.3)'
+          }}>
+            <h3 style={{
+              color: '#f44336',
+              margin: '0 0 16px 0',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              ⚠️ 危险操作确认
+            </h3>
+            <p style={{
+              color: '#c6d4df',
+              margin: '0 0 20px 0',
+              lineHeight: 1.5
+            }}>
+              您确定要将所有设置恢复默认值吗？<br/>
+              此操作将重置以下内容：
+            </p>
+            <ul style={{
+              color: '#8f98a0',
+              margin: '0 0 20px 0',
+              paddingLeft: '20px',
+              lineHeight: 1.8
+            }}>
+              <li>SteamCMD 路径配置</li>
+              <li>RimWorld 路径与版本</li>
+              <li>下载与依赖设置</li>
+              <li>版本检查设置</li>
+            </ul>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowResetWarning(false)}
+                style={{
+                  background: '#2a475e',
+                  color: '#c6d4df',
+                  border: '1px solid #3d6c8d',
+                  padding: '10px 20px',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#3d6c8d'
+                  e.currentTarget.style.color = 'white'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#2a475e'
+                  e.currentTarget.style.color = '#c6d4df'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={async () => {
+                  if (window.api) {
+                    await window.api.resetConfig()
+                    // Reload config after reset
+                    const newConfig = await window.api.getConfig()
+                    setConfig(newConfig)
+                    setTempConfig({ ...newConfig })
+                    // Notify parent component
+                    if (onConfigSaved) {
+                      onConfigSaved(newConfig)
+                    }
+                  }
+                  setShowResetWarning(false)
+                  onClose()
+                }}
+                style={{
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#d32f2f')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f44336')}
+              >
+                确认重置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

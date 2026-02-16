@@ -26,6 +26,7 @@ const api = {
   // Config operations
   getConfig: (key?: string) => ipcRenderer.invoke('config:get', key),
   setConfig: (key: string, value: any) => ipcRenderer.invoke('config:set', { key, value }),
+  resetConfig: () => ipcRenderer.invoke('config:reset'),
 
   // Version detection
   detectGameVersion: () => ipcRenderer.invoke('version:detect'),
@@ -47,6 +48,12 @@ const api = {
 
   // Dialog
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+  selectFile: (options?: {
+    title?: string
+    defaultPath?: string
+    filters?: { name: string, extensions: string[] }[]
+    properties?: ('openFile' | 'multiSelections')[]
+  }) => ipcRenderer.invoke('dialog:selectFile', options),
 
   // Download progress listener
   onDownloadProgress: (callback: DownloadProgressCallback) => {
@@ -81,6 +88,15 @@ const api = {
     ipcRenderer.on('batch:progress', handler)
     return () => {
       ipcRenderer.removeListener('batch:progress', handler)
+    }
+  },
+
+  // Config reset listener
+  onConfigReset: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('config:reset', handler)
+    return () => {
+      ipcRenderer.removeListener('config:reset', handler)
     }
   }
 }

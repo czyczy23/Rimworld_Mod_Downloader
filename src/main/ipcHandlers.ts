@@ -12,17 +12,48 @@ import type { ModVersionInfo } from './services/WorkshopScraper'
  */
 export function setupIpcHandlers(): void {
   // ===== Config Handlers =====
+  // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('config:get', (_, key?: string) => {
-    return configManager.get(key as any)
+    try {
+      return configManager.get(key as any)
+    } catch (error) {
+      console.error('[IPC] Failed to get config:', error)
+      throw new Error(`Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   })
 
   ipcMain.handle('config:set', (_, { key, value }) => {
-    configManager.set(key, value)
+    try {
+      configManager.set(key, value)
+    } catch (error) {
+      console.error('[IPC] Failed to set config:', error)
+      throw new Error(`Failed to set config: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  })
+
+  ipcMain.handle('config:reset', async (event) => {
+    const sender = event.sender
+    const mainWindow = BrowserWindow.fromWebContents(sender)
+
+    await configManager.reset()
+
+    // Notify renderer to refresh config
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('config:reset')
+    }
+
+    return true
   })
 
   // ===== Version Detection Handler =====
+  // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('version:detect', async () => {
-    return await configManager.detectGameVersion()
+    try {
+      return await configManager.detectGameVersion()
+    } catch (error) {
+      console.error('[IPC] Failed to detect game version:', error)
+      throw new Error(`Failed to detect game version: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   })
 
   // ===== Mod Download Handler =====
@@ -146,16 +177,28 @@ export function setupIpcHandlers(): void {
   })
 
   // ===== Mod Version Check Handler =====
+  // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('mod:checkVersion', async (_, modId: string): Promise<ModVersionInfo> => {
     console.log(`[IPC] Check version for mod ${modId}`)
-    return await workshopScraper.scrapeModVersion(modId)
+    try {
+      return await workshopScraper.scrapeModVersion(modId)
+    } catch (error) {
+      console.error(`[IPC] Failed to check version for mod ${modId}:`, error)
+      throw new Error(`Failed to check mod version: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   })
 
   // ===== Dependency Check Handler =====
+  // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('mod:checkDependencies', async (_, modId: string): Promise<Dependency[]> => {
     console.log(`[IPC] Check dependencies for mod ${modId}`)
-    const versionInfo = await workshopScraper.scrapeModVersion(modId)
-    return versionInfo.dependencies
+    try {
+      const versionInfo = await workshopScraper.scrapeModVersion(modId)
+      return versionInfo.dependencies
+    } catch (error) {
+      console.error(`[IPC] Failed to check dependencies for mod ${modId}:`, error)
+      throw new Error(`Failed to check mod dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   })
 
   // ===== Batch Download Handler =====
@@ -302,6 +345,22 @@ export function setupIpcHandlers(): void {
     const { dialog } = await import('electron')
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory']
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+
+  ipcMain.handle('dialog:selectFile', async (_, options?: {
+    title?: string
+    defaultPath?: string
+    filters?: { name: string, extensions: string[] }[]
+    properties?: ('openFile' | 'multiSelections')[]
+  }) => {
+    const { dialog } = await import('electron')
+    const result = await dialog.showOpenDialog({
+      title: options?.title || 'Select File',
+      defaultPath: options?.defaultPath,
+      filters: options?.filters || [{ name: 'All Files', extensions: ['*'] }],
+      properties: options?.properties || ['openFile']
     })
     return result.canceled ? null : result.filePaths[0]
   })

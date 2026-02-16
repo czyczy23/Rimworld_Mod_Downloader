@@ -95,4 +95,5 @@ export type IpcChannel =
   | 'config:set'
   | 'git:init'
   | 'git:commit'
-  | 'dialog:selectFolder';
+  | 'dialog:selectFolder'
+  | 'dialog:selectFile';

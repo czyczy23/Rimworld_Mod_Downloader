@@ -229,10 +229,37 @@ export class SteamCMD extends EventEmitter {
         })
       })
 
-      // Timeout handling
+      // Timeout handling - P1 FIX: Improved timeout handling with graceful shutdown
       const timeoutId = setTimeout(() => {
         console.error('[SteamCMD] Download timeout after 5 minutes')
-        process.kill('SIGTERM')
+
+        // Track if process has exited
+        let processExited = false
+
+        // Set up a one-time listener to detect process exit
+        process.once('exit', () => {
+          processExited = true
+        })
+
+        // Try graceful termination first (SIGTERM)
+        try {
+          process.kill('SIGTERM')
+          console.log('[SteamCMD] Sent SIGTERM to process')
+        } catch (killError) {
+          console.error('[SteamCMD] Failed to send SIGTERM:', killError)
+        }
+
+        // Wait for process to exit gracefully, then force kill if necessary
+        setTimeout(() => {
+          if (!processExited && !process.killed) {
+            console.error('[SteamCMD] Process did not exit gracefully, forcing SIGKILL')
+            try {
+              process.kill('SIGKILL')
+            } catch (forceKillError) {
+              console.error('[SteamCMD] Failed to force kill process:', forceKillError)
+            }
+          }
+        }, 5000) // Give 5 seconds for graceful shutdown
 
         this.emit('progress', {
           stage: 'error',
