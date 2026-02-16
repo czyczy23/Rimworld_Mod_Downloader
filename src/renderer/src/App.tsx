@@ -15,11 +15,13 @@ declare global {
     api: {
       getConfig: (key?: string) => Promise<any>
       setConfig: (key: string, value: any) => Promise<void>
+      resetConfig: () => Promise<void>
       downloadMod: (id: string, isCollection: boolean) => Promise<any>
       downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]) => Promise<any[]>
       checkDependencies: (id: string) => Promise<any[]>
       checkModVersion: (modId: string) => Promise<{ supportedVersions: string[], modName: string, dependencies: any[] }>
       selectFolder: () => Promise<string | null>
+      selectFile: (options?: any) => Promise<string | null>
       cancelDownload: () => Promise<{ success: boolean }>
       onDownloadProgress: (callback: (data: {
         id: string
@@ -69,13 +71,34 @@ interface AppConfig {
   }
   rimworld?: {
     currentVersion?: string
+    modsPaths?: Array<{
+      id: string
+      name: string
+      path: string
+      isActive: boolean
+    }>
   }
+}
+
+interface ModsPath {
+  id: string
+  name: string
+  path: string
+  isActive: boolean
+}
+
+// 辅助函数：标准化路径格式（统一使用正斜杠）
+const normalizePath = (path: string): string => {
+  if (!path) return ''
+  return path.replace(/\\/g, '/')
 }
 
 function App() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [batchInfo, setBatchInfo] = useState<BatchDownloadInfo | undefined>()
   const [config, setConfig] = useState<AppConfig | null>(null)
+  const [modsPaths, setModsPaths] = useState<ModsPath[]>([])
+  const [activePath, setActivePath] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
   const [showDependencyDialog, setShowDependencyDialog] = useState(false)
   const [showVersionMismatchDialog, setShowVersionMismatchDialog] = useState(false)
@@ -92,7 +115,8 @@ function App() {
   const [selectedForDelete, setSelectedForDelete] = useState<string[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // 使用 ref 避免循环依赖
+  // 使用 ref 避免闭包陷阱
+  const modsPathsRef = useRef<ModsPath[]>([])
   const pendingQueueRef = useRef<PendingDownloadItem[]>([])
   const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
 
@@ -106,12 +130,28 @@ function App() {
     currentPageInfoRef.current = currentPageInfo
   }, [currentPageInfo])
 
+  // 同步 modsPaths 到 ref
+  useEffect(() => {
+    modsPathsRef.current = modsPaths
+  }, [modsPaths])
+
   // Load config on mount
   useEffect(() => {
     if (window.api) {
       window.api.getConfig().then((cfg) => {
-        console.log('Config loaded:', cfg)
+        console.log('[App] Config loaded:', cfg)
         setConfig(cfg)
+
+        // Load mods paths from config
+        const paths = cfg.rimworld?.modsPaths || []
+        console.log('[App] Initial modsPaths:', paths)
+        setModsPaths(paths)
+
+        const active = paths.find((p: ModsPath) => p.isActive)
+        if (active) {
+          console.log('[App] Initial activePath:', active.path)
+          setActivePath(active.path)
+        }
       })
 
       // Also load game version
@@ -541,6 +581,15 @@ function App() {
   // 设置保存后的回调
   const handleConfigSaved = useCallback((newConfig: any) => {
     setConfig(prev => prev ? { ...prev, ...newConfig } : newConfig)
+
+    // Sync mods paths from config
+    const paths = newConfig.rimworld?.modsPaths || []
+    setModsPaths(paths)
+
+    const active = paths.find((p: ModsPath) => p.isActive)
+    if (active) {
+      setActivePath(active.path)
+    }
   }, [])
 
   // 清除已完成的下载
@@ -604,6 +653,102 @@ function App() {
       return fallbackVersion
     }
   }, [])
+
+  // 处理路径切换
+  const handlePathChange = useCallback(async (selectedPath: string) => {
+    if (!window.api) return
+
+    // 标准化路径
+    const normalizedPath = normalizePath(selectedPath)
+
+    console.log('[App] handlePathChange called with:', selectedPath)
+    console.log('[App] Normalized path:', normalizedPath)
+    console.log('[App] Current modsPaths from ref:', modsPathsRef.current)
+
+    // 立即更新 activePath 以确保 UI 响应
+    setActivePath(normalizedPath)
+    console.log('[App] Updated activePath:', normalizedPath)
+
+    // 从 ref 获取最新的 modsPaths
+    const currentPaths = modsPathsRef.current
+    const updatedPaths = currentPaths.map((p) => ({
+      ...p,
+      isActive: normalizePath(p.path) === normalizedPath
+    }))
+
+    console.log('[App] Updated modsPaths:', updatedPaths)
+
+    // 更新本地状态
+    setModsPaths(updatedPaths)
+
+    // 异步更新配置
+    try {
+      const currentRimworld = await window.api.getConfig('rimworld')
+      await window.api.setConfig('rimworld', {
+        ...currentRimworld,
+        modsPaths: updatedPaths
+      })
+      console.log('[App] Config saved with updated paths')
+
+      // Re-detect game version after path change
+      await refreshGameVersion()
+    } catch (error) {
+      console.error('[App] Failed to save config:', error)
+    }
+  }, [refreshGameVersion])
+
+  // 处理浏览新路径
+  const handleBrowsePath = useCallback(async () => {
+    if (!window.api) return
+
+    console.log('[App] handleBrowsePath called')
+
+    const selectedPath = await window.api.selectFolder()
+    if (selectedPath) {
+      // 标准化路径
+      const normalizedPath = normalizePath(selectedPath)
+
+      console.log('[App] Selected new path:', selectedPath)
+      console.log('[App] Normalized path:', normalizedPath)
+      console.log('[App] Current modsPaths from ref:', modsPathsRef.current)
+
+      // 立即更新 activePath
+      setActivePath(normalizedPath)
+
+      // 添加新路径到配置
+      const newPath: ModsPath = {
+        id: crypto.randomUUID(),
+        name: 'Custom Path',
+        path: normalizedPath,
+        isActive: true
+      }
+
+      // 从 ref 获取最新的 modsPaths
+      const currentPaths = modsPathsRef.current
+      const updatedPaths = currentPaths.map(p => ({ ...p, isActive: false }))
+      const newPaths = [...updatedPaths, newPath]
+
+      console.log('[App] New paths after browse:', newPaths)
+
+      // 更新本地状态
+      setModsPaths(newPaths)
+
+      // 异步更新配置
+      try {
+        const currentRimworld = await window.api.getConfig('rimworld')
+        await window.api.setConfig('rimworld', {
+          ...currentRimworld,
+          modsPaths: newPaths
+        })
+        console.log('[App] Config saved with new path')
+
+        // Re-detect game version after adding new path
+        await refreshGameVersion()
+      } catch (error) {
+        console.error('[App] Failed to save config in browse:', error)
+      }
+    }
+  }, [refreshGameVersion])
 
   // 开始队列下载
   const handleStartQueueDownload = useCallback(async () => {
@@ -767,7 +912,10 @@ function App() {
         onAddToQueue={handleAddToQueue}
         currentPageInfo={currentPageInfo}
         gameVersion={gameVersion}
-        onRefreshGameVersion={refreshGameVersion}
+        modsPaths={modsPaths}
+        activePath={activePath}
+        onPathChange={handlePathChange}
+        onBrowsePath={handleBrowsePath}
       />
 
       {/* Main Content */}

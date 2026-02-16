@@ -22,6 +22,10 @@ interface ToolbarProps {
   currentPageInfo?: CurrentPageInfo | null
   gameVersion?: string
   onRefreshGameVersion?: () => Promise<string>
+  modsPaths?: ModsPath[]
+  activePath?: string
+  onPathChange?: (path: string) => void
+  onBrowsePath?: () => void
 }
 
 export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion }: ToolbarProps) {
@@ -204,6 +208,16 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
     }
   }
 
+  // Format path for Windows display (use backslashes)
+  const formatPathForDisplay = (path: string): string => {
+    if (!path) return path
+    // Only convert on Windows
+    if (navigator.platform.toLowerCase().includes('win')) {
+      return path.replace(/\//g, '\\')
+    }
+    return path
+  }
+
   // Check if download button should be enabled
   const canDownload = currentPageInfo?.isModDetailPage && !isDownloading
   const canAdd = currentPageInfo?.isModDetailPage && !isAddingToQueue
@@ -268,7 +282,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
             ) : (
               modsPaths.map((path) => (
                 <option key={path.id} value={path.path}>
-                  {path.name} - {path.path}
+                  {path.name} - {formatPathForDisplay(path.path)}
                 </option>
               ))
             )}

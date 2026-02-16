@@ -26,6 +26,7 @@ const api = {
   // Config operations
   getConfig: (key?: string) => ipcRenderer.invoke('config:get', key),
   setConfig: (key: string, value: any) => ipcRenderer.invoke('config:set', { key, value }),
+  resetConfig: () => ipcRenderer.invoke('config:reset'),
 
   // Version detection
   detectGameVersion: () => ipcRenderer.invoke('version:detect'),

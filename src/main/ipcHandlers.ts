@@ -20,6 +20,12 @@ export function setupIpcHandlers(): void {
     configManager.set(key, value)
   })
 
+  ipcMain.handle('config:reset', () => {
+    console.log('[IPC] Reset config requested')
+    configManager.resetConfig()
+    return { success: true }
+  })
+
   // ===== Version Detection Handler =====
   ipcMain.handle('version:detect', async () => {
     return await configManager.detectGameVersion()
@@ -31,14 +37,17 @@ export function setupIpcHandlers(): void {
 
     const sender = event.sender
     const mainWindow = BrowserWindow.fromWebContents(sender)
+    if (!mainWindow) {
+      throw new Error('Main window not found')
+    }
 
     try {
       // Step 1: Download using SteamCMD
       console.log(`[IPC] Starting SteamCMD download for mod ${id}`)
 
-      // Set up progress listener
+      // Set up progress listener - only handle events for this specific modId
       const progressHandler = (progress: DownloadProgress) => {
-        console.log(`[SteamCMD] Progress: ${progress.percent}% - ${progress.message}`)
+        console.log(`[SteamCMD] Progress for mod ${id}: ${progress.percent}% - ${progress.message}`)
 
         // Send progress to renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -188,6 +197,9 @@ export function setupIpcHandlers(): void {
 
     const sender = event.sender
     const mainWindow = BrowserWindow.fromWebContents(sender)
+    if (!mainWindow) {
+      throw new Error('Main window not found')
+    }
     const results: ModMetadata[] = []
 
     for (let i = 0; i < items.length; i++) {
