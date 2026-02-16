@@ -194,7 +194,13 @@ export function setupIpcHandlers(): void {
     console.log(`[IPC] Check dependencies for mod ${modId}`)
     try {
       const versionInfo = await workshopScraper.scrapeModVersion(modId)
-      return versionInfo.dependencies
+      // Convert WorkshopScraper.Dependency to shared.Dependency
+      return versionInfo.dependencies.map(dep => ({
+        id: dep.modId,
+        name: dep.name,
+        isOptional: !dep.required,
+        willDownload: true
+      }))
     } catch (error) {
       console.error(`[IPC] Failed to check dependencies for mod ${modId}:`, error)
       throw new Error(`Failed to check mod dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`)

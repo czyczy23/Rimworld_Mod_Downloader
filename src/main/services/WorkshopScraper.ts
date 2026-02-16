@@ -9,10 +9,9 @@ export interface ModVersionInfo {
 }
 
 export interface Dependency {
-  id: string
+  modId: string
   name: string
-  isOptional: boolean
-  willDownload: boolean
+  required: boolean
 }
 
 export class WorkshopScraperError extends Error {
@@ -192,10 +191,9 @@ export class WorkshopScraper {
             if (!seenIds.has(depId)) {
               seenIds.add(depId)
               dependencies.push({
-                id: depId,
+                modId: depId,
                 name: $(element).text().trim() || `Mod ${depId}`,
-                isOptional: false,
-                willDownload: false
+                required: true
               })
             }
           }
@@ -211,10 +209,9 @@ export class WorkshopScraper {
       if (!seenIds.has(depId) && depId.length > 6) {
         seenIds.add(depId)
         dependencies.push({
-          id: depId,
+          modId: depId,
           name: `Mod ${depId}`,
-          isOptional: false,
-          willDownload: false
+          required: true
         })
       }
     }
