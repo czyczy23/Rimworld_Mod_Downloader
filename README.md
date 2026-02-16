@@ -1,6 +1,7 @@
 # RimWorld Mod Downloader
 
 一个用于从 Steam Workshop 下载和管理 RimWorld 模组的 Electron 桌面应用程序。
+
 **提醒**:本项目完全使用**Vibe Coding**进行编写，可能会带来不稳定的bug。
 
 ## 功能特性
