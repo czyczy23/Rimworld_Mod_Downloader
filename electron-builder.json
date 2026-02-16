@@ -16,9 +16,12 @@
         "arch": ["x64"]
       }
     ],
-    "sign": null
+    "sign": null,
+    "signingHashAlgorithms": null
   },
   "portable": {
     "artifactName": "RimWorld-Mod-Downloader-${version}-portable.exe"
-  }
+  },
+  "asar": true,
+  "compression": "maximum"
 }

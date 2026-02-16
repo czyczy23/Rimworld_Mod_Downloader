@@ -27,16 +27,23 @@
 
 ### 安装步骤
 
-1. 下载 `RimWorld-Mod-Downloader-1.0.0-portable.exe`
-2. 运行可执行文件
-3. 首次启动后，打开设置面板配置：
+1. 下载 `RimWorld-Mod-Downloader-1.0.0-win64.zip`
+2. 解压到任意文件夹
+3. 运行 `RimWorld Mod Downloader.exe`
+4. 首次启动后，打开设置面板配置：
    - SteamCMD 路径
    - RimWorld Mods 文件夹路径
-4. 开始下载模组！
+5. 开始下载模组！
 
 ## 使用说明
 
 详细使用说明请参考 [README.md](https://github.com/czyczy23/Rimworld_Mod_Downloader/blob/main/README.md)
+
+## 发布文件
+
+| 文件 | 说明 |
+|------|------|
+| `RimWorld-Mod-Downloader-1.0.0-win64.zip` | Windows 64位 便携版（ZIP压缩） |
 
 ## 已知问题
 
