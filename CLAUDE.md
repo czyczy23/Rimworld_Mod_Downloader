@@ -53,7 +53,7 @@ src/
 │           ├── WebviewContainer.tsx    # Steam Workshop browser
 │           ├── Toolbar.tsx              # Toolbar + download/add buttons
 │           ├── DownloadQueue.tsx        # Download queue status bar
-│           ├── SettingsPanel.tsx        # Settings panel
+│           ├── SettingsPanel.tsx        # Settings panel (767 lines)
 │           ├── DependencyDialog.tsx     # Dependency selection dialog
 │           ├── VersionMismatchDialog.tsx # Version mismatch warning
 │           ├── PendingQueueDialog.tsx   # Pending queue confirmation dialog
@@ -63,11 +63,14 @@ src/
 ```
 
 **Key file line counts:**
-- `src/main/ipcHandlers.ts` - 325 lines
-- `src/main/services/SteamCMD.ts` - 252 lines
+- `src/main/ipcHandlers.ts` - 392 lines
+- `src/main/services/SteamCMD.ts` - 288 lines
 - `src/main/services/ModProcessor.ts` - 264 lines
-- `src/renderer/src/App.tsx` - 422 lines
-- `src/renderer/src/components/Toolbar.tsx` - 469 lines
+- `src/main/services/WorkshopScraper.ts` - 225 lines
+- `src/main/utils/ConfigManager.ts` - 180 lines
+- `src/renderer/src/App.tsx` - 826 lines
+- `src/renderer/src/components/Toolbar.tsx` - 584 lines
+- `src/renderer/src/components/SettingsPanel.tsx` - 767 lines
 
 ## Development Guide
 
@@ -75,7 +78,7 @@ src/
 
 ```bash
 npm run dev          # Development mode
-npm run typecheck    # Type checking
+npm run typecheck    # Type checking (separate node & web)
 npm run build        # Build
 npm run build:win    # Package Windows
 ```
@@ -128,12 +131,14 @@ return unsubscribe
 |---------|------|----------|
 | `config:get` | invoke | Get config |
 | `config:set` | invoke | Set config |
+| `config:reset` | invoke | Reset config to defaults |
 | `version:detect` | invoke | Detect game version |
 | `mod:download` | invoke | Download single mod |
 | `mod:downloadBatch` | invoke | Batch download |
 | `mod:checkVersion` | invoke | Check mod version info |
 | `mod:checkDependencies` | invoke | Check dependencies |
 | `dialog:selectFolder` | invoke | Open folder picker |
+| `dialog:selectFile` | invoke | Open file picker |
 | `window:minimize` | invoke | Minimize window |
 | `window:maximize` | invoke | Maximize window |
 | `window:close` | invoke | Close window |
@@ -141,6 +146,7 @@ return unsubscribe
 | `download:complete` | send | Download complete |
 | `download:error` | send | Download error |
 | `batch:progress` | send | Batch download progress |
+| `config:reset` | send | Config reset event |
 
 #### 2. Singleton Pattern
 
@@ -263,7 +269,7 @@ UI re-renders
     modsPaths: [{
       id: UUID,
       name: 'Default Mods Folder',
-      path: '~/Documents/RimWorld/Mods',
+      path: '~/AppData/LocalLow/Ludeon Studios/RimWorld by Ludeon Studios/Mods',
       isActive: true
     }],
     autoCheckUpdates: false
@@ -278,6 +284,10 @@ UI re-renders
     autoDetect: true,
     manualVersion: '1.6',
     onMismatch: 'ask'
+  },
+  git: {
+    enabled: false,
+    autoCommit: true
   }
 }
 ```
@@ -304,6 +314,7 @@ configManager.get('rimworld')    // Get specific key
 configManager.set('rimworld', { ... })  // Set specific key (only top-level!)
 configManager.getActiveModsPath() // Get active ModsPath
 configManager.detectGameVersion() // Auto-detect version
+configManager.reset()            // Reset config to defaults
 ```
 
 #### SteamCMD (SteamCMD Process Wrapper)
@@ -325,7 +336,7 @@ Matches from stdout: `Downloading update (X of Y)" → percentage `(X/Y)*100`
 | `Downloaded item` | `Failure` |
 | `isDownloading = true` | stderr output |
 
-**Timeout:** 5 minutes (300,000 ms)
+**Timeout:** 5 minutes (300,000 ms) with graceful shutdown (SIGTERM → SIGKILL after 5s)
 
 **API:**
 ```typescript
@@ -401,10 +412,13 @@ Extracts modId from links: `/filedetails\/\?id=(\d+)/`
 
 Uses `Set` to avoid duplicate dependencies.
 
+**⚠️ Important**: Throws errors on failure (instead of silent return) - workshop scraper no longer swallows errors!
+
 **API:**
 ```typescript
 workshopScraper.scrapeModVersion(modId)
 // Returns: { supportedVersions, modName, dependencies }
+// Throws: WorkshopScraperError on failure
 ```
 
 #### WebviewContainer (Steam Browser)
@@ -435,24 +449,25 @@ interface CurrentPageInfo {
 
 #### Toolbar (Toolbar)
 
-**File**: `src/renderer/src/components/Toolbar.tsx`
+**File**: `src/renderer/src/components/Toolbar.tsx` (584 lines)
 
 **Layout:**
 ```
-[Title] [Path Selector] [Browse] [Game Version] [Download Button] [Settings]
+[Title] [Path Selector] [Browse] [Game Version] [Add] [Download] [Settings]
 [Mod Info Panel (conditional display)]
 ```
 
 **Features:**
 - Path selection and switching (sets entire rimworld object, can't set nested properties)
-- Game version display
-- Download button (only enabled on Mod detail page)
+- Game version display (from parent prop, single source of truth)
+- Add to Queue button alongside Download button
+- Both buttons use exactly the same version checking logic
 - Mod info display (type, ID, supported versions, dependency count)
 - Version compatibility check (automatically calls checkModVersion on page change)
 
 #### App.tsx (Main App)
 
-**File**: `src/renderer/src/App.tsx`
+**File**: `src/renderer/src/App.tsx` (826 lines)
 
 **State:**
 ```typescript
@@ -465,17 +480,29 @@ const [showVersionMismatchDialog, setShowVersionMismatchDialog] = useState(false
 const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
 const [pendingDependencies, setPendingDependencies] = useState<...>(null)
 const [pendingVersionCheck, setPendingVersionCheck] = useState<...>(null)
+const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<...>(null)
 const [gameVersion, setGameVersion] = useState<string>('')
+const [pendingQueue, setPendingQueue] = useState<PendingDownloadItem[]>([])
+const [showPendingQueueDialog, setShowPendingQueueDialog] = useState(false)
+const [selectedForDelete, setSelectedForDelete] = useState<string[]>([])
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+```
+
+**Refs for Closure Trap Fix:**
+```typescript
+const pendingQueueRef = useRef<PendingDownloadItem[]>([])
+const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
 ```
 
 **Effects:**
 - Load config and game version
 - Set up download progress listener (remember cleanup unsubscribe!)
+- Listen for config reset event
 
 **Download Flow Logic:**
 1. Check version (based on `version.onMismatch` config)
 2. Check dependencies (based on `download.dependencyMode` config)
-3. Start download
+3. Start download OR add to pending queue
 
 ### Pending Queue Feature (Phase 3.5)
 
@@ -519,16 +546,27 @@ const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<...>(null)
 - Provides `onRefreshGameVersion` callback for child components to trigger refresh
 - Auto-detects version when switching mod paths and syncs to settings panel
 
+#### SettingsPanel Features
+**File**: `src/renderer/src/components/SettingsPanel.tsx` (767 lines)
+
+Features:
+- SteamCMD path configuration (executable + download path)
+- Game version settings (auto-detect + manual override)
+- Version mismatch behavior (ask/force/skip)
+- Dependency mode (ask/auto/ignore)
+- **Config reset with warning dialog** (red warning, confirms before reset)
+
 #### DownloadQueue Enhancements
 - Added `pendingQueue` prop to display pending list
 - Added `selectedForDelete`, `onToggleSelectForDelete`, `onSelectAllForDelete`, `onRequestDelete` for deletion functionality
 - Added `onClearCompleted` and `onClearAll` callback props (fixed the issue where clear buttons weren't working!)
 
-#### Circular Dependency Avoidance
-Uses useRef to avoid circular dependencies in useCallback:
+#### Circular Dependency Avoidance (Closure Trap Fix)
+Uses useRef to avoid closure traps in useCallback:
 ```typescript
 const pendingQueueRef = useRef<PendingDownloadItem[]>([])
 const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
+const modsPathsRef = useRef<ModsPath[]>([])
 
 useEffect(() => {
   pendingQueueRef.current = pendingQueue
@@ -537,7 +575,13 @@ useEffect(() => {
 useEffect(() => {
   currentPageInfoRef.current = currentPageInfo
 }, [currentPageInfo])
+
+useEffect(() => {
+  modsPathsRef.current = modsPaths
+}, [modsPaths])
 ```
+
+**Key Takeaway:** When state is used in useCallback handlers that modify the same state, use useRef to access the latest value to avoid closure traps.
 
 ### Development Notes (Pure Vibe Coding)
 
@@ -554,6 +598,8 @@ useEffect(() => {
 ⚠️ **Webview navigation?** → Listen for did-navigate-in-page (Steam is SPA!)
 
 ⚠️ **Don't inject scripts into Steam pages!** → Download button is in app toolbar, not in page
+
+⚠️ **WorkshopScraper errors?** → Now throws errors instead of silently returning empty data - IPC handlers must handle!
 
 ### Vite Config Notes
 
@@ -684,6 +730,9 @@ const handlePathChange = useCallback(async (selectedPath: string) => {
 ```
 
 **Key Takeaway:** When state is used in useCallback handlers that modify the same state, use useRef to access the latest value to avoid closure traps.
+
+### Config Reset Feature
+SettingsPanel now includes a "Reset All Settings" button with red warning dialog. Shows what will be reset before confirming.
 
 ## Preload API (window.api)
 
