@@ -1,0 +1,24 @@
+{
+  "appId": "com.rimworld.moddownloader",
+  "productName": "RimWorld Mod Downloader",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist/**/*",
+    "out/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "sign": null
+  },
+  "portable": {
+    "artifactName": "RimWorld-Mod-Downloader-${version}-portable.exe"
+  }
+}
