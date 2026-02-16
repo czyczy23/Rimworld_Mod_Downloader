@@ -1,18 +1,29 @@
 # Dependencies
 node_modules/
+
+# Build outputs
 dist/
 out/
 release/
+build/
 
-# Build files
+# Package files
 *.tgz
 *.tar.gz
+*.zip
 
-# IDE
+# IDE and Editors
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
 
 # Logs
 *.log
@@ -21,34 +32,69 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+main.log
+renderer.log
 
-# Environment
+# Environment variables
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Config files (sensitive data)
+# Config files with sensitive data
 config.json
 *.config.json
+config.local.json
 
-# OS
+# OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Electron
+# Electron specific
 app-update.yml
 dev-app-update.yml
+*.asar
+*.unpacked
 
-# Cache
+# Electron Builder cache
 .cache/
+.electron-vite/
+node_modules/.cache/
+.eslintcache
+.stylelintcache
+
+# Temporary files
 temp/
 tmp/
+*.tmp
+*.temp
+.temp/
 
-# Test files
-*.test.js
-*.spec.js
+# Test coverage
 coverage/
+.nyc_output/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Project internal docs
 CLAUDE.md
 PRD.md
-PRD.md
-CLAUDE.md
+BUILD.md
+RELEASE_NOTES*.md
+RELEASE_GUIDE.md
+
+# Electron user data (for development)
+user-data/
+
+# Backup files
+*.bak
+*.backup
