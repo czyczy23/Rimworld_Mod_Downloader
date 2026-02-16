@@ -12,8 +12,10 @@ import { randomUUID } from 'crypto'
 
 const defaultModsPath = join(
   process.env.USERPROFILE || process.env.HOME || '',
-  'Documents',
-  'RimWorld',
+  'AppData',
+  'LocalLow',
+  'Ludeon Studios',
+  'RimWorld by Ludeon Studios',
   'Mods'
 )
 
@@ -93,6 +95,26 @@ class ConfigManager {
   // Set config value
   set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
     this.store.set(key, value)
+  }
+
+  // Reset config to defaults
+  async reset(): Promise<void> {
+    this.store.clear()
+    this.store.set(defaults)
+    console.log('[ConfigManager] Config has been reset to defaults')
+
+    // Create default mods folder if it doesn't exist
+    await this.ensureDefaultModsFolder()
+  }
+
+  // Ensure default mods folder exists
+  private async ensureDefaultModsFolder(): Promise<void> {
+    try {
+      await fs.mkdir(defaultModsPath, { recursive: true })
+      console.log(`[ConfigManager] Created default mods folder: ${defaultModsPath}`)
+    } catch (error) {
+      console.error('[ConfigManager] Failed to create default mods folder:', error)
+    }
   }
 
   // Get current active mods path

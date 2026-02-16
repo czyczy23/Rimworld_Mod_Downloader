@@ -25,6 +25,7 @@ An Electron + TypeScript + Vite desktop application for downloading and managing
 ✅ Bug Fixes: 2026-02-15     - Completed (SteamCMD config, IPC listeners, version dialog, config integration)
 ✅ Phase 3.5: Pending Queue   - Completed (pending download queue, Add button, unified version checking)
 ✅ Dependency & Version Parsing Improvements - Completed (improved multi-version parsing, enhanced dependency detection)
+✅ Bug Fixes: 2026-02-16     - Completed (useCallback closure trap fix, path switching sync issue, config reset feature)
 ```
 
 ## Directory Structure
@@ -659,6 +660,31 @@ Check:
 - Use onRefreshGameVersion callback to trigger refresh
 - Auto-detects and syncs when switching mod paths
 
+### Path Switching Not Updating Frontend (useCallback Closure Trap)
+**Problem:** When switching mod paths, the dropdown doesn't show the selected path.
+
+**Root Cause:** useCallback closure trap - `handlePathChange` and `handleBrowsePath` had `modsPaths` in their dependency array, causing them to use stale state values when called.
+
+**Fix:** Use useRef to store the latest state:
+```typescript
+// Add ref
+const modsPathsRef = useRef<ModsPath[]>([])
+
+// Sync state to ref
+useEffect(() => {
+  modsPathsRef.current = modsPaths
+}, [modsPaths])
+
+// In handler, use ref instead of state
+const handlePathChange = useCallback(async (selectedPath: string) => {
+  // Use modsPathsRef.current instead of modsPaths
+  const currentPaths = modsPathsRef.current
+  // ...
+}, [refreshGameVersion])  // Remove modsPaths from dependencies!
+```
+
+**Key Takeaway:** When state is used in useCallback handlers that modify the same state, use useRef to access the latest value to avoid closure traps.
+
 ## Preload API (window.api)
 
 ```typescript
@@ -666,6 +692,7 @@ window.api = {
   // Config
   getConfig: (key?: string) => Promise<any>
   setConfig: (key: string, value: any) => Promise<void>
+  resetConfig: () => Promise<boolean>
 
   // Version detection
   detectGameVersion: () => Promise<string>
@@ -678,12 +705,14 @@ window.api = {
 
   // Dialog
   selectFolder: () => Promise<string | null>
+  selectFile: (options?: SelectFileOptions) => Promise<string | null>
 
   // Event listeners (returns unsubscribe function!)
   onDownloadProgress: (callback) => (() => void)
   onDownloadComplete: (callback) => (() => void)
   onDownloadError: (callback) => (() => void)
   onBatchProgress: (callback) => (() => void)
+  onConfigReset: (callback) => (() => void)
 }
 ```
 

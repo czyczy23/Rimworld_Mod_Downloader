@@ -22,10 +22,12 @@ interface ToolbarProps {
   currentPageInfo?: CurrentPageInfo | null
   gameVersion?: string
   onRefreshGameVersion?: () => Promise<string>
+  modsPaths?: ModsPath[]
+  onConfigSaved?: (newConfig: any) => void
 }
 
-export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion }: ToolbarProps) {
-  const [modsPaths, setModsPaths] = useState<ModsPath[]>([])
+export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion, modsPaths: propModsPaths, onConfigSaved }: ToolbarProps) {
+  const [modsPaths, setModsPaths] = useState<ModsPath[]>(propModsPaths || [])
   const [activePath, setActivePath] = useState<string>('')
   const [isDownloading, setIsDownloading] = useState(false)
   const [isAddingToQueue, setIsAddingToQueue] = useState(false)
@@ -73,7 +75,19 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
 
   // Load config on mount
   useEffect(() => {
-    if (window.api) {
+    // If propModsPaths is provided and has data, use it directly
+    if (propModsPaths && propModsPaths.length > 0) {
+      setModsPaths(propModsPaths)
+      const active = propModsPaths.find((p) => p.isActive)
+      if (active) {
+        setActivePath(active.path)
+      }
+      return
+    }
+
+    // Only load from config if propModsPaths is explicitly null/undefined (initial load)
+    // Don't reload if propModsPaths is an empty array - that means user cleared paths
+    if (window.api && (propModsPaths === null || propModsPaths === undefined)) {
       window.api.getConfig().then((cfg) => {
         const paths = cfg.rimworld?.modsPaths || []
         setModsPaths(paths)
@@ -93,7 +107,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         })
       }
     }
-  }, [propGameVersion])
+  }, [propGameVersion, propModsPaths])
 
   // Handle path selection change
   const handlePathChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -109,10 +123,17 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
     if (window.api) {
       // Set the entire rimworld object since we can't set nested properties directly
       const currentRimworld = await window.api.getConfig('rimworld')
-      await window.api.setConfig('rimworld', {
+      const newRimworld = {
         ...currentRimworld,
         modsPaths: updatedPaths
-      })
+      }
+      await window.api.setConfig('rimworld', newRimworld)
+
+      // Notify parent to update config state
+      if (onConfigSaved) {
+        const fullConfig = await window.api.getConfig()
+        onConfigSaved(fullConfig)
+      }
 
       // Re-detect game version after path change
       if (onRefreshGameVersion) {
@@ -149,10 +170,17 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
 
       // Set the entire rimworld object since we can't set nested properties directly
       const currentRimworld = await window.api.getConfig('rimworld')
-      await window.api.setConfig('rimworld', {
+      const newRimworld = {
         ...currentRimworld,
         modsPaths: updatedPaths
-      })
+      }
+      await window.api.setConfig('rimworld', newRimworld)
+
+      // Notify parent to update config state
+      if (onConfigSaved) {
+        const fullConfig = await window.api.getConfig()
+        onConfigSaved(fullConfig)
+      }
 
       // Re-detect game version after adding new path
       if (onRefreshGameVersion) {

@@ -2,8 +2,13 @@
   "permissions": {
     "allow": [
       "Edit",
-      "Bash(npm run typecheck)",
-      "Bash(git add:*)"
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(del:*)"
     ]
-  }
+  },
+  "model": "opus",
+  "language": "Chinese",
+  "skipDangerousModePermissionPrompt": true
 }

@@ -20,6 +20,12 @@ declare global {
       checkDependencies: (id: string) => Promise<any[]>
       checkModVersion: (modId: string) => Promise<{ supportedVersions: string[], modName: string, dependencies: any[] }>
       selectFolder: () => Promise<string | null>
+      selectFile: (options?: {
+        title?: string
+        defaultPath?: string
+        filters?: { name: string, extensions: string[] }[]
+        properties?: ('openFile' | 'multiSelections')[]
+      }) => Promise<string | null>
       onDownloadProgress: (callback: (data: {
         id: string
         status: string
@@ -32,6 +38,8 @@ declare global {
       onDownloadError: (callback: (data: { id: string; error: string }) => void) => () => void
       onBatchProgress: (callback: (data: any) => void) => () => void
       detectGameVersion: () => Promise<string>
+      resetConfig: () => Promise<boolean>
+      onConfigReset: (callback: () => void) => () => void
     }
   }
 }
@@ -123,6 +131,25 @@ function App() {
         setGameVersion('')
       })
     }
+  }, [])
+
+  // Listen for config reset event
+  useEffect(() => {
+    if (!window.api) return
+
+    const unsubscribe = window.api.onConfigReset(() => {
+      console.log('[App] Config reset received, reloading...')
+      window.api.getConfig().then((cfg) => {
+        setConfig(cfg)
+      })
+      window.api.detectGameVersion().then((version) => {
+        setGameVersion(version)
+      }).catch(() => {
+        setGameVersion('')
+      })
+    })
+
+    return unsubscribe
   }, [])
 
   // Set up download progress listeners
@@ -715,6 +742,8 @@ function App() {
         currentPageInfo={currentPageInfo}
         gameVersion={gameVersion}
         onRefreshGameVersion={refreshGameVersion}
+        modsPaths={config ? (config as any).rimworld?.modsPaths : undefined}
+        onConfigSaved={handleConfigSaved}
       />
 
       {/* Main Content */}
