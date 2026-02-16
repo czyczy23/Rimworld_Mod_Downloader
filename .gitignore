@@ -98,5 +98,31 @@ user-data/
 # Backup files
 *.bak
 *.backup
-/.claude
+
+# Screenshots and images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+
+# Temporary text files
 *.txt
+!tsconfig*.txt
+!*.md
+
+# Project internal docs
+/.claude
+CLAUDE.md
+PRD.md
+BUILD.md
+RELEASE_NOTES*.md
+RELEASE_GUIDE.md
+docs/
+
+# Temporary files from earlier
+files-to-remove.txt
+dev.log
+steam-page-body.html
+create-zip.js
