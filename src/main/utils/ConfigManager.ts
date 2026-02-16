@@ -12,8 +12,10 @@ import { randomUUID } from 'crypto'
 
 const defaultModsPath = join(
   process.env.USERPROFILE || process.env.HOME || '',
-  'Documents',
-  'RimWorld',
+  'AppData',
+  'LocalLow',
+  'Ludeon Studios',
+  'RimWorld by Ludeon Studios',
   'Mods'
 )
 
@@ -77,7 +79,6 @@ class ConfigManager {
       {
         name: 'config',
         defaults,
-        encryptionKey: 'rw-mod-downloader-v1',
         clearInvalidConfig: true
       }
     )
@@ -130,7 +131,7 @@ class ConfigManager {
       const content = await fs.readFile(versionFile, 'utf-8')
       console.log(`[ConfigManager] Version.txt content: ${content}`)
 
-      // Match patterns like: 1.5.4063 rev1071 or version 1.5.4063 rev1071
+      // Match patterns like: version 1.5.4063 rev1071 or just 1.6.4528 rev1222
       const match = content.match(/(?:version\s+)?(\d+\.\d+)\.\d+/)
 
       if (match && match[1]) {
@@ -150,6 +151,13 @@ class ConfigManager {
       console.error('Failed to detect game version:', error)
       return this.get('rimworld').currentVersion
     }
+  }
+
+  // Reset all config to defaults
+  resetConfig(): void {
+    console.log('[ConfigManager] Resetting all config to defaults')
+    this.store.clear()
+    console.log('[ConfigManager] Config reset complete')
   }
 }
 

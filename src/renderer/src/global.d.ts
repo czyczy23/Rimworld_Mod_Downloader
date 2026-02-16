@@ -7,6 +7,7 @@ declare global {
       // Config operations
       getConfig: (key?: string) => Promise<any>
       setConfig: (key: string, value: any) => Promise<void>
+      resetConfig: () => Promise<void>
 
       // Version detection
       detectGameVersion: () => Promise<string>
