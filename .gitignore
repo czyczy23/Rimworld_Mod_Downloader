@@ -98,3 +98,4 @@ user-data/
 # Backup files
 *.bak
 *.backup
+/.claude
