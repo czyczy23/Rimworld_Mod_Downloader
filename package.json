@@ -1,6 +1,6 @@
 {
   "name": "rimworld-mod-downloader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "RimWorld Steam Workshop Mod Downloader with Git sync",
   "main": "./out/main/index.js",
   "author": "RimWorld Mod Community",
@@ -24,7 +24,7 @@
     "appId": "com.rimworld.moddownloader",
     "productName": "RimWorld Mod Downloader",
     "directories": {
-      "output": "release/${version}"
+      "output": "release/1.0.1"
     },
     "files": [
       "out/**/*",
