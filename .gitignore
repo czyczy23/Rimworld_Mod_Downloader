@@ -99,13 +99,18 @@ user-data/
 *.bak
 *.backup
 
-# Screenshots and images
+# Screenshots and images (except assets/)
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.bmp
 *.svg
+!assets/*.png
+!assets/*.jpg
+!assets/*.jpeg
+!assets/*.gif
+!assets/*.svg
 
 # Temporary text files
 *.txt

@@ -4,6 +4,10 @@
 
 **提醒**:本项目完全使用**Vibe Coding**进行编写，可能会带来不稳定的bug。
 
+## 界面预览
+
+![主界面](assets/main-ui.png)
+
 ## 功能特性
 
 - 内置 Steam Workshop 浏览器，可直接浏览和下载模组

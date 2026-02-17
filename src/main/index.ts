@@ -42,8 +42,8 @@ class AppManager {
 
   private createMainWindow(): void {
     this.mainWindow = new BrowserWindow({
-      width: 1400,
-      height: 900,
+      width: 1280,
+      height: 800,
       show: false,
       autoHideMenuBar: true,
       title: 'RimWorld Mod Downloader',

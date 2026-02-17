@@ -169,54 +169,78 @@ export class WorkshopScraper {
 
   /**
    * Extract dependencies from page
+   * Only looks in the "Required Items" section
    */
   private extractDependencies($: cheerio.CheerioAPI, html: string): Dependency[] {
     const dependencies: Dependency[] = []
     const seenIds = new Set<string>()
 
-    // Strategy 1: Look in required items section
+    // Try multiple selectors for the required items section
     const requiredSelectors = [
       '.workshopItemRequiredItems',
       '.requiredItems',
-      '.dependencyList'
+      '.dependencyList',
+      '.workshopDependencies',
+      '[class*="RequiredItems"]',
+      '[class*="requiredItems"]'
     ]
 
+    // Check each selector and extract links from the first matching section
     for (const selector of requiredSelectors) {
-      $(selector).find('a').each((_, element) => {
-        const href = $(element).attr('href')
-        if (href) {
-          const match = href.match(/filedetails\/\?id=(\d+)/)
-          if (match) {
-            const depId = match[1]
-            if (!seenIds.has(depId)) {
-              seenIds.add(depId)
-              dependencies.push({
-                modId: depId,
-                name: $(element).text().trim() || `Mod ${depId}`,
-                required: true
-              })
-            }
-          }
+      const $section = $(selector)
+      if ($section.length > 0) {
+        this.extractLinksFromSection($section, dependencies, seenIds, $)
+        if (dependencies.length > 0) {
+          break
+        }
+      }
+    }
+
+    // If no dependencies found yet, try looking for sections with "必需物品" or "Required Items" text
+    if (dependencies.length === 0) {
+      const $candidates = $('*:contains("必需物品"), *:contains("Required Items")')
+      $candidates.each((_, elem) => {
+        if (dependencies.length > 0) return false
+
+        const $elem = $(elem)
+        // Look for parent container
+        const $parent = $elem.closest('.panel, .workshopItem, [class*="required"], [class*="dependency"]')
+        if ($parent.length > 0) {
+          this.extractLinksFromSection($parent, dependencies, seenIds, $)
         }
       })
     }
 
-    // Strategy 2: Parse HTML for Steam links
-    const linkPattern = /filedetails\/\?id=(\d+)/g
-    let linkMatch
-    while ((linkMatch = linkPattern.exec(html)) !== null) {
-      const depId = linkMatch[1]
-      if (!seenIds.has(depId) && depId.length > 6) {
-        seenIds.add(depId)
-        dependencies.push({
-          modId: depId,
-          name: `Mod ${depId}`,
-          required: true
-        })
-      }
-    }
-
     return dependencies
+  }
+
+  /**
+   * Helper to extract mod links from a given section
+   */
+  private extractLinksFromSection(
+    $section: cheerio.Cheerio<any>,
+    dependencies: Dependency[],
+    seenIds: Set<string>,
+    $: cheerio.CheerioAPI
+  ): void {
+    $section.find('a').each((_, element) => {
+      const href = $(element).attr('href')
+      if (href) {
+        const match = href.match(/filedetails\/\?id=(\d+)/)
+        if (match) {
+          const depId = match[1]
+          if (!seenIds.has(depId)) {
+            seenIds.add(depId)
+            const linkText = $(element).text().trim()
+            dependencies.push({
+              modId: depId,
+              name: linkText || `Mod ${depId}`,
+              required: true
+            })
+          }
+        }
+      }
+    })
   }
 }
 
