@@ -38,8 +38,8 @@
 ### 从 Release 安装
 
 1. 前往 [Releases](../../releases) 页面
-2. 下载最新版本的安装程序 (`RimWorld-Mod-Downloader-Setup-x.x.x.exe`) 或便携版 (`RimWorld-Mod-Downloader-x.x.x-portable.exe`)
-3. 运行安装程序或直接启动便携版
+2. 下载最新版本的.zip文件 (`RimWorld-Mod-Downloade-x.x.x.zip`)
+3. 运行`RimWorld Mod Downloader.exe`
 
 ### 从源码构建
 
