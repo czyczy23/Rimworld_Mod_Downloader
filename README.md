@@ -6,7 +6,13 @@
 
 ## 界面预览
 
-![主界面](assets/main-ui.png)
+| 主界面 | Mod 详情 |
+|--------|----------|
+| <img src="assets/main-ui.png" width="400"> | <img src="assets/mod-detail.png" width="400"> |
+
+| 下载队列 | 设置面板 |
+|----------|----------|
+| <img src="assets/pending-queue.png" width="400"> | <img src="assets/settings-panel.png" width="400"> |
 
 ## 功能特性
 
