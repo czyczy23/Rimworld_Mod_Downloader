@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 
 interface ModsPath {
   id: string
@@ -354,20 +354,31 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     setEditingPathName('')
   }
 
-  // 修复倒序输入：在编辑状态变化时设置焦点和光标位置
-  useEffect(() => {
+  // 修复倒序输入：使用 useLayoutEffect 在绘制前设置焦点和光标位置
+  useLayoutEffect(() => {
     if (editingPathId && editInputRef.current) {
-      // 使用 setTimeout 确保 DOM 已更新
-      setTimeout(() => {
-        const input = editInputRef.current
-        if (input) {
-          input.focus()
-          const len = input.value.length
-          input.setSelectionRange(len, len)
-        }
-      }, 0)
+      const input = editInputRef.current
+      input.focus()
+      // 将光标移到末尾
+      const len = input.value.length
+      input.setSelectionRange(len, len)
     }
   }, [editingPathId])
+
+  // 处理输入时保持光标位置
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const cursorPosition = input.selectionStart || 0
+    
+    setEditingPathName(input.value)
+    
+    // 使用 requestAnimationFrame 在 React 更新后恢复光标位置
+    requestAnimationFrame(() => {
+      if (editInputRef.current) {
+        editInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
+      }
+    })
+  }
 
   if (!config || !tempConfig) {
     return null
@@ -762,7 +773,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                         ref={editInputRef}
                         type="text"
                         value={editingPathName}
-                        onChange={(e) => setEditingPathName(e.target.value)}
+                        onChange={handleEditInputChange}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSaveEdit()
                           if (e.key === 'Escape') handleCancelEdit()
