@@ -1,21 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-
-interface ModsPath {
-  id: string
-  name: string
-  path: string
-  isActive: boolean
-}
+import type { ModsPath } from '../utils/modsPathUtils'
+import { getDefaultModsPath } from '../utils/modsPathUtils'
 
 interface ModsPathManagerDialogProps {
   isOpen: boolean
   onClose: () => void
   modsPaths: ModsPath[]
   onSave: (paths: ModsPath[]) => void
-}
-
-const getDefaultModsPath = () => {
-  return `${(window as any).process?.env?.USERPROFILE || (window as any).process?.env?.HOME || ''}\\AppData\\LocalLow\\Ludeon Studios\\RimWorld by Ludeon Studios\\Mods`
 }
 
 export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: ModsPathManagerDialogProps) {

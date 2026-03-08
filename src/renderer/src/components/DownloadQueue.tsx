@@ -1,20 +1,5 @@
 import { useState, useEffect } from 'react'
-
-interface DownloadItem {
-  id: string
-  name: string
-  progress: number
-  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
-  error?: string
-  message?: string
-}
-
-interface PendingDownloadItem {
-  id: string
-  name: string
-  isCollection: boolean
-  modName?: string
-}
+import type { DownloadItem, PendingDownloadItem } from '../../../shared/types'
 
 interface DownloadQueueProps {
   downloads?: DownloadItem[]

@@ -1,9 +1,4 @@
-interface PendingDownloadItem {
-  id: string
-  name: string
-  isCollection: boolean
-  modName?: string
-}
+import type { PendingDownloadItem } from '../../../shared/types'
 
 interface PendingQueueDialogProps {
   isOpen: boolean

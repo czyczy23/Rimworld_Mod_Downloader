@@ -1,23 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import type { ModsPath } from '../utils/modsPathUtils'
+import { getDefaultModsPath } from '../utils/modsPathUtils'
 
 interface WelcomeWizardProps {
   isOpen: boolean
   onComplete: () => void
-}
-
-interface ModsPath {
-  id: string
-  name: string
-  path: string
-  isActive: boolean
-}
-
-const getDefaultModsPath = () => {
-  if (typeof window !== 'undefined' && (window as any).process?.env) {
-    const userProfile = (window as any).process.env.USERPROFILE || (window as any).process.env.HOME || ''
-    return `${userProfile}\\AppData\\LocalLow\\Ludeon Studios\\RimWorld by Ludeon Studios\\Mods`
-  }
-  return 'C:\\Users\\[用户名]\\AppData\\LocalLow\\Ludeon Studios\\RimWorld by Ludeon Studios\\Mods'
 }
 
 // Steam 风格的配色

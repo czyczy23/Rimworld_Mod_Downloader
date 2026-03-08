@@ -9,6 +9,7 @@ import { VersionMismatchDialog } from './components/VersionMismatchDialog'
 import { PendingQueueDialog } from './components/PendingQueueDialog'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
 import { WelcomeWizard } from './components/WelcomeWizard'
+import type { DownloadItem, BatchDownloadInfo, PendingDownloadItem } from '../../shared/types'
 
 // Extend Window interface for our API
 declare global {
@@ -43,30 +44,6 @@ declare global {
       onConfigReset: (callback: () => void) => () => void
     }
   }
-}
-
-interface DownloadItem {
-  id: string
-  name: string
-  progress: number
-  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
-  error?: string
-  message?: string
-}
-
-interface BatchDownloadInfo {
-  isBatch: boolean
-  current: number
-  total: number
-  currentName: string
-  id: string
-}
-
-interface PendingDownloadItem {
-  id: string
-  name: string
-  isCollection: boolean
-  modName?: string
 }
 
 interface AppConfig {

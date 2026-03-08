@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ModsPathManagerDialog } from './ModsPathManagerDialog'
-
-interface ModsPath {
-  id: string
-  name: string
-  path: string
-  isActive: boolean
-}
+import type { ModsPath } from '../utils/modsPathUtils'
 
 interface SettingsPanelProps {
   isOpen: boolean;

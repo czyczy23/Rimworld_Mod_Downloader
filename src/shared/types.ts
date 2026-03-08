@@ -79,6 +79,30 @@ export interface VersionMismatchInfo {
   gameVersion: string;
 }
 
+export interface DownloadItem {
+  id: string;
+  name: string;
+  progress: number;
+  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error';
+  error?: string;
+  message?: string;
+}
+
+export interface BatchDownloadInfo {
+  isBatch: boolean;
+  current: number;
+  total: number;
+  currentName: string;
+  id: string;
+}
+
+export interface PendingDownloadItem {
+  id: string;
+  name: string;
+  isCollection: boolean;
+  modName?: string;
+}
+
 // IPC Channel Types
 export type IpcChannel =
   | 'download:progress'
