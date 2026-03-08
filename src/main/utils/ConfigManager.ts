@@ -19,22 +19,9 @@ const defaultModsPath = join(
   'Mods'
 )
 
-const defaultSteamCmdPath = join(
-  process.env.USERPROFILE || process.env.HOME || '',
-  'Documents',
-  'steamcmd',
-  'steamcmd.exe'
-)
-
-const defaultSteamDownloadPath = join(
-  process.env.USERPROFILE || process.env.HOME || '',
-  'Documents',
-  'steamcmd',
-  'steamapps',
-  'workshop',
-  'content',
-  '294100'
-)
+// SteamCMD paths are empty by default - user must configure them
+const defaultSteamCmdPath = ''
+const defaultSteamDownloadPath = ''
 
 const defaults: AppConfig = {
   steamcmd: {

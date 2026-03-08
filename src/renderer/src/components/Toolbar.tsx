@@ -201,6 +201,18 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
   const handleDownload = async () => {
     if (!currentPageInfo?.isModDetailPage || !currentPageInfo.modId || isDownloading) return
 
+    // Check SteamCMD configuration before downloading
+    if (window.api) {
+      const config = await window.api.getConfig()
+      const steamcmdPath = config.steamcmd?.executablePath
+      const downloadPath = config.steamcmd?.downloadPath
+      
+      if (!steamcmdPath || !downloadPath) {
+        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        return
+      }
+    }
+
     setIsDownloading(true)
     try {
       if (onDownloadClick) {
@@ -219,6 +231,18 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
   // Handle add to queue button click
   const handleAdd = async () => {
     if (!currentPageInfo?.isModDetailPage || !currentPageInfo.modId || isAddingToQueue) return
+
+    // Check SteamCMD configuration before adding to queue
+    if (window.api) {
+      const config = await window.api.getConfig()
+      const steamcmdPath = config.steamcmd?.executablePath
+      const downloadPath = config.steamcmd?.downloadPath
+      
+      if (!steamcmdPath || !downloadPath) {
+        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        return
+      }
+    }
 
     setIsAddingToQueue(true)
     try {

@@ -8,6 +8,7 @@ import { DependencyDialog } from './components/DependencyDialog'
 import { VersionMismatchDialog } from './components/VersionMismatchDialog'
 import { PendingQueueDialog } from './components/PendingQueueDialog'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
+import { WelcomeWizard } from './components/WelcomeWizard'
 
 // Extend Window interface for our API
 declare global {
@@ -116,12 +117,25 @@ function App() {
     currentPageInfoRef.current = currentPageInfo
   }, [currentPageInfo])
 
+  // 欢迎向导状态
+  const [showWelcome, setShowWelcome] = useState(false)
+
   // Load config on mount
   useEffect(() => {
     if (window.api) {
       window.api.getConfig().then((cfg) => {
         console.log('Config loaded:', cfg)
         setConfig(cfg)
+        
+        // 检查是否首次启动（没有配置 SteamCMD 路径或标记为首次运行）
+        const hasNoSteamCmd = !cfg.steamcmd?.executablePath || !cfg.steamcmd?.downloadPath
+        const hasNoModsPaths = !cfg.rimworld?.modsPaths || cfg.rimworld.modsPaths.length === 0
+        const firstRunNotCompleted = cfg.firstRunCompleted !== true
+        
+        if ((hasNoSteamCmd && hasNoModsPaths) || firstRunNotCompleted) {
+          console.log('[App] First run detected, showing welcome wizard')
+          setShowWelcome(true)
+        }
       })
 
       // Also load game version
@@ -340,6 +354,17 @@ function App() {
     console.log('Download clicked:', { modId, isCollection })
 
     if (!window.api) return
+
+    // Check SteamCMD configuration before downloading
+    const cfg = await window.api.getConfig()
+    const steamcmdPath = cfg.steamcmd?.executablePath
+    const downloadPath = cfg.steamcmd?.downloadPath
+    
+    if (!steamcmdPath || !downloadPath) {
+      alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+      setShowSettings(true)
+      return
+    }
 
     // 如果待下载队列不为空，显示确认弹窗
     if (pendingQueueRef.current.length > 0) {
@@ -583,6 +608,20 @@ function App() {
   const handleStartQueueDownload = useCallback(async () => {
     if (pendingQueue.length === 0) return
 
+    // Check SteamCMD configuration before batch downloading
+    if (window.api) {
+      const cfg = await window.api.getConfig()
+      const steamcmdPath = cfg.steamcmd?.executablePath
+      const downloadPath = cfg.steamcmd?.downloadPath
+      
+      if (!steamcmdPath || !downloadPath) {
+        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        setShowSettings(true)
+        setShowPendingQueueDialog(false)
+        return
+      }
+    }
+
     console.log('[App] Starting queue download:', pendingQueue)
 
     // 清空队列
@@ -734,6 +773,25 @@ function App() {
 
   return (
     <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}>
+      {/* 首次启动欢迎向导 */}
+      <WelcomeWizard 
+        isOpen={showWelcome} 
+        onComplete={() => {
+          setShowWelcome(false)
+          // 刷新配置
+          if (window.api) {
+            window.api.getConfig().then((cfg) => {
+              setConfig(cfg)
+            })
+            window.api.detectGameVersion().then((version) => {
+              setGameVersion(version)
+            }).catch(() => {
+              setGameVersion('')
+            })
+          }
+        }} 
+      />
+      
       {/* Header / Toolbar with Download Button */}
       <Toolbar
         onSettingsClick={() => setShowSettings(!showSettings)}
