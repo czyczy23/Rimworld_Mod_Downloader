@@ -23,7 +23,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   
   // Mods 路径编辑状态
   const [editingPathId, setEditingPathId] = useState<string | null>(null)
-  const editInputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLDivElement>(null)
 
   // 使用传入的 gameVersion，如果没有则使用本地状态
   const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
@@ -341,7 +341,8 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   const handleSaveEdit = () => {
     if (!editingPathId || !editInputRef.current) return
     
-    const newName = editInputRef.current.value.trim()
+    // 从 contentEditable div 获取文本内容
+    const newName = editInputRef.current.textContent?.trim() || ''
     const currentPaths = getModsPaths()
     const updated = currentPaths.map(p => 
       p.id === editingPathId ? { ...p, name: newName || p.name } : p
@@ -752,10 +753,10 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                   {editingPathId === path.id ? (
                     // 编辑模式 - 使用非受控组件避免光标问题
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input
+                      <div
                         ref={editInputRef}
-                        type="text"
-                        defaultValue={path.name}
+                        contentEditable
+                        suppressContentEditableWarning
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault()
@@ -766,10 +767,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                             handleCancelEdit()
                           }
                         }}
-                        onClick={(e) => {
-                          // 阻止事件冒泡，防止父组件干扰
-                          e.stopPropagation()
-                        }}
+                        onBlur={handleSaveEdit}
                         style={{
                           flex: 1,
                           fontSize: '12px',
@@ -778,9 +776,13 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                           color: '#c6d4df',
                           border: '1px solid #66c0f4',
                           borderRadius: '4px',
-                          outline: 'none'
+                          outline: 'none',
+                          minHeight: '20px',
+                          cursor: 'text'
                         }}
-                      />
+                      >
+                        {path.name}
+                      </div>
                       <button
                         onClick={handleSaveEdit}
                         style={{
