@@ -325,6 +325,18 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     setEditingPathId(path.id)
   }
 
+  // 在编辑模式激活时聚焦输入框
+  useEffect(() => {
+    if (editingPathId && editInputRef.current) {
+      // 延迟聚焦，确保 DOM 已渲染
+      const timer = setTimeout(() => {
+        editInputRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+    return undefined
+  }, [editingPathId])
+
   // 保存编辑的路径名称
   const handleSaveEdit = () => {
     if (!editingPathId || !editInputRef.current) return
@@ -745,10 +757,19 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                         type="text"
                         defaultValue={path.name}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit()
-                          if (e.key === 'Escape') handleCancelEdit()
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSaveEdit()
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            handleCancelEdit()
+                          }
                         }}
-                        autoFocus
+                        onClick={(e) => {
+                          // 阻止事件冒泡，防止父组件干扰
+                          e.stopPropagation()
+                        }}
                         style={{
                           flex: 1,
                           fontSize: '12px',
