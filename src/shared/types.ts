@@ -31,6 +31,9 @@ export interface ModsPath {
 }
 
 export interface AppConfig {
+  app: {
+    language: 'en' | 'zh-TW' | 'zh-CN' | 'system'
+  }
   steamcmd: {
     executablePath: string;
     downloadPath: string;

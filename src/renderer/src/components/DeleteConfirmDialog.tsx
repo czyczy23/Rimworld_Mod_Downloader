@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface DeleteConfirmDialogProps {
   isOpen: boolean
   selectedCount: number
@@ -6,6 +8,7 @@ interface DeleteConfirmDialogProps {
 }
 
 export function DeleteConfirmDialog({ isOpen, selectedCount, onConfirm, onCancel }: DeleteConfirmDialogProps) {
+  const { t } = useTranslation()
   if (!isOpen) return null
 
   return (
@@ -30,7 +33,7 @@ export function DeleteConfirmDialog({ isOpen, selectedCount, onConfirm, onCancel
           color: '#c6d4df',
           fontSize: '18px'
         }}>
-          确认删除
+          {t('deleteConfirmDialog.title')}
         </h3>
         <p style={{
           margin: '0 0 20px',
@@ -38,7 +41,7 @@ export function DeleteConfirmDialog({ isOpen, selectedCount, onConfirm, onCancel
           fontSize: '14px',
           lineHeight: 1.5
         }}>
-          确定要从待下载队列中删除 {selectedCount} 个 mod 吗？
+          {t('deleteConfirmDialog.confirmDelete')} {selectedCount} {t('deleteConfirmDialog.items')}
         </p>
         <div style={{
           display: 'flex',
@@ -60,7 +63,7 @@ export function DeleteConfirmDialog({ isOpen, selectedCount, onConfirm, onCancel
             onMouseEnter={(e) => e.currentTarget.style.background = '#3d6c8d'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#2a475e'}
           >
-            取消
+            {t('deleteConfirmDialog.cancel')}
           </button>
           <button
             onClick={onConfirm}
@@ -78,7 +81,7 @@ export function DeleteConfirmDialog({ isOpen, selectedCount, onConfirm, onCancel
             onMouseEnter={(e) => e.currentTarget.style.background = '#d32f2f'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#f44336'}
           >
-            确认删除
+            {t('deleteConfirmDialog.confirmDeleteBtn')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface VersionMismatchDialogProps {
   isOpen: boolean
@@ -17,6 +18,7 @@ export function VersionMismatchDialog({
   onConfirm,
   actionType = 'download'
 }: VersionMismatchDialogProps) {
+  const { t } = useTranslation()
   const [dontAskAgain, setDontAskAgain] = useState(false)
   const [rememberAction, setRememberAction] = useState<'force' | 'skip'>('force')
 
@@ -30,17 +32,17 @@ export function VersionMismatchDialog({
     onConfirm(dontAskAgain, 'force')
   }
 
-  const forceButtonText = actionType === 'download' ? '强制下载' : '强制添加'
-  const skipButtonText = actionType === 'download' ? '跳过' : '取消'
+  const forceButtonText = actionType === 'download' ? t('versionMismatchDialog.forceDownload') : t('versionMismatchDialog.forceAdd')
+  const skipButtonText = actionType === 'download' ? t('versionMismatchDialog.skip') : t('versionMismatchDialog.cancel')
   const warningText = actionType === 'download'
-    ? '强制下载不兼容的模组可能导致游戏崩溃或存档损坏。请确保您知道自己在做什么。'
-    : '强制添加不兼容的模组可能导致游戏崩溃或存档损坏。请确保您知道自己在做什么。'
+    ? t('versionMismatchDialog.forceDownloadWarning')
+    : t('versionMismatchDialog.forceAddWarning')
   const rememberForceText = actionType === 'download'
-    ? '总是强制下载（跳过版本检查）'
-    : '总是强制添加（跳过版本检查）'
+    ? t('versionMismatchDialog.alwaysForceDownload')
+    : t('versionMismatchDialog.alwaysForceAdd')
   const rememberSkipText = actionType === 'download'
-    ? '总是跳过（拒绝不兼容的Mod）'
-    : '总是取消（拒绝不兼容的Mod）'
+    ? t('versionMismatchDialog.alwaysSkipDownload')
+    : t('versionMismatchDialog.alwaysCancelAdd')
 
   return (
     <div style={{
@@ -81,7 +83,7 @@ export function VersionMismatchDialog({
             fontSize: '16px',
             fontWeight: 500
           }}>
-            版本不匹配警告
+            {t('versionMismatchDialog.title')}
           </h3>
         </div>
 
@@ -93,7 +95,7 @@ export function VersionMismatchDialog({
             marginBottom: '16px',
             lineHeight: 1.5
           }}>
-            模组 <strong style={{ color: '#66c0f4' }}>{modName}</strong> 可能不兼容您的游戏版本。
+            {t('versionMismatchDialog.mayNotBeCompatible')} <strong style={{ color: '#66c0f4' }}>{modName}</strong>
           </p>
 
           {/* Version Comparison */}
@@ -109,16 +111,16 @@ export function VersionMismatchDialog({
               justifyContent: 'space-between',
               marginBottom: '8px'
             }}>
-              <span style={{ color: '#8f98a0', fontSize: '13px' }}>您的游戏版本:</span>
+              <span style={{ color: '#8f98a0', fontSize: '13px' }}>{t('versionMismatchDialog.yourGameVersion')}:</span>
               <span style={{ color: '#e6b800', fontSize: '13px', fontWeight: 500 }}>{gameVersion}</span>
             </div>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between'
             }}>
-              <span style={{ color: '#8f98a0', fontSize: '13px' }}>模组支持版本:</span>
+              <span style={{ color: '#8f98a0', fontSize: '13px' }}>{t('versionMismatchDialog.modSupportedVersions')}:</span>
               <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
-                {modVersions.length > 0 ? modVersions.join(', ') : '未指定'}
+                {modVersions.length > 0 ? modVersions.join(', ') : t('versionMismatchDialog.notSpecified')}
               </span>
             </div>
           </div>
@@ -178,7 +180,7 @@ export function VersionMismatchDialog({
                   userSelect: 'none'
                 }}
               >
-                记住我的选择，下次不再询问
+                {t('versionMismatchDialog.rememberChoice')}
               </label>
             </div>
 

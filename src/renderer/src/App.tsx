@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import './App.css'
 import { WebviewContainer, type WebviewContainerRef, type CurrentPageInfo } from './components/WebviewContainer'
 import { Toolbar } from './components/Toolbar'
@@ -42,6 +43,9 @@ declare global {
       detectGameVersion: () => Promise<string>
       resetConfig: () => Promise<boolean>
       onConfigReset: (callback: () => void) => () => void
+      getSystemLocale: () => Promise<string>
+      getLanguage: () => Promise<'en' | 'zh-TW' | 'zh-CN' | 'system'>
+      setLanguage: (lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => Promise<boolean>
     }
   }
 }
@@ -61,6 +65,7 @@ interface AppConfig {
 }
 
 function App() {
+  const { t, i18n } = useTranslation()
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [batchInfo, setBatchInfo] = useState<BatchDownloadInfo | undefined>()
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -103,12 +108,15 @@ function App() {
       window.api.getConfig().then((cfg) => {
         console.log('Config loaded:', cfg)
         setConfig(cfg)
-        
+
+        // 注意：语言初始化已在 main.tsx 中通过 initLanguage() 完成
+        // 此处不需要再调用 i18n.changeLanguage()
+
         // 检查是否首次启动（没有配置 SteamCMD 路径或标记为首次运行）
         const hasNoSteamCmd = !cfg.steamcmd?.executablePath || !cfg.steamcmd?.downloadPath
         const hasNoModsPaths = !cfg.rimworld?.modsPaths || cfg.rimworld.modsPaths.length === 0
         const firstRunNotCompleted = cfg.firstRunCompleted !== true
-        
+
         if ((hasNoSteamCmd && hasNoModsPaths) || firstRunNotCompleted) {
           console.log('[App] First run detected, showing welcome wizard')
           setShowWelcome(true)
@@ -122,7 +130,7 @@ function App() {
         setGameVersion('')
       })
     }
-  }, [])
+  }, [i18n])
 
   // Listen for config reset event
   useEffect(() => {
@@ -338,7 +346,7 @@ function App() {
     const downloadPath = cfg.steamcmd?.downloadPath
     
     if (!steamcmdPath || !downloadPath) {
-      alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+      alert(t('alerts.pleaseConfigSteamcmd'))
       setShowSettings(true)
       return
     }
@@ -592,7 +600,7 @@ function App() {
       const downloadPath = cfg.steamcmd?.downloadPath
       
       if (!steamcmdPath || !downloadPath) {
-        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        alert(t('alerts.pleaseConfigSteamcmd'))
         setShowSettings(true)
         setShowPendingQueueDialog(false)
         return

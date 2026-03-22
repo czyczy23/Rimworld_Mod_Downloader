@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ModsPath } from '../utils/modsPathUtils'
 import { getDefaultModsPath } from '../utils/modsPathUtils'
 
@@ -10,6 +11,7 @@ interface ModsPathManagerDialogProps {
 }
 
 export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: ModsPathManagerDialogProps) {
+  const { t } = useTranslation()
   const [localPaths, setLocalPaths] = useState<ModsPath[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -131,7 +133,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
           alignItems: 'center'
         }}>
           <h3 style={{ margin: 0, color: '#c6d4df', fontSize: '18px' }}>
-            📁 Mods 文件夹管理
+            📁 {t('modsPathManager.title')}
           </h3>
           <button
             onClick={onClose}
@@ -163,7 +165,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               borderRadius: '8px'
             }}>
               <div style={{ fontSize: '32px', marginBottom: '12px' }}>📂</div>
-              <div>尚未添加 Mods 文件夹</div>
+              <div>{t('modsPathManager.noFolders')}</div>
             </div>
           ) : (
             localPaths.map((path) => (
@@ -191,7 +193,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                     color: path.isActive ? '#66c0f4' : '#5a6875',
                     padding: '2px 4px'
                   }}
-                  title={path.isActive ? '默认路径' : '设为默认'}
+                  title={path.isActive ? t('modsPathManager.default') : t('modsPathManager.setAsDefault')}
                 >
                   {path.isActive ? '★' : '☆'}
                 </button>
@@ -236,7 +238,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                       }}
                     >
                       {path.name}
-                      {path.isActive && <span style={{ fontSize: '11px', opacity: 0.7 }}>(默认)</span>}
+                      {path.isActive && <span style={{ fontSize: '11px', opacity: 0.7 }}>({t('modsPathManager.default')})</span>}
                       <span style={{ fontSize: '11px', color: '#66c0f4', marginLeft: '4px' }}>✎</span>
                     </div>
                   )}
@@ -264,7 +266,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                     padding: '4px 8px',
                     borderRadius: '4px'
                   }}
-                  title="删除"
+                  title={t('modsPathManager.delete')}
                 >
                   ×
                 </button>
@@ -296,7 +298,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               gap: '6px'
             }}
           >
-            🏠 使用默认路径
+            🏠 {t('modsPathManager.useDefaultPath')}
           </button>
           <button
             onClick={handleAddCustom}
@@ -315,7 +317,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               gap: '6px'
             }}
           >
-            📂 自定义路径
+            📂 {t('modsPathManager.customPath')}
           </button>
         </div>
 
@@ -339,7 +341,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               cursor: 'pointer'
             }}
           >
-            取消
+            {t('modsPathManager.cancel')}
           </button>
           <button
             onClick={handleSaveAll}
@@ -354,7 +356,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               cursor: 'pointer'
             }}
           >
-            保存修改
+            {t('modsPathManager.saveChanges')}
           </button>
         </div>
       </div>

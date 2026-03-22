@@ -28,6 +28,11 @@ const api = {
   setConfig: (key: string, value: any) => ipcRenderer.invoke('config:set', { key, value }),
   resetConfig: () => ipcRenderer.invoke('config:reset'),
 
+  // App language operations
+  getSystemLocale: () => ipcRenderer.invoke('app:getLocale'),
+  getLanguage: () => ipcRenderer.invoke('app:getLanguage'),
+  setLanguage: (lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => ipcRenderer.invoke('app:setLanguage', lang),
+
   // Version detection
   detectGameVersion: () => ipcRenderer.invoke('version:detect'),
 

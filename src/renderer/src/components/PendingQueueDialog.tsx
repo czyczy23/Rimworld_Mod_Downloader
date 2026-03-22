@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { PendingDownloadItem } from '../../../shared/types'
 
 interface PendingQueueDialogProps {
@@ -8,6 +9,7 @@ interface PendingQueueDialogProps {
 }
 
 export function PendingQueueDialog({ isOpen, queue, onConfirm, onCancel }: PendingQueueDialogProps) {
+  const { t } = useTranslation()
   if (!isOpen) return null
 
   return (
@@ -35,10 +37,10 @@ export function PendingQueueDialog({ isOpen, queue, onConfirm, onCancel }: Pendi
           borderBottom: '1px solid #2a475e'
         }}>
           <h3 style={{ margin: 0, color: '#c6d4df', fontSize: '18px' }}>
-            确认下载队列
+            {t('pendingQueueDialog.title')}
           </h3>
           <p style={{ margin: '8px 0 0', color: '#8f98a0', fontSize: '13px' }}>
-            共 {queue.length} 个 mod 待下载
+            {queue.length} {t('pendingQueueDialog.pendingMods')}
           </p>
         </div>
 
@@ -98,7 +100,7 @@ export function PendingQueueDialog({ isOpen, queue, onConfirm, onCancel }: Pendi
             onMouseEnter={(e) => e.currentTarget.style.background = '#3d6c8d'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#2a475e'}
           >
-            取消
+            {t('pendingQueueDialog.cancel')}
           </button>
           <button
             onClick={onConfirm}
@@ -116,7 +118,7 @@ export function PendingQueueDialog({ isOpen, queue, onConfirm, onCancel }: Pendi
             onMouseEnter={(e) => e.currentTarget.style.background = '#45a049'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#4CAF50'}
           >
-            开始下载 ({queue.length})
+            {t('pendingQueueDialog.startDownload')} ({queue.length})
           </button>
         </div>
       </div>

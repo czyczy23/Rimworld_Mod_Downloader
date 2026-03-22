@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { CurrentPageInfo } from './WebviewContainer'
 import type { ModsPath } from '../utils/modsPathUtils'
 
@@ -21,6 +22,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion, modsPaths: propModsPaths, onConfigSaved }: ToolbarProps) {
+  const { t } = useTranslation()
   const [modsPaths, setModsPaths] = useState<ModsPath[]>(propModsPaths || [])
   const [activePath, setActivePath] = useState<string>('')
   const [isDownloading, setIsDownloading] = useState(false)
@@ -30,7 +32,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
   const [versionMismatch, setVersionMismatch] = useState(false)
 
   // 使用传入的 gameVersion，如果没有则使用本地状态
-  const [localGameVersion, setLocalGameVersion] = useState<string>('检测中...')
+  const [localGameVersion, setLocalGameVersion] = useState<string>(t('toolbar.detecting'))
   const gameVersion = propGameVersion !== undefined ? propGameVersion : localGameVersion
 
   // Check mod version when page info changes
@@ -48,7 +50,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
           setVersionInfo(info)
 
           // Check compatibility - 使用与 App.tsx 相同的逻辑
-          if (gameVersion && gameVersion !== '检测中...' && gameVersion !== '未知版本' && info.supportedVersions.length > 0) {
+          if (gameVersion && gameVersion !== t('toolbar.detecting') && gameVersion !== t('toolbar.unknownVersion') && info.supportedVersions.length > 0) {
             const isCompatible = info.supportedVersions.includes(gameVersion)
             console.log('[Toolbar] Is compatible:', isCompatible, 'Supported versions:', info.supportedVersions)
             setVersionMismatch(!isCompatible)
@@ -97,7 +99,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         window.api.detectGameVersion().then((version) => {
           setLocalGameVersion(version)
         }).catch(() => {
-          setLocalGameVersion('未知版本')
+          setLocalGameVersion(t('toolbar.unknownVersion'))
         })
       }
     }
@@ -133,12 +135,12 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       if (onRefreshGameVersion) {
         await onRefreshGameVersion()
       } else if (propGameVersion === undefined) {
-        setLocalGameVersion('检测中...')
+        setLocalGameVersion(t('toolbar.detecting'))
         try {
           const version = await window.api.detectGameVersion()
           setLocalGameVersion(version)
         } catch {
-          setLocalGameVersion('未知版本')
+          setLocalGameVersion(t('toolbar.unknownVersion'))
         }
       }
     }
@@ -180,12 +182,12 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       if (onRefreshGameVersion) {
         await onRefreshGameVersion()
       } else if (propGameVersion === undefined) {
-        setLocalGameVersion('检测中...')
+        setLocalGameVersion(t('toolbar.detecting'))
         try {
           const version = await window.api.detectGameVersion()
           setLocalGameVersion(version)
         } catch {
-          setLocalGameVersion('未知版本')
+          setLocalGameVersion(t('toolbar.unknownVersion'))
         }
       }
     }
@@ -202,7 +204,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       const downloadPath = config.steamcmd?.downloadPath
       
       if (!steamcmdPath || !downloadPath) {
-        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        alert(t('alerts.pleaseConfigSteamcmd'))
         return
       }
     }
@@ -233,7 +235,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       const downloadPath = config.steamcmd?.downloadPath
       
       if (!steamcmdPath || !downloadPath) {
-        alert('请先配置 SteamCMD 路径！\n\n1. SteamCMD Executable Path: steamcmd.exe 的位置\n2. SteamCMD Download Path: steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。')
+        alert(t('alerts.pleaseConfigSteamcmd'))
         return
       }
     }
@@ -552,7 +554,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite'
               }} />
-              <span style={{ color: '#66c0f4', fontSize: '12px' }}>检查版本...</span>
+              <span style={{ color: '#66c0f4', fontSize: '12px' }}>{t('toolbar.checkingVersion')}</span>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
@@ -577,7 +579,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
                   color: '#e6b800',
                   fontSize: '14px',
                   cursor: 'help'
-                }} title={`版本不匹配！游戏版本 ${gameVersion}，Mod支持版本 ${versionInfo?.supportedVersions.join(', ')}`}>⚠️</span>
+                }} title={`${t('toolbar.versionMismatch')} ${t('toolbar.game')} ${gameVersion}, ${t('toolbar.supportedVersions')} ${versionInfo?.supportedVersions.join(', ')}`}>⚠️</span>
               )}
             </div>
           )}

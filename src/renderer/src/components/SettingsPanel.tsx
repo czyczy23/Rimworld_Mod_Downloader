@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { changeLanguage } from '../i18n'
 import { ModsPathManagerDialog } from './ModsPathManagerDialog'
 import type { ModsPath } from '../utils/modsPathUtils'
 
@@ -11,15 +13,14 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, onRefreshGameVersion, onConfigSaved }: SettingsPanelProps) {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<any>(null)
   const [tempConfig, setTempConfig] = useState<any>(null)
   const [localDetectedVersion, setLocalDetectedVersion] = useState<string>('1.6')
   const [showResetWarning, setShowResetWarning] = useState(false)
   
-  // Mods 路径管理弹窗状态
   const [showModsManager, setShowModsManager] = useState(false)
 
-  // 使用传入的 gameVersion，如果没有则使用本地状态
   const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
 
   // Load config on mount and when panel opens
@@ -29,6 +30,9 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         // Ensure default values are set
         const mergedConfig = {
           ...cfg,
+          app: {
+            language: cfg.app?.language || 'system'
+          },
           steamcmd: {
             ...cfg.steamcmd,
             executablePath: cfg.steamcmd?.executablePath || '',
@@ -74,7 +78,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       if (tempConfig.steamcmd?.executablePath) {
         const exeName = tempConfig.steamcmd.executablePath.split(/[/\\]/).pop()?.toLowerCase()
         if (exeName && exeName !== 'steamcmd.exe') {
-          alert('警告：选择的文件不是 steamcmd.exe，请确认路径正确！')
+          alert(t('alerts.steamcmdWarning'))
         }
       }
 
@@ -82,8 +86,13 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       for (const [key, value] of Object.entries(tempConfig)) {
         await window.api.setConfig(key, value)
       }
+
+      // Save language to main process
+      if (tempConfig.app?.language) {
+        await window.api.setLanguage(tempConfig.app.language)
+      }
+
       setConfig({ ...tempConfig })
-      // 通知父组件配置已更新
       if (onConfigSaved) {
         onConfigSaved(tempConfig)
       }
@@ -123,10 +132,10 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
           }
         }))
 
-        alert(`检测到 RimWorld 版本: ${version}`)
+        alert(`${t('alerts.versionDetected')}: ${version}`)
       } catch (error) {
         console.error('Failed to detect version:', error)
-        alert('检测版本失败')
+        alert(t('alerts.versionDetectFailed'))
       }
     }
   }
@@ -168,6 +177,20 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         dependencyMode: value
       }
     }))
+  }
+
+  // Handle language change
+  const handleLanguageChange = async (value: 'en' | 'zh-TW' | 'zh-CN' | 'system') => {
+    setTempConfig(prev => ({
+      ...prev,
+      app: {
+        ...prev.app,
+        language: value
+      }
+    }))
+
+    // Change i18n language immediately for preview
+    await changeLanguage(value)
   }
 
   // Handle auto detect toggle
@@ -225,13 +248,11 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     }
   }
 
-  // ===== Mods 路径管理功能（使用弹窗）=====
   
   const getModsPaths = (): ModsPath[] => {
     return tempConfig?.rimworld?.modsPaths || []
   }
 
-  // 处理弹窗保存
   const handleModsManagerSave = (paths: ModsPath[]) => {
     setTempConfig(prev => ({
       ...prev,
@@ -260,7 +281,6 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       transition: 'right 0.3s ease',
       zIndex: 1000
     }}>
-      {/* 可滚动内容区域 */}
       <div style={{
         flex: 1,
         overflow: 'auto',
@@ -275,7 +295,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         marginBottom: '24px'
       }}>
         <h3 style={{ color: '#c6d4df', marginTop: 0, fontSize: '18px' }}>
-          ⚙️ 设置
+          ⚙️ {t('settings.title')}
         </h3>
         <button
           onClick={onClose}
@@ -299,10 +319,36 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         </button>
       </div>
 
+      {/* Language Selection */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+          🌐 {t('settings.language')}
+        </h4>
+        <select
+          value={tempConfig.app?.language || 'system'}
+          onChange={(e) => handleLanguageChange(e.target.value as 'en' | 'zh-TW' | 'zh-CN' | 'system')}
+          style={{
+            width: '100%',
+            background: '#2a475e',
+            color: '#c6d4df',
+            border: '1px solid #3d6c8d',
+            padding: '8px 12px',
+            borderRadius: '3px',
+            fontSize: '13px',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="system">{t('settings.followSystem')}</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
       {/* SteamCMD Settings */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          SteamCMD 设置
+          {t('settings.steamcmdSettings')}
         </h4>
 
         {/* SteamCMD Executable Path */}
@@ -313,14 +359,14 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             display: 'block',
             marginBottom: '8px'
           }}>
-            SteamCMD 可执行文件路径:
+            {t('settings.steamcmdExePath')}:
           </label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="text"
               value={tempConfig.steamcmd?.executablePath || ''}
               readOnly
-              placeholder="请选择 steamcmd.exe"
+              placeholder={t('settings.selectSteamcmdExe')}
               style={{
                 flex: 1,
                 background: '#2a475e',
@@ -348,7 +394,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
               onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
             >
-              浏览
+              {t('toolbar.browse')}
             </button>
           </div>
         </div>
@@ -361,7 +407,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             display: 'block',
             marginBottom: '8px'
           }}>
-            SteamCMD 下载路径:
+            {t('settings.steamcmdDownloadPath')}:
           </label>
           <div style={{
             color: '#8f98a0',
@@ -369,15 +415,15 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             marginBottom: '8px',
             lineHeight: '1.5'
           }}>
-            应为: steamcmd根目录\steamapps\workshop\content\294100<br/>
-            (294100是RimWorld的AppID，如目录不存在请手动创建)
+            {t('settings.downloadPathHint')}<br/>
+            {t('settings.downloadPathHint2')}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="text"
               value={tempConfig.steamcmd?.downloadPath || ''}
               readOnly
-              placeholder="请选择下载文件夹"
+              placeholder={t('settings.selectDownloadPath')}
               style={{
                 flex: 1,
                 background: '#2a475e',
@@ -405,7 +451,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
               onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
             >
-              浏览
+              {t('toolbar.browse')}
             </button>
           </div>
         </div>
@@ -414,7 +460,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       {/* Game Version Settings */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          游戏版本设置
+          {t('settings.gameVersionSettings')}
         </h4>
 
         {/* Auto Detect */}
@@ -443,7 +489,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               cursor: 'pointer'
             }}
           >
-            自动检测 RimWorld 版本
+            {t('settings.autoDetectVersion')}
           </label>
         </div>
 
@@ -453,7 +499,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
           marginBottom: '12px',
           fontSize: '13px'
         }}>
-          <span style={{ color: '#8f98a0' }}>检测到的版本: </span>
+          <span style={{ color: '#8f98a0' }}>{t('settings.detectedVersion')}: </span>
           <span style={{ color: '#66c0f4', fontWeight: 500 }}>
             {detectedVersion}
           </span>
@@ -476,7 +522,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
           >
-            重新检测版本
+            {t('settings.reDetectVersion')}
           </button>
         </div>
 
@@ -491,14 +537,14 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               marginBottom: '8px'
             }}
           >
-            手动设置版本（当自动检测失败时）:
+            {t('settings.manualVersion')}:
           </label>
           <input
             type="text"
             id="manualVersion"
             value={tempConfig.version?.manualVersion}
             onChange={handleManualVersionChange}
-            placeholder="例如: 1.6"
+            placeholder="1.6"
             disabled={tempConfig.version?.autoDetect}
             style={{
               width: '100px',
@@ -517,14 +563,14 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       {/* Version Mismatch Behavior */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          版本不匹配处理
+          {t('settings.versionMismatchBehavior')}
         </h4>
 
         <div style={{ marginLeft: '8px' }}>
           {[
-            { value: 'ask', label: '询问 (显示警告让用户决定)' },
-            { value: 'force', label: '强制下载 (跳过版本检查)' },
-            { value: 'skip', label: '跳过下载 (拒绝不兼容的Mod)' }
+            { value: 'ask', label: t('settings.ask') },
+            { value: 'force', label: t('settings.forceDownload') },
+            { value: 'skip', label: t('settings.skipDownload') }
           ].map((option) => (
             <div key={option.value} style={{
               display: 'flex',
@@ -563,18 +609,18 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       {/* Mods 路径管理 */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          📁 Mods 文件夹管理
+          {t('settings.modsFolderManagement')}
         </h4>
-        
+
         <p style={{
           fontSize: '12px',
           color: '#8f98a0',
           marginBottom: '12px',
           lineHeight: '1.5'
         }}>
-          已配置 {getModsPaths().length} 个路径，当前默认路径: 
+          {t('settings.configuredPaths')}: {getModsPaths().length}, {t('settings.currentDefault')}:
           <span style={{ color: '#66c0f4' }}>
-            {getModsPaths().find(p => p.isActive)?.name || '未设置'}
+            {getModsPaths().find(p => p.isActive)?.name || t('settings.notSet')}
           </span>
         </p>
 
@@ -595,7 +641,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             gap: '8px'
           }}
         >
-          <span>⚙️</span> 管理 Mods 文件夹
+          <span>⚙️</span> {t('settings.manageModsFolders')}
         </button>
       </div>
 
@@ -610,14 +656,14 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       {/* Dependency Handling */}
       <div style={{ marginBottom: '24px' }}>
         <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          依赖处理
+          {t('settings.dependencyHandling')}
         </h4>
 
         <div style={{ marginLeft: '8px' }}>
           {[
-            { value: 'ask', label: '询问 (显示依赖项让用户选择)' },
-            { value: 'auto', label: '自动下载 (下载所有依赖)' },
-            { value: 'ignore', label: '忽略依赖 (仅下载主Mod)' }
+            { value: 'ask', label: t('settings.askDependencies') },
+            { value: 'auto', label: t('settings.autoDownload') },
+            { value: 'ignore', label: t('settings.ignoreDependencies') }
           ].map((option) => (
             <div key={option.value} style={{
               display: 'flex',
@@ -653,9 +699,9 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         </div>
       </div>
 
-      </div>{/* 可滚动内容区域结束 */}
+      </div>
 
-      {/* Buttons - 固定在底部 */}
+      {/* Buttons */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -686,7 +732,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             e.currentTarget.style.color = '#f44336'
           }}
         >
-          重置所有设置
+          {t('settings.resetAllSettings')}
         </button>
 
         <div style={{
@@ -714,7 +760,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
             e.currentTarget.style.color = '#c6d4df'
           }}
         >
-          取消
+          {t('settings.cancel')}
         </button>
 
         <button
@@ -732,7 +778,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
           onMouseEnter={(e) => (e.currentTarget.style.background = '#45a049')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#4CAF50')}
         >
-          保存设置
+          {t('settings.saveSettings')}
         </button>
         </div>
       </div>
@@ -768,15 +814,15 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               alignItems: 'center',
               gap: '8px'
             }}>
-              ⚠️ 危险操作确认
+              ⚠️ {t('settings.dangerOperationConfirm')}
             </h3>
             <p style={{
               color: '#c6d4df',
               margin: '0 0 20px 0',
               lineHeight: 1.5
             }}>
-              您确定要将所有设置恢复默认值吗？<br/>
-              此操作将重置以下内容：
+              {t('settings.resetWarning')}<br/>
+              {t('settings.resetWillReset')}:
             </p>
             <ul style={{
               color: '#8f98a0',
@@ -784,10 +830,10 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               paddingLeft: '20px',
               lineHeight: 1.8
             }}>
-              <li>SteamCMD 路径配置</li>
-              <li>RimWorld 路径与版本</li>
-              <li>下载与依赖设置</li>
-              <li>版本检查设置</li>
+              <li>{t('settings.steamcmdPaths')}</li>
+              <li>{t('settings.rimworldPaths')}</li>
+              <li>{t('settings.downloadSettings')}</li>
+              <li>{t('settings.versionCheckSettings')}</li>
             </ul>
             <div style={{
               display: 'flex',
@@ -815,7 +861,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                   e.currentTarget.style.color = '#c6d4df'
                 }}
               >
-                取消
+                {t('settings.cancel')}
               </button>
               <button
                 onClick={async () => {
@@ -847,7 +893,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#d32f2f')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#f44336')}
               >
-                确认重置
+                {t('settings.confirmReset')}
               </button>
             </div>
           </div>

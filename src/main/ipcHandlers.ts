@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, app } from 'electron'
 import { configManager } from './utils/ConfigManager'
 import { steamCMD, DownloadProgress } from './services/SteamCMD'
 import { modProcessor } from './services/ModProcessor'
@@ -391,6 +391,31 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('window:close', () => {
     const win = BrowserWindow.getFocusedWindow()
     if (win) win.close()
+  })
+
+  // ===== App Language Handlers =====
+  ipcMain.handle('app:getLocale', () => {
+    return app.getLocale()
+  })
+
+  ipcMain.handle('app:getLanguage', () => {
+    try {
+      return configManager.get('app').language
+    } catch (error) {
+      console.error('[IPC] Failed to get language:', error)
+      return 'zh-TW'
+    }
+  })
+
+  ipcMain.handle('app:setLanguage', (_, lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => {
+    try {
+      configManager.set('app', { language: lang })
+      console.log(`[IPC] Language set to: ${lang}`)
+      return true
+    } catch (error) {
+      console.error('[IPC] Failed to set language:', error)
+      return false
+    }
   })
 
   console.log('[IPC] All handlers registered successfully')

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { DownloadItem, PendingDownloadItem } from '../../../shared/types'
 
 interface DownloadQueueProps {
@@ -24,6 +25,7 @@ export function DownloadQueue({
   onClearCompleted,
   onClearAll
 }: DownloadQueueProps = {}) {
+  const { t } = useTranslation()
   const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
 
   // Use external downloads if provided, otherwise use internal state
@@ -77,27 +79,27 @@ export function DownloadQueue({
         activeDownloads.reduce((sum, d) => sum + d.progress, 0) / activeDownloads.length
       )
       return {
-        text: `Downloading ${activeDownloads.length} mod${activeDownloads.length > 1 ? 's' : ''}...`,
+        text: t('downloadQueue.downloading', { count: activeDownloads.length }),
         progress: avgProgress,
         color: '#66c0f4'
       }
     }
     if (errorDownloads.length > 0) {
       return {
-        text: `${errorDownloads.length} download${errorDownloads.length > 1 ? 's' : ''} failed`,
+        text: t('downloadQueue.failed', { count: errorDownloads.length }),
         progress: 0,
         color: '#f44336'
       }
     }
     if (completedDownloads.length > 0 && downloads.length > 0) {
       return {
-        text: `${completedDownloads.length} completed`,
+        text: t('downloadQueue.completed', { count: completedDownloads.length }),
         progress: 100,
         color: '#4CAF50'
       }
     }
     return {
-      text: 'Ready',
+      text: t('downloadQueue.ready'),
       progress: 0,
       color: '#8f98a0'
     }
@@ -147,7 +149,7 @@ export function DownloadQueue({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontWeight: 500, color: '#c6d4df' }}>
-            📥 Queue
+            📥 {t('downloadQueue.queue')}
           </span>
 
           {downloads.length > 0 && (
@@ -228,7 +230,7 @@ export function DownloadQueue({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
-                    📋 待下载 ({pendingQueue.length})
+                    📋 {t('downloadQueue.pendingDownloads')} ({pendingQueue.length})
                   </span>
                   {/* 全选/取消全选按钮 */}
                   {onSelectAllForDelete && (
@@ -244,7 +246,7 @@ export function DownloadQueue({
                         fontSize: '12px'
                       }}
                     >
-                      {selectedForDelete?.length === pendingQueue.length ? '取消全选' : '全选'}
+                      {selectedForDelete?.length === pendingQueue.length ? t('downloadQueue.deselectAll') : t('downloadQueue.selectAll')}
                     </button>
                   )}
                   {/* 批量删除按钮 */}
@@ -261,7 +263,7 @@ export function DownloadQueue({
                         fontSize: '12px'
                       }}
                     >
-                      删除选中 ({selectedForDelete.length})
+                      {t('downloadQueue.deleteSelected')} ({selectedForDelete.length})
                     </button>
                   )}
                 </div>
@@ -338,7 +340,7 @@ export function DownloadQueue({
                             padding: '4px 8px',
                             lineHeight: 1
                           }}
-                          title="从队列移除"
+                          title={t('downloadQueue.removeFromQueue')}
                         >
                           ×
                         </button>
@@ -366,13 +368,13 @@ export function DownloadQueue({
                 fontWeight: '500',
                 marginBottom: '8px'
               }}>
-                批量下载 ({batchInfo.current}/{batchInfo.total})
+                {t('downloadQueue.batchDownload')} ({batchInfo.current}/{batchInfo.total})
               </div>
               <div style={{
                 color: '#c6d4df',
                 fontSize: '12px'
               }}>
-                当前正在下载: {batchInfo.currentName}
+                {t('downloadQueue.currentDownloading')}: {batchInfo.currentName}
               </div>
             </div>
           )}
@@ -386,7 +388,7 @@ export function DownloadQueue({
               }}
             >
               <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📦</div>
-              <p>No downloads yet</p>
+              <p>{t('downloadQueue.noDownloads')}</p>
               <p style={{ fontSize: '13px', color: '#5a6875' }}>
                 Browse Steam Workshop and click "Download to Local" on any mod
               </p>
@@ -419,7 +421,7 @@ export function DownloadQueue({
                         fontSize: '12px'
                       }}
                     >
-                      Clear completed
+                      {t('downloadQueue.clearCompleted')}
                     </button>
                   )}
 
@@ -435,7 +437,7 @@ export function DownloadQueue({
                       fontSize: '12px'
                     }}
                   >
-                    Clear all
+                    {t('downloadQueue.clearAll')}
                   </button>
                 </div>
               </div>

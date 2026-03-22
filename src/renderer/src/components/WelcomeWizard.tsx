@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ModsPath } from '../utils/modsPathUtils'
 import { getDefaultModsPath } from '../utils/modsPathUtils'
 
@@ -29,6 +30,7 @@ const animations = {
 }
 
 export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
+  const { t } = useTranslation()
   const [currentStep, setCurrentStep] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [direction, setDirection] = useState<'next' | 'prev'>('next')
@@ -336,7 +338,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                 marginBottom: '16px',
                 fontWeight: 'bold'
               }}>
-                欢迎使用 RimWorld Mod Downloader
+                {t('welcome.title')}
               </h1>
               <p style={{
                 fontSize: '15px',
@@ -344,8 +346,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                 lineHeight: '1.8',
                 marginBottom: '32px'
               }}>
-                这个向导将帮助您完成初次配置<br/>
-                只需几步即可开始下载和管理模组
+                {t('welcome.subtitle')}<br/>
+                {t('welcome.subtitle2')}
               </p>
               <div style={{
                 display: 'flex',
@@ -361,7 +363,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   color: colors.accent,
                   fontSize: '13px'
                 }}>
-                  ⚡ 快速下载
+                  {t('welcome.quickDownload')}
                 </div>
                 <div style={{
                   padding: '12px 20px',
@@ -371,7 +373,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   color: colors.accent,
                   fontSize: '13px'
                 }}>
-                  📋 批量管理
+                  {t('welcome.batchManagement')}
                 </div>
                 <div style={{
                   padding: '12px 20px',
@@ -381,7 +383,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   color: colors.accent,
                   fontSize: '13px'
                 }}>
-                  🔍 依赖检查
+                  {t('welcome.dependencyCheck')}
                 </div>
               </div>
             </div>
@@ -405,7 +407,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                 gap: '12px'
               }}>
                 <span style={{ fontSize: '28px' }}>🔧</span>
-                配置 SteamCMD
+                {t('welcome.configureSteamcmd')}
               </h2>
               <p style={{
                 fontSize: '14px',
@@ -413,15 +415,15 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                 marginBottom: '32px',
                 lineHeight: '1.6'
               }}>
-                SteamCMD 是 Valve 提供的命令行工具，用于下载 Steam 创意工坊内容。<br/>
-                如果您还没有安装，请先
-                <a 
-                  href="https://developer.valvesoftware.com/wiki/SteamCMD" 
-                  target="_blank" 
+                {t('welcome.steamcmdDescription')}<br/>
+                {t('welcome.steamcmdDescription2')}{' '}
+                <a
+                  href="https://developer.valvesoftware.com/wiki/SteamCMD"
+                  target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: colors.accent, textDecoration: 'none' }}
                 >
-                  下载并安装 SteamCMD
+                  {t('welcome.downloadAndInstall')}
                 </a>
               </p>
 
@@ -907,7 +909,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
               opacity: currentStep === 0 ? 0.5 : 1
             }}
           >
-            ← 上一步
+            ← {t('welcome.previous')}
           </button>
 
           <div style={{ display: 'flex', gap: '12px' }}>
@@ -935,7 +937,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   e.currentTarget.style.boxShadow = `0 4px 15px rgba(76, 175, 80, 0.3)`
                 }}
               >
-                ✓ 开始使用
+                ✓ {t('welcome.startUsing')}
               </button>
             )}
             {currentStep < 4 && (
@@ -967,7 +969,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   }
                 }}
               >
-                下一步 →
+                {t('welcome.next')} →
               </button>
             )}
           </div>

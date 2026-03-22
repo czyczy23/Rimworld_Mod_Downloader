@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Dependency } from '../../../shared/types'
 
 interface DependencyDialogProps {
@@ -10,6 +11,7 @@ interface DependencyDialogProps {
 }
 
 export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onCancel }: DependencyDialogProps) {
+  const { t } = useTranslation()
   const [selectedDeps, setSelectedDeps] = useState<Dependency[]>(
     dependencies.map(dep => ({ ...dep, willDownload: true }))
   )
@@ -78,7 +80,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
             fontSize: '16px',
             fontWeight: 500
           }}>
-            依赖组件下载
+            {t('dependencyDialog.title')}
           </h3>
           <button
             onClick={onCancel}
@@ -110,7 +112,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
             fontSize: '14px',
             marginBottom: '16px'
           }}>
-            模组 <strong style={{ color: '#66c0f4' }}>{modName}</strong> 需要以下前置组件：
+            {t('dependencyDialog.requiresDependencies')} <strong style={{ color: '#66c0f4' }}>{modName}</strong>
           </p>
 
           {/* Dependencies list */}
@@ -123,7 +125,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
           }}>
             {selectedDeps.length === 0 ? (
               <p style={{ color: '#8f98a0', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
-                未找到依赖组件
+                {t('dependencyDialog.noDependencies')}
               </p>
             ) : (
               selectedDeps.map(dep => (
@@ -165,7 +167,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                       padding: '2px 6px',
                       borderRadius: '3px'
                     }}>
-                      可选
+                      {t('dependencyDialog.optional')}
                     </span>
                   )}
                 </div>
@@ -190,7 +192,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                 cursor: 'pointer',
                 fontSize: '12px'
               }}>
-              取消全选
+              {t('dependencyDialog.cancelAll')}
             </button>
             <button
               onClick={handleSelectAll}
@@ -203,7 +205,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                 cursor: 'pointer',
                 fontSize: '12px'
               }}>
-              全选
+              {t('dependencyDialog.selectAll')}
             </button>
           </div>
         </div>
@@ -227,7 +229,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
               cursor: 'pointer',
               fontSize: '13px'
             }}>
-            取消
+            {t('dependencyDialog.cancel')}
           </button>
           <button
             onClick={handleConfirm}
@@ -241,7 +243,7 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
               fontSize: '13px',
               fontWeight: 500
             }}>
-            下载选中项
+            {t('dependencyDialog.downloadSelected')}
           </button>
         </div>
       </div>

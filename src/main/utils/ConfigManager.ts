@@ -24,6 +24,9 @@ const defaultSteamCmdPath = ''
 const defaultSteamDownloadPath = ''
 
 const defaults: AppConfig = {
+  app: {
+    language: 'system'
+  },
   steamcmd: {
     executablePath: defaultSteamCmdPath,
     downloadPath: defaultSteamDownloadPath

@@ -48,6 +48,8 @@
     "electron-updater": "^6.1.7",
     "fast-xml-parser": "^4.3.4",
     "fs-extra": "^11.2.0",
+    "i18next": "^25.10.3",
+    "react-i18next": "^16.6.0",
     "simple-git": "^3.21.0",
     "zustand": "^4.4.7"
   },
