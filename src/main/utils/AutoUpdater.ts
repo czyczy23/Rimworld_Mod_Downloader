@@ -1,11 +1,9 @@
-import { autoUpdater } from 'electron-updater'
+import { autoUpdater, UpdateInfo as ElectronUpdateInfo, UpdateDownloadedEvent } from 'electron-updater'
 import { BrowserWindow, ipcMain } from 'electron'
-import { log } from 'electron-updater'
 
 export interface UpdateInfo {
   version: string
   releaseNotes: string
-  releaseUrl: string
 }
 
 export interface UpdateStatus {
@@ -38,8 +36,7 @@ class AutoUpdaterManager {
     autoUpdater.autoInstallOnAppQuit = true
 
     // Set up logging
-    autoUpdater.logger = log
-    log.transports.file.level = 'info'
+    autoUpdater.logger = console
 
     // Set up event handlers
     this.setupEventHandlers()
@@ -54,15 +51,14 @@ class AutoUpdaterManager {
       this.sendToRenderer('update-status', this.status)
     })
 
-    autoUpdater.on('update-available', (info) => {
+    autoUpdater.on('update-available', (info: ElectronUpdateInfo) => {
       this.updateStatus({
         checking: false,
         available: true,
         notAvailable: false,
         updateInfo: {
           version: info.version,
-          releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes?.map(r => r.note).join('\n') || '',
-          releaseUrl: info.releaseUrl || ''
+          releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes?.map(r => r.note).join('\n') || ''
         }
       })
       this.sendToRenderer('update-status', this.status)
@@ -87,14 +83,13 @@ class AutoUpdaterManager {
       })
     })
 
-    autoUpdater.on('update-downloaded', (info) => {
+    autoUpdater.on('update-downloaded', (info: UpdateDownloadedEvent) => {
       this.updateStatus({
         downloading: false,
         downloaded: true,
         updateInfo: {
           version: info.version,
-          releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes?.map(r => r.note).join('\n') || '',
-          releaseUrl: info.releaseUrl || ''
+          releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes?.map(r => r.note).join('\n') || ''
         }
       })
       this.sendToRenderer('update-status', this.status)
@@ -150,7 +145,7 @@ class AutoUpdaterManager {
 
   checkForUpdates(): void {
     autoUpdater.checkForUpdates().catch((error) => {
-      log.error('Failed to check for updates:', error)
+      console.error('Failed to check for updates:', error)
     })
   }
 }
