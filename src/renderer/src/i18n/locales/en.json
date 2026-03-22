@@ -188,5 +188,14 @@
     "versionDetected": "Detected RimWorld version",
     "versionDetectFailed": "Failed to detect version",
     "firstRunDetected": "First run detected, showing welcome wizard"
+  },
+  "update": {
+    "newVersion": "New version {{version}} available!",
+    "download": "Download Update",
+    "downloading": "Downloading... {{progress}}",
+    "downloadComplete": "Download Complete",
+    "installNow": "Install Now",
+    "later": "Later",
+    "upToDate": "You are using the latest version"
   }
 }

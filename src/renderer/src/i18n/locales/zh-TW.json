@@ -188,5 +188,14 @@
     "versionDetected": "偵測到 RimWorld 版本",
     "versionDetectFailed": "偵測版本失敗",
     "firstRunDetected": "首次執行偵測到，顯示歡迎精靈"
+  },
+  "update": {
+    "newVersion": "新版本 {{version}} 可用！",
+    "download": "下載更新",
+    "downloading": "下載中... {{progress}}",
+    "downloadComplete": "下載完成",
+    "installNow": "立即安裝",
+    "later": "稍後",
+    "upToDate": "您正在使用最新版本"
   }
 }

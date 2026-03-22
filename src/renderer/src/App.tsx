@@ -9,6 +9,7 @@ import { DependencyDialog } from './components/DependencyDialog'
 import { VersionMismatchDialog } from './components/VersionMismatchDialog'
 import { PendingQueueDialog } from './components/PendingQueueDialog'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
+import { UpdateDialog } from './components/UpdateDialog'
 import { WelcomeWizard } from './components/WelcomeWizard'
 import type { DownloadItem, BatchDownloadInfo, PendingDownloadItem } from '../../shared/types'
 
@@ -46,6 +47,12 @@ declare global {
       getSystemLocale: () => Promise<string>
       getLanguage: () => Promise<'en' | 'zh-TW' | 'zh-CN' | 'system'>
       setLanguage: (lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => Promise<boolean>
+      checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>
+      downloadUpdate: () => Promise<{ success: boolean; error?: string }>
+      installUpdate: () => void
+      getUpdateStatus: () => Promise<any>
+      onUpdateStatus: (callback: (status: any) => void) => () => void
+      onUpdateProgress: (callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => () => void
     }
   }
 }
@@ -101,6 +108,64 @@ function App() {
 
   // 欢迎向导状态
   const [showWelcome, setShowWelcome] = useState(false)
+
+  // Update state
+  const [updateStatus, setUpdateStatus] = useState<{
+    available: boolean
+    downloading: boolean
+    downloaded: boolean
+    version: string
+    releaseNotes: string
+    downloadProgress: number
+  }>({
+    available: false,
+    downloading: false,
+    downloaded: false,
+    version: '',
+    releaseNotes: '',
+    downloadProgress: 0
+  })
+
+  // Listen for update status
+  useEffect(() => {
+    if (!window.api) return
+
+    const unsubscribeStatus = window.api.onUpdateStatus((status: any) => {
+      console.log('[App] Update status:', status)
+      setUpdateStatus(prev => ({
+        ...prev,
+        available: status.available,
+        downloading: status.downloading,
+        downloaded: status.downloaded,
+        version: status.updateInfo?.version || '',
+        releaseNotes: status.updateInfo?.releaseNotes || ''
+      }))
+    })
+
+    const unsubscribeProgress = window.api.onUpdateProgress((progress: any) => {
+      setUpdateStatus(prev => ({
+        ...prev,
+        downloadProgress: progress.percent
+      }))
+    })
+
+    return () => {
+      unsubscribeStatus()
+      unsubscribeProgress()
+    }
+  }, [])
+
+  const handleDownloadUpdate = useCallback(() => {
+    if (window.api) {
+      window.api.downloadUpdate()
+    }
+  }, [])
+
+  const handleInstallUpdate = useCallback(() => {
+    if (window.api) {
+      window.api.installUpdate()
+    }
+  }, [])
 
   // Load config on mount
   useEffect(() => {
@@ -860,6 +925,19 @@ function App() {
         selectedCount={selectedForDelete.length}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      {/* Update Dialog */}
+      <UpdateDialog
+        isOpen={updateStatus.available}
+        newVersion={updateStatus.version}
+        releaseNotes={updateStatus.releaseNotes}
+        isDownloading={updateStatus.downloading}
+        isDownloaded={updateStatus.downloaded}
+        downloadProgress={updateStatus.downloadProgress}
+        onDownload={handleDownloadUpdate}
+        onInstall={handleInstallUpdate}
+        onClose={() => setUpdateStatus(prev => ({ ...prev, available: false }))}
       />
     </div>
   )

@@ -188,5 +188,14 @@
     "versionDetected": "检测到 RimWorld 版本",
     "versionDetectFailed": "检测版本失败",
     "firstRunDetected": "首次运行检测到，显示欢迎向导"
+  },
+  "update": {
+    "newVersion": "新版本 {{version}} 可用！",
+    "download": "下载更新",
+    "downloading": "下载中... {{progress}}",
+    "downloadComplete": "下载完成",
+    "installNow": "立即安装",
+    "later": "稍后",
+    "upToDate": "您正在使用最新版本"
   }
 }

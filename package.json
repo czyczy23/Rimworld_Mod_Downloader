@@ -3,8 +3,9 @@
   "version": "1.1.0",
   "description": "RimWorld Steam Workshop Mod Downloader with Git sync",
   "main": "./out/main/index.js",
-  "author": "RimWorld Mod Community",
-  "homepage": ".",
+  "author": "czyczy23",
+  "repository": "https://github.com/czyczy23/Rimworld_Mod_Downloader",
+  "homepage": "https://github.com/czyczy23/Rimworld_Mod_Downloader",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
@@ -46,7 +47,8 @@
       "requestedExecutionLevel": "requireAdministrator"
     },
     "asar": true,
-    "compression": "maximum"
+    "compression": "maximum",
+    "publish": null
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",

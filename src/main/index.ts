@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { configManager } from './utils/ConfigManager'
+import { autoUpdaterManager } from './utils/AutoUpdater'
 import { setupIpcHandlers } from './ipcHandlers'
 import type { ModMetadata, Dependency } from '../shared/types'
 
@@ -57,8 +58,15 @@ class AppManager {
       }
     })
 
+    // Initialize auto-updater with window reference
+    autoUpdaterManager.init(this.mainWindow)
+
     this.mainWindow.on('ready-to-show', () => {
       this.mainWindow?.show()
+      // Check for updates after window is shown (skip in dev mode)
+      if (!is.dev) {
+        autoUpdaterManager.checkForUpdates()
+      }
     })
 
     this.mainWindow.webContents.setWindowOpenHandler((details) => {

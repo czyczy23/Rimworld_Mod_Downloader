@@ -103,6 +103,30 @@ const api = {
     return () => {
       ipcRenderer.removeListener('config:reset', handler)
     }
+  },
+
+  // Auto-update operations
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+
+  // Update status listener
+  onUpdateStatus: (callback: (status: any) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('update-status', handler)
+    return () => {
+      ipcRenderer.removeListener('update-status', handler)
+    }
+  },
+
+  // Update progress listener
+  onUpdateProgress: (callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('update-progress', handler)
+    return () => {
+      ipcRenderer.removeListener('update-progress', handler)
+    }
   }
 }
 
