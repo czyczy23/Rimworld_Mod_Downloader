@@ -32,11 +32,19 @@ jobs:
         run: npm run build:win
 
       - name: List output files
-        run: Get-ChildItem -Path release/ -Recurse | Select-Object FullName
+        run: |
+          Get-ChildItem -Path release/ -Recurse -File | Select-Object FullName, Length
 
-      - name: Upload Windows build
+      - name: Upload NSIS Installer
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build-${{ github.ref_name }}
+          name: windows-nsis-installer-${{ github.ref_name }}
+          path: out/make/**/*.exe
+          retention-days: 30
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-${{ github.ref_name }}
           path: release/**/*.zip
           retention-days: 30
