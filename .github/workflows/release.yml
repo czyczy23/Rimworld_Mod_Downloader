@@ -32,7 +32,7 @@ jobs:
         run: npm run build:win
 
       - name: List output files
-        run: ls -la release/
+        run: Get-ChildItem -Path release/ -Recurse | Select-Object FullName
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
