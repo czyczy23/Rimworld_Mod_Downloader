@@ -455,7 +455,7 @@ function App() {
       }
 
       // Proceed with dependency check and download
-      proceedWithDownload(modId, isCollection, modName)
+      await proceedWithDownload(modId, isCollection, modName)
     } catch (error) {
       console.error('Error in download flow:', error)
       // Fallback to direct download if anything fails
@@ -571,7 +571,7 @@ function App() {
       }
 
       // Proceed with adding to queue
-      proceedWithAddToQueue(modId, isCollection, modName)
+      await proceedWithAddToQueue(modId, isCollection, modName)
     } catch (error) {
       console.error('Error in add to queue flow:', error)
       // Fallback: at least try to add the main mod
@@ -764,10 +764,10 @@ function App() {
     if (action === 'force') {
       if (isAddAction) {
         // 添加到队列
-        proceedWithAddToQueue(id, isCollection, name)
+        await proceedWithAddToQueue(id, isCollection, name)
       } else {
         // 直接下载
-        proceedWithDownload(id, isCollection, name)
+        await proceedWithDownload(id, isCollection, name)
       }
     }
     // action === 'skip' 时什么都不做

@@ -70,7 +70,15 @@ class AppManager {
     })
 
     this.mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
+      try {
+        const targetUrl = new URL(details.url)
+        if (targetUrl.protocol === 'http:' || targetUrl.protocol === 'https:') {
+          void shell.openExternal(targetUrl.toString())
+        }
+      } catch (error) {
+        console.error('[App] Blocked invalid external URL:', details.url, error)
+      }
+
       return { action: 'deny' }
     })
 

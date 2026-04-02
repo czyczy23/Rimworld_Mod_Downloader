@@ -86,7 +86,7 @@ export interface DownloadItem {
   id: string;
   name: string;
   progress: number;
-  status: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error';
+  status: 'pending' | 'connecting' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error';
   error?: string;
   message?: string;
 }

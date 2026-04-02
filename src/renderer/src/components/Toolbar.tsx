@@ -12,8 +12,8 @@ interface ModVersionInfo {
 
 interface ToolbarProps {
   onSettingsClick: () => void
-  onDownloadClick?: (modId: string, isCollection: boolean) => void
-  onAddToQueue?: (modId: string, isCollection: boolean) => void
+  onDownloadClick?: (modId: string, isCollection: boolean) => Promise<void> | void
+  onAddToQueue?: (modId: string, isCollection: boolean) => Promise<void> | void
   currentPageInfo?: CurrentPageInfo | null
   gameVersion?: string
   onRefreshGameVersion?: () => Promise<string>
@@ -115,6 +115,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       ...p,
       isActive: p.path === selectedPath
     }))
+    setModsPaths(updatedPaths)
 
     if (window.api) {
       // Set the entire rimworld object since we can't set nested properties directly
@@ -160,7 +161,11 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         isActive: true
       }
 
-      const updatedPaths = [...modsPaths, newPath]
+      const updatedPaths = modsPaths.map((path) => ({
+        ...path,
+        isActive: false
+      }))
+      updatedPaths.push(newPath)
       setModsPaths(updatedPaths)
       setActivePath(selectedPath)
 

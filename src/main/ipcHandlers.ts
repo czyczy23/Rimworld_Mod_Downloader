@@ -6,6 +6,14 @@ import { workshopScraper } from './services/WorkshopScraper'
 import type { ModMetadata, Dependency } from '../shared/types'
 import type { ModVersionInfo } from './services/WorkshopScraper'
 
+const MOD_ID_PATTERN = /^\d+$/
+
+function assertValidModId(modId: string): void {
+  if (!MOD_ID_PATTERN.test(modId)) {
+    throw new Error(`Invalid mod ID: ${modId}`)
+  }
+}
+
 /**
  * IPC Handler Setup
  * Registers all IPC handlers for main-renderer communication
@@ -64,11 +72,17 @@ export function setupIpcHandlers(): void {
     const mainWindow = BrowserWindow.fromWebContents(sender)
 
     try {
+      assertValidModId(id)
+
       // Step 1: Download using SteamCMD
       console.log(`[IPC] Starting SteamCMD download for mod ${id}`)
 
       // Set up progress listener
       const progressHandler = (progress: DownloadProgress) => {
+        if (progress.modId !== id) {
+          return
+        }
+
         console.log(`[SteamCMD] Progress: ${progress.percent}% - ${progress.message}`)
 
         // Send progress to renderer
@@ -181,6 +195,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('mod:checkVersion', async (_, modId: string): Promise<ModVersionInfo> => {
     console.log(`[IPC] Check version for mod ${modId}`)
     try {
+      assertValidModId(modId)
       return await workshopScraper.scrapeModVersion(modId)
     } catch (error) {
       console.error(`[IPC] Failed to check version for mod ${modId}:`, error)
@@ -193,6 +208,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('mod:checkDependencies', async (_, modId: string): Promise<Dependency[]> => {
     console.log(`[IPC] Check dependencies for mod ${modId}`)
     try {
+      assertValidModId(modId)
       const versionInfo = await workshopScraper.scrapeModVersion(modId)
       // Convert WorkshopScraper.Dependency to shared.Dependency
       return versionInfo.dependencies.map(dep => ({
@@ -217,6 +233,7 @@ export function setupIpcHandlers(): void {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
+      assertValidModId(item.id)
 
       // Send batch progress update
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -259,9 +276,14 @@ export function setupIpcHandlers(): void {
   // Helper function to download single mod
   async function downloadSingleMod(id: string, isCollection: boolean, mainWindow: BrowserWindow | null): Promise<ModMetadata> {
     console.log(`[IPC] Starting download for mod ${id}, collection: ${isCollection}`)
+    assertValidModId(id)
 
     // Step 1: Download using SteamCMD
     const progressHandler = (progress: DownloadProgress) => {
+      if (progress.modId !== id) {
+        return
+      }
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('download:progress', {
           id,

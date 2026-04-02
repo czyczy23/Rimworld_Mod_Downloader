@@ -27,6 +27,7 @@ export function DownloadQueue({
 }: DownloadQueueProps = {}) {
   const { t } = useTranslation()
   const [internalDownloads, setInternalDownloads] = useState<DownloadItem[]>([])
+  const activeStatuses = ['connecting', 'downloading', 'checking', 'moving']
 
   // Use external downloads if provided, otherwise use internal state
   const downloads = externalDownloads || internalDownloads
@@ -67,7 +68,7 @@ export function DownloadQueue({
 
   // Calculate summary stats
   const activeDownloads = downloads.filter(
-    (d) => d.status === 'downloading' || d.status === 'checking' || d.status === 'moving'
+    (d) => activeStatuses.includes(d.status)
   )
   const completedDownloads = downloads.filter((d) => d.status === 'completed')
   const errorDownloads = downloads.filter((d) => d.status === 'error')
@@ -390,7 +391,7 @@ export function DownloadQueue({
               <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📦</div>
               <p>{t('downloadQueue.noDownloads')}</p>
               <p style={{ fontSize: '13px', color: '#5a6875' }}>
-                Browse Steam Workshop and click "Download to Local" on any mod
+                {"Browse Steam Workshop and click \"Download to Local\" on any mod"}
               </p>
             </div>
           ) : (
@@ -485,6 +486,8 @@ export function DownloadQueue({
                         ? '❌'
                         : download.status === 'completed'
                         ? '✅'
+                        : download.status === 'connecting'
+                        ? '🔌'
                         : download.status === 'downloading'
                         ? '⬇️'
                         : download.status === 'moving'
@@ -514,8 +517,10 @@ export function DownloadQueue({
                           ? `Error: ${download.error || 'Unknown error'}`
                           : download.status === 'completed'
                           ? 'Completed'
-                          : download.status === 'downloading'
-                          ? 'Downloading...'
+                        : download.status === 'connecting'
+                        ? 'Connecting to Steam...'
+                        : download.status === 'downloading'
+                        ? 'Downloading...'
                           : download.status === 'moving'
                           ? 'Moving files...'
                           : download.status === 'checking'
@@ -524,9 +529,7 @@ export function DownloadQueue({
                       </div>
 
                       {/* Progress bar for active downloads */}
-                      {(download.status === 'downloading' ||
-                        download.status === 'moving' ||
-                        download.status === 'checking') && (
+                      {activeStatuses.includes(download.status) && (
                         <div
                           style={{
                             width: '100%',
@@ -552,9 +555,7 @@ export function DownloadQueue({
                     </div>
 
                     {/* Progress percentage */}
-                    {(download.status === 'downloading' ||
-                      download.status === 'moving' ||
-                      download.status === 'checking') && (
+                    {activeStatuses.includes(download.status) && (
                       <div
                         style={{
                           fontSize: '14px',

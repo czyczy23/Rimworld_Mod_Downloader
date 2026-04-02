@@ -4,6 +4,7 @@ import { existsSync } from 'fs'
 import { configManager } from '../utils/ConfigManager'
 
 export interface DownloadProgress {
+  modId: string
   stage: 'connecting' | 'downloading' | 'completed' | 'error'
   percent: number
   current?: number
@@ -81,6 +82,7 @@ export class SteamCMD extends EventEmitter {
     }
 
     this.emit('progress', {
+      modId,
       stage: 'connecting',
       percent: 0,
       message: 'Connecting to Steam...'
@@ -103,7 +105,7 @@ export class SteamCMD extends EventEmitter {
 
       let stdout = ''
       let stderr = ''
-      let progressRegex = /Downloading update \((\d+) of (\d+)\)/
+      const progressRegex = /Downloading update \((\d+) of (\d+)\)/
       let isDownloading = false
 
       // Handle stdout data
@@ -128,6 +130,7 @@ export class SteamCMD extends EventEmitter {
             const percent = Math.round((current / total) * 100)
 
             this.emit('progress', {
+              modId,
               stage: 'downloading',
               percent,
               current,
@@ -172,6 +175,7 @@ export class SteamCMD extends EventEmitter {
           const modPath = `${downloadPath}/${modId}`
 
           this.emit('progress', {
+            modId,
             stage: 'completed',
             percent: 100,
             message: 'Download completed successfully'
@@ -199,6 +203,7 @@ export class SteamCMD extends EventEmitter {
           }
 
           this.emit('progress', {
+            modId,
             stage: 'error',
             percent: 0,
             message: errorMessage
@@ -217,6 +222,7 @@ export class SteamCMD extends EventEmitter {
         console.error(`[SteamCMD] Process error: ${error.message}`)
 
         this.emit('progress', {
+          modId,
           stage: 'error',
           percent: 0,
           message: `Failed to start SteamCMD: ${error.message}`
@@ -262,6 +268,7 @@ export class SteamCMD extends EventEmitter {
         }, 5000) // Give 5 seconds for graceful shutdown
 
         this.emit('progress', {
+          modId,
           stage: 'error',
           percent: 0,
           message: 'Download timeout after 5 minutes'

@@ -18,6 +18,7 @@ export interface UpdateStatus {
 
 class AutoUpdaterManager {
   private mainWindow: BrowserWindow | null = null
+  private initialized = false
   private status: UpdateStatus = {
     checking: false,
     available: false,
@@ -30,6 +31,12 @@ class AutoUpdaterManager {
 
   init(mainWindow: BrowserWindow): void {
     this.mainWindow = mainWindow
+
+    if (this.initialized) {
+      return
+    }
+
+    this.initialized = true
 
     // Configure auto-updater
     autoUpdater.autoDownload = false

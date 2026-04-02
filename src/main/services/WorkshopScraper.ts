@@ -1,6 +1,5 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
-import * as https from 'https'
 
 export interface ModVersionInfo {
   supportedVersions: string[]
@@ -27,7 +26,6 @@ export class WorkshopScraperError extends Error {
 
 export class WorkshopScraper {
   private readonly baseUrl = 'https://steamcommunity.com/sharedfiles/filedetails/'
-  private readonly agent = new https.Agent({ rejectUnauthorized: false })
 
   /**
    * Scrape mod version information from Steam Workshop page
@@ -49,8 +47,7 @@ export class WorkshopScraper {
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1'
         },
-        timeout: 10000,
-        httpsAgent: this.agent
+        timeout: 10000
       })
 
       const html = response.data
@@ -63,7 +60,7 @@ export class WorkshopScraper {
       const supportedVersions = this.extractSupportedVersions($, html)
 
       // Extract dependencies
-      const dependencies = this.extractDependencies($, html)
+      const dependencies = this.extractDependencies($)
 
       console.log(`[WorkshopScraper] Found ${supportedVersions.length} versions for mod ${modId}`)
       console.log(`[WorkshopScraper] Found ${dependencies.length} dependencies for mod ${modId}`)
@@ -171,7 +168,7 @@ export class WorkshopScraper {
    * Extract dependencies from page
    * Only looks in the "Required Items" section
    */
-  private extractDependencies($: cheerio.CheerioAPI, html: string): Dependency[] {
+  private extractDependencies($: cheerio.CheerioAPI): Dependency[] {
     const dependencies: Dependency[] = []
     const seenIds = new Set<string>()
 

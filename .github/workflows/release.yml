@@ -39,7 +39,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-nsis-installer-${{ github.ref_name }}
-          path: out/make/**/*.exe
+          path: |
+            release/**/*.exe
+            !release/**/win-unpacked/**
           retention-days: 30
 
       - name: Upload Portable ZIP
