@@ -40,4 +40,4 @@ try {
 console.log()
 
 console.log('[3/3] Done!')
-console.log(`Check the ${outputDir} folder for .exe, .msi and updater metadata`)
+console.log(`Check the ${outputDir} folder for .exe, .msi and package metadata`)

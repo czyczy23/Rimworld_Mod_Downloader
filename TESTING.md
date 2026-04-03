@@ -62,7 +62,7 @@ GitHub Actions now runs two workflows:
    Uploads:
    - NSIS installer `.exe`
    - MSI installer `.msi`
-   - updater metadata (`latest.yml`, `.blockmap`)
+   - package metadata (`builder-debug.yml`, `.blockmap`)
 
 ## Artifact Directories
 
