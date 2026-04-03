@@ -1,4 +1,4 @@
-name: Build and Release
+name: Release Pipeline
 
 on:
   workflow_dispatch:
@@ -6,11 +6,17 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  quality:
     runs-on: windows-latest
-    permissions:
-      contents: write
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -25,28 +31,104 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build application
-        run: npm run build
+      - name: Run quality gate
+        run: npm run verify:ci
+        env:
+          CI: true
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-${{ github.ref_name }}
+          path: coverage/unit
+          retention-days: 14
+
+  e2e:
+    runs-on: windows-latest
+    needs: quality
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npm run test:e2e:install
+
+      - name: Run end-to-end smoke tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.ref_name }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
+  package-windows:
+    runs-on: windows-latest
+    needs:
+      - quality
+      - e2e
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      WIN_CSC_LINK: ''
+      WIN_CSC_KEY_PASSWORD: ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application bundle
+        run: npm run build:app
 
       - name: Package for Windows
-        run: npm run build:win
+        run: npm run package:win
 
       - name: List output files
         run: |
           Get-ChildItem -Path release/ -Recurse -File | Select-Object FullName, Length
 
-      - name: Upload NSIS Installer
+      - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: windows-nsis-installer-${{ github.ref_name }}
+          name: windows-installers-${{ github.ref_name }}
           path: |
             release/**/*.exe
+            release/**/*.msi
             !release/**/win-unpacked/**
           retention-days: 30
 
-      - name: Upload Portable ZIP
+      - name: Upload updater metadata
         uses: actions/upload-artifact@v4
         with:
-          name: windows-portable-${{ github.ref_name }}
-          path: release/**/*.zip
+          name: windows-updater-metadata-${{ github.ref_name }}
+          path: |
+            release/**/*.yml
+            release/**/*.blockmap
           retention-days: 30

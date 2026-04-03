@@ -16,6 +16,8 @@ concurrency:
 jobs:
   quality:
     runs-on: windows-latest
+    timeout-minutes: 20
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,13 +40,15 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-unit
+          name: coverage-unit-${{ github.ref_name }}
           path: coverage/unit
           retention-days: 14
 
   e2e:
     runs-on: windows-latest
     needs: quality
+    timeout-minutes: 20
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -70,7 +74,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.ref_name }}
           path: |
             playwright-report
             test-results

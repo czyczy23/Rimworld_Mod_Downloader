@@ -26,9 +26,29 @@ This repository now uses a layered test flow so local runs and CI follow the sam
   Recommended local pre-commit gate:
   lint -> typecheck -> unit tests -> production build
 
+- `npm run package:win`
+  Packages Windows installers from the current `out/` build output.
+  Produces NSIS `.exe`, `.msi`, and updater metadata in `release/<version>/`.
+
+- `npm run build:win`
+  Recommended local release command:
+  build -> Windows installer packaging
+
 ## CI Flow
 
-GitHub Actions now runs two jobs:
+GitHub Actions now runs two workflows:
+
+1. `Test Pipeline`
+   Triggered on pull requests and pushes to `main`.
+   Runs:
+   `quality` -> `e2e`
+
+2. `Release Pipeline`
+   Triggered on version tags and manual dispatch.
+   Runs:
+   `quality` -> `e2e` -> `package-windows`
+
+## Job Breakdown
 
 1. `quality`
    Runs `npm run verify:ci` and uploads unit coverage artifacts.
@@ -37,11 +57,19 @@ GitHub Actions now runs two jobs:
    Installs the Chromium browser and runs Playwright smoke tests.
    The HTML report and raw Playwright results are uploaded as artifacts.
 
+3. `package-windows`
+   Builds the Electron app bundle, then packages Windows installers.
+   Uploads:
+   - NSIS installer `.exe`
+   - MSI installer `.msi`
+   - updater metadata (`latest.yml`, `.blockmap`)
+
 ## Artifact Directories
 
 - Unit coverage: `coverage/unit/`
 - Playwright report: `playwright-report/`
 - Playwright raw results: `test-results/`
+- Windows installers: `release/<version>/`
 
 These directories are generated artifacts and should not be committed.
 
