@@ -188,7 +188,5 @@ jobs:
           gh release upload $env:RELEASE_TAG `
             "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION-setup.exe" `
             "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION.msi" `
-            "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION-setup.exe.blockmap" `
-            "release/$env:RELEASE_VERSION/builder-debug.yml" `
             --repo $env:REPOSITORY `
             --clobber
