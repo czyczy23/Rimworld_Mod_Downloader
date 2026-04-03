@@ -34,6 +34,9 @@ This repository now uses a layered test flow so local runs and CI follow the sam
   Recommended local release command:
   build -> Windows installer packaging
 
+- `npm run release:notes -- --tag v1.1.1 --previous-tag v1.1.0 --output release-notes-preview.md`
+  Renders the release notes template locally so you can preview the final GitHub Release body before tagging.
+
 ## CI Flow
 
 GitHub Actions now runs two workflows:
@@ -48,6 +51,7 @@ GitHub Actions now runs two workflows:
    Runs:
    `quality` -> `e2e` -> `package-windows`
    When a matching tag such as `v1.1.1` is present, the workflow also creates or updates the GitHub Release and uploads the installer files there.
+   Release notes are generated from `.github/release-notes/versions/<tag>.md` first, then fall back to `.github/release-notes/template.md`.
 
 ## Job Breakdown
 

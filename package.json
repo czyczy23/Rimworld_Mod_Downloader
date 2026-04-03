@@ -33,6 +33,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
+    "release:notes": "node scripts/render-release-notes.cjs",
     "verify": "npm run lint && npm run typecheck && npm run test:unit && npm run build:app",
     "verify:ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build:app"
   },
