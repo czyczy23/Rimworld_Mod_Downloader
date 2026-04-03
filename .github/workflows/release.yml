@@ -2,6 +2,11 @@ name: Release Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to publish, for example v1.1.1
+        required: false
+        type: string
   push:
     tags:
       - 'v*.*.*'
@@ -86,6 +91,8 @@ jobs:
       - quality
       - e2e
     timeout-minutes: 30
+    permissions:
+      contents: write
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       WIN_CSC_LINK: ''
@@ -103,6 +110,35 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Resolve release tag
+        id: release_tag
+        shell: pwsh
+        run: |
+          $tag = ''
+          if ('${{ github.event_name }}' -eq 'push') {
+            $tag = '${{ github.ref_name }}'
+          } elseif ('${{ github.event.inputs.release_tag }}') {
+            $tag = '${{ github.event.inputs.release_tag }}'
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Read package version
+        id: package_version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json | ConvertFrom-Json
+          "version=$($package.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Validate release tag
+        if: steps.release_tag.outputs.tag != ''
+        shell: pwsh
+        run: |
+          $expected = 'v${{ steps.package_version.outputs.version }}'
+          $actual = '${{ steps.release_tag.outputs.tag }}'
+          if ($actual -ne $expected) {
+            throw "Release tag '$actual' must match package version '$expected'."
+          }
 
       - name: Build application bundle
         run: npm run build:app
@@ -132,3 +168,25 @@ jobs:
             release/**/builder-debug.yml
             release/**/*.blockmap
           retention-days: 30
+
+      - name: Create or update GitHub Release
+        if: steps.release_tag.outputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_tag.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.package_version.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --repo $env:REPOSITORY --title $env:RELEASE_TAG --generate-notes
+          }
+
+          gh release upload $env:RELEASE_TAG `
+            "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION-setup.exe" `
+            "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION.msi" `
+            "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION-setup.exe.blockmap" `
+            "release/$env:RELEASE_VERSION/builder-debug.yml" `
+            --repo $env:REPOSITORY `
+            --clobber

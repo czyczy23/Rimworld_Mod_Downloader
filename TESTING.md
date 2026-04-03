@@ -28,7 +28,7 @@ This repository now uses a layered test flow so local runs and CI follow the sam
 
 - `npm run package:win`
   Packages Windows installers from the current `out/` build output.
-  Produces NSIS `.exe`, `.msi`, and updater metadata in `release/<version>/`.
+  Produces NSIS `.exe`, `.msi`, and package metadata in `release/<version>/`.
 
 - `npm run build:win`
   Recommended local release command:
@@ -47,6 +47,7 @@ GitHub Actions now runs two workflows:
    Triggered on version tags and manual dispatch.
    Runs:
    `quality` -> `e2e` -> `package-windows`
+   When a matching tag such as `v1.1.1` is present, the workflow also creates or updates the GitHub Release and uploads the installer files there.
 
 ## Job Breakdown
 
@@ -63,6 +64,7 @@ GitHub Actions now runs two workflows:
    - NSIS installer `.exe`
    - MSI installer `.msi`
    - package metadata (`builder-debug.yml`, `.blockmap`)
+   - GitHub Release assets for matching version tags
 
 ## Artifact Directories
 

@@ -44,8 +44,8 @@ An Electron desktop application for downloading and managing RimWorld mods from 
 ### Install from Release
 
 1. Go to [Releases](../../releases) page
-2. Download the latest .zip file (`RimWorld-Mod-Downloade-x.x.x.zip`)
-3. Run `RimWorld Mod Downloader.exe`
+2. Download either the latest NSIS installer (`RimWorld-Mod-Downloader-x.y.z-setup.exe`) or MSI installer (`RimWorld-Mod-Downloader-x.y.z.msi`)
+3. Run the installer and complete setup
 
 ### Build from Source
 
