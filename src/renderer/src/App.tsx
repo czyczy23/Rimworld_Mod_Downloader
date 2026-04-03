@@ -787,7 +787,11 @@ function App() {
   }, [])
 
   return (
-    <div className="app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}>
+    <div
+      className="app"
+      data-testid="app-shell"
+      style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}
+    >
       {/* 首次启动欢迎向导 */}
       <WelcomeWizard 
         isOpen={showWelcome} 

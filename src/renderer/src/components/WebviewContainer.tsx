@@ -300,8 +300,8 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
     }
 
     return (
-      <div className="webview-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
-        <div className="webview-toolbar" style={{
+      <div className="webview-container" data-testid="webview-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+        <div className="webview-toolbar" data-testid="webview-toolbar" style={{
           display: 'flex',
           alignItems: 'center',
           padding: '8px 12px',
@@ -338,6 +338,7 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
         <div style={{ flex: 1, position: 'relative' }}>
           <webview
             ref={webviewRef}
+            data-testid="steam-webview"
             src={currentUrl}
             partition="persist:steam"
             allowpopups

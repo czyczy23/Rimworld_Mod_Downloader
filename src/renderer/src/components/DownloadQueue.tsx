@@ -137,6 +137,7 @@ export function DownloadQueue({
   return (
     <div
       className="download-queue"
+      data-testid="download-queue"
       style={{
         background: '#171a21',
         borderTop: '1px solid #2a475e',

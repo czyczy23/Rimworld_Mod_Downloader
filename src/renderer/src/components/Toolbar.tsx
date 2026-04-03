@@ -460,6 +460,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
 
           {/* Settings Button */}
           <button
+            data-testid="toolbar-settings-button"
             onClick={onSettingsClick}
             style={{
               background: '#2a475e',

@@ -7,10 +7,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    reporters: process.env.CI ? ['default'] : ['default'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reportsDirectory: 'coverage/unit',
+      reporter: ['text', 'json-summary', 'html', 'lcov'],
       exclude: ['node_modules/', 'src/renderer/src/i18n/locales/']
     }
   },

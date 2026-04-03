@@ -275,7 +275,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   }
 
   return (
-    <div style={{
+    <div data-testid="settings-panel" style={{
       position: 'fixed',
       top: 0,
       right: isOpen ? '0' : '-400px',
