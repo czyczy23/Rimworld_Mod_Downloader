@@ -1,137 +1,78 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ModMetadata, Dependency } from '../shared/types'
+import type { RendererApi } from '../shared/api'
+import type {
+  AppConfig,
+  AppLanguage,
+  AppUpdateProgress,
+  AppUpdateStatus,
+  BatchDownloadInfo,
+  Dependency,
+  DownloadProgress,
+  DownloadRequestItem,
+  ModMetadata,
+  ModVersionInfo,
+  SelectFileOptions,
+  UpdateActionResult,
+  UpdateCheckResult
+} from '../shared/types'
 
-// Type for download progress callback
-export type DownloadProgressCallback = (progress: {
-  id: string
-  status: string
-  progress: number
-  message?: string
-  current?: number
-  total?: number
-}) => void
+function getConfig(): Promise<AppConfig>
+function getConfig<K extends keyof AppConfig>(key: K): Promise<AppConfig[K]>
+function getConfig<K extends keyof AppConfig>(key?: K): Promise<AppConfig | AppConfig[K]> {
+  return ipcRenderer.invoke('config:get', key)
+}
 
-// Type for batch progress callback
-export type BatchProgressCallback = (progress: {
-  isBatch: boolean
-  current: number
-  total: number
-  currentName: string
-  id: string
-}) => void
+const setConfig = <K extends keyof AppConfig>(key: K, value: AppConfig[K]): Promise<void> =>
+  ipcRenderer.invoke('config:set', { key, value })
 
-// Custom APIs for renderer
-const api = {
-  // Config operations
-  getConfig: (key?: string) => ipcRenderer.invoke('config:get', key),
-  setConfig: (key: string, value: any) => ipcRenderer.invoke('config:set', { key, value }),
-  resetConfig: () => ipcRenderer.invoke('config:reset'),
+function subscribe<T>(channel: string, callback: (data: T) => void): () => void {
+  const handler = (_event: IpcRendererEvent, data: T): void => callback(data)
+  ipcRenderer.on(channel, handler)
 
-  // App language operations
-  getSystemLocale: () => ipcRenderer.invoke('app:getLocale'),
-  getLanguage: () => ipcRenderer.invoke('app:getLanguage'),
-  setLanguage: (lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => ipcRenderer.invoke('app:setLanguage', lang),
-
-  // Version detection
-  detectGameVersion: () => ipcRenderer.invoke('version:detect'),
-
-  // Mod version check
-  checkModVersion: (modId: string) => ipcRenderer.invoke('mod:checkVersion', modId),
-
-  // Mod download
-  downloadMod: (id: string, isCollection: boolean): Promise<ModMetadata> =>
-    ipcRenderer.invoke('mod:download', { id, isCollection }),
-
-  // Batch download
-  downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]): Promise<ModMetadata[]> =>
-    ipcRenderer.invoke('mod:downloadBatch', { items }),
-
-  // Dependency check
-  checkDependencies: (id: string): Promise<Dependency[]> =>
-    ipcRenderer.invoke('mod:checkDependencies', id),
-
-  // Dialog
-  selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
-  selectFile: (options?: {
-    title?: string
-    defaultPath?: string
-    filters?: { name: string, extensions: string[] }[]
-    properties?: ('openFile' | 'multiSelections')[]
-  }) => ipcRenderer.invoke('dialog:selectFile', options),
-
-  // Download progress listener
-  onDownloadProgress: (callback: DownloadProgressCallback) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('download:progress', handler)
-    return () => {
-      ipcRenderer.removeListener('download:progress', handler)
-    }
-  },
-
-  // Download complete listener
-  onDownloadComplete: (callback: (data: ModMetadata) => void) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('download:complete', handler)
-    return () => {
-      ipcRenderer.removeListener('download:complete', handler)
-    }
-  },
-
-  // Download error listener
-  onDownloadError: (callback: (data: { id: string; error: string }) => void) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('download:error', handler)
-    return () => {
-      ipcRenderer.removeListener('download:error', handler)
-    }
-  },
-
-  // Batch progress listener
-  onBatchProgress: (callback: (data: any) => void) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('batch:progress', handler)
-    return () => {
-      ipcRenderer.removeListener('batch:progress', handler)
-    }
-  },
-
-  // Config reset listener
-  onConfigReset: (callback: () => void) => {
-    const handler = () => callback()
-    ipcRenderer.on('config:reset', handler)
-    return () => {
-      ipcRenderer.removeListener('config:reset', handler)
-    }
-  },
-
-  // Auto-update operations
-  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
-  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
-
-  // Update status listener
-  onUpdateStatus: (callback: (status: any) => void) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('update-status', handler)
-    return () => {
-      ipcRenderer.removeListener('update-status', handler)
-    }
-  },
-
-  // Update progress listener
-  onUpdateProgress: (callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => {
-    const handler = (_: any, data: any) => callback(data)
-    ipcRenderer.on('update-progress', handler)
-    return () => {
-      ipcRenderer.removeListener('update-progress', handler)
-    }
+  return () => {
+    ipcRenderer.removeListener(channel, handler)
   }
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled
+const api: RendererApi = {
+  getConfig,
+  setConfig,
+  resetConfig: () => ipcRenderer.invoke('config:reset'),
+  getSystemLocale: () => ipcRenderer.invoke('app:getLocale'),
+  getLanguage: () => ipcRenderer.invoke('app:getLanguage'),
+  setLanguage: (lang: AppLanguage) => ipcRenderer.invoke('app:setLanguage', lang),
+  detectGameVersion: () => ipcRenderer.invoke('version:detect'),
+  checkModVersion: (modId: string): Promise<ModVersionInfo> =>
+    ipcRenderer.invoke('mod:checkVersion', modId),
+  downloadMod: (id: string, isCollection: boolean): Promise<ModMetadata> =>
+    ipcRenderer.invoke('mod:download', { id, isCollection }),
+  downloadBatch: (items: DownloadRequestItem[]): Promise<ModMetadata[]> =>
+    ipcRenderer.invoke('mod:downloadBatch', { items }),
+  checkDependencies: (id: string): Promise<Dependency[]> =>
+    ipcRenderer.invoke('mod:checkDependencies', id),
+  selectFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:selectFolder'),
+  selectFile: (options?: SelectFileOptions): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:selectFile', options),
+  onDownloadProgress: (callback: (progress: DownloadProgress) => void) =>
+    subscribe<DownloadProgress>('download:progress', callback),
+  onDownloadComplete: (callback: (data: ModMetadata) => void) =>
+    subscribe<ModMetadata>('download:complete', callback),
+  onDownloadError: (callback: (data: { id: string; error: string }) => void) =>
+    subscribe<{ id: string; error: string }>('download:error', callback),
+  onBatchProgress: (callback: (progress: BatchDownloadInfo) => void) =>
+    subscribe<BatchDownloadInfo>('batch:progress', callback),
+  onConfigReset: (callback: () => void) => subscribe<void>('config:reset', callback),
+  checkForUpdates: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: (): Promise<UpdateActionResult> => ipcRenderer.invoke('download-update'),
+  installUpdate: (): Promise<void> => ipcRenderer.invoke('install-update'),
+  getUpdateStatus: (): Promise<AppUpdateStatus> => ipcRenderer.invoke('get-update-status'),
+  onUpdateStatus: (callback: (status: AppUpdateStatus) => void) =>
+    subscribe<AppUpdateStatus>('update-status', callback),
+  onUpdateProgress: (callback: (progress: AppUpdateProgress) => void) =>
+    subscribe<AppUpdateProgress>('update-progress', callback)
+}
+
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
@@ -140,8 +81,11 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
+  const unsafeWindow = globalThis as typeof globalThis & {
+    electron: typeof electronAPI
+    api: RendererApi
+  }
+
+  unsafeWindow.electron = electronAPI
+  unsafeWindow.api = api
 }

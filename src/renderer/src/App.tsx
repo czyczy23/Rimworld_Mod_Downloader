@@ -11,64 +11,29 @@ import { PendingQueueDialog } from './components/PendingQueueDialog'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
 import { UpdateDialog } from './components/UpdateDialog'
 import { WelcomeWizard } from './components/WelcomeWizard'
-import type { DownloadItem, BatchDownloadInfo, PendingDownloadItem } from '../../shared/types'
+import type {
+  AppConfig,
+  AppUpdateProgress,
+  AppUpdateStatus,
+  BatchDownloadInfo,
+  Dependency,
+  DownloadItem,
+  DownloadProgress,
+  ModMetadata,
+  PendingDownloadItem
+} from '../../shared/types'
 
-// Extend Window interface for our API
-declare global {
-  interface Window {
-    api: {
-      getConfig: (key?: string) => Promise<any>
-      setConfig: (key: string, value: any) => Promise<void>
-      downloadMod: (id: string, isCollection: boolean) => Promise<any>
-      downloadBatch: (items: { id: string; name: string; isCollection: boolean }[]) => Promise<any[]>
-      checkDependencies: (id: string) => Promise<any[]>
-      checkModVersion: (modId: string) => Promise<{ supportedVersions: string[], modName: string, dependencies: any[] }>
-      selectFolder: () => Promise<string | null>
-      selectFile: (options?: {
-        title?: string
-        defaultPath?: string
-        filters?: { name: string, extensions: string[] }[]
-        properties?: ('openFile' | 'multiSelections')[]
-      }) => Promise<string | null>
-      onDownloadProgress: (callback: (data: {
-        id: string
-        status: string
-        progress: number
-        message?: string
-        current?: number
-        total?: number
-      }) => void) => () => void
-      onDownloadComplete: (callback: (data: any) => void) => () => void
-      onDownloadError: (callback: (data: { id: string; error: string }) => void) => () => void
-      onBatchProgress: (callback: (data: any) => void) => () => void
-      detectGameVersion: () => Promise<string>
-      resetConfig: () => Promise<boolean>
-      onConfigReset: (callback: () => void) => () => void
-      getSystemLocale: () => Promise<string>
-      getLanguage: () => Promise<'en' | 'zh-TW' | 'zh-CN' | 'system'>
-      setLanguage: (lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => Promise<boolean>
-      checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>
-      downloadUpdate: () => Promise<{ success: boolean; error?: string }>
-      installUpdate: () => void
-      getUpdateStatus: () => Promise<any>
-      onUpdateStatus: (callback: (status: any) => void) => () => void
-      onUpdateProgress: (callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => () => void
-    }
-  }
+interface PendingDependencyState {
+  id: string
+  name: string
+  dependencies: Dependency[]
 }
 
-interface AppConfig {
-  download?: {
-    dependencyMode?: 'ask' | 'auto' | 'ignore'
-    autoDownloadDependencies?: boolean
-    skipVersionCheck?: boolean
-  }
-  version?: {
-    onMismatch?: 'ask' | 'force' | 'skip'
-  }
-  rimworld?: {
-    currentVersion?: string
-  }
+interface PendingVersionCheckState {
+  id: string
+  name: string
+  isCollection: boolean
+  modVersions: string[]
 }
 
 function App() {
@@ -80,9 +45,9 @@ function App() {
   const [showDependencyDialog, setShowDependencyDialog] = useState(false)
   const [showVersionMismatchDialog, setShowVersionMismatchDialog] = useState(false)
   const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
-  const [pendingDependencies, setPendingDependencies] = useState<{ id: string; name: string; dependencies: any[] } | null>(null)
-  const [pendingVersionCheck, setPendingVersionCheck] = useState<{ id: string; name: string; isCollection: boolean; modVersions: string[] } | null>(null)
-  const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<{ id: string; name: string; isCollection: boolean; modVersions: string[] } | null>(null)
+  const [pendingDependencies, setPendingDependencies] = useState<PendingDependencyState | null>(null)
+  const [pendingVersionCheck, setPendingVersionCheck] = useState<PendingVersionCheckState | null>(null)
+  const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<PendingVersionCheckState | null>(null)
   const [gameVersion, setGameVersion] = useState<string>('')
   const webviewRef = useRef<WebviewContainerRef>(null)
 
@@ -130,7 +95,7 @@ function App() {
   useEffect(() => {
     if (!window.api) return
 
-    const unsubscribeStatus = window.api.onUpdateStatus((status: any) => {
+    const unsubscribeStatus = window.api.onUpdateStatus((status: AppUpdateStatus) => {
       console.log('[App] Update status:', status)
       setUpdateStatus(prev => ({
         ...prev,
@@ -142,7 +107,7 @@ function App() {
       }))
     })
 
-    const unsubscribeProgress = window.api.onUpdateProgress((progress: any) => {
+    const unsubscribeProgress = window.api.onUpdateProgress((progress: AppUpdateProgress) => {
       setUpdateStatus(prev => ({
         ...prev,
         downloadProgress: progress.percent
@@ -221,7 +186,7 @@ function App() {
     if (!window.api) return
 
     // Listen for progress updates
-    const unsubscribeProgress = window.api.onDownloadProgress((data) => {
+    const unsubscribeProgress = window.api.onDownloadProgress((data: DownloadProgress) => {
       console.log(`[App] Download progress for ${data.id}: ${data.progress}%`)
 
       setDownloads(prev => {
@@ -231,7 +196,7 @@ function App() {
           return prev.map(d => d.id === data.id ? {
             ...d,
             progress: data.progress,
-            status: data.status as any,
+            status: data.status,
             message: data.message
           } : d)
         } else {
@@ -240,7 +205,7 @@ function App() {
             id: data.id,
             name: `Mod ${data.id}`,
             progress: data.progress,
-            status: data.status as any,
+            status: data.status,
             message: data.message
           }]
         }
@@ -248,7 +213,7 @@ function App() {
     })
 
     // Listen for completion
-    const unsubscribeComplete = window.api.onDownloadComplete((data) => {
+    const unsubscribeComplete = window.api.onDownloadComplete((data: ModMetadata) => {
       console.log(`[App] Download completed for ${data.id}`)
 
       setDownloads(prev => prev.map(d => d.id === data.id ? {
@@ -272,7 +237,7 @@ function App() {
     })
 
     // Listen for batch progress
-    const unsubscribeBatchProgress = window.api.onBatchProgress((data) => {
+    const unsubscribeBatchProgress = window.api.onBatchProgress((data: BatchDownloadInfo) => {
       console.log(`[App] Batch progress: ${data.current}/${data.total} - ${data.currentName}`)
 
       setBatchInfo({
@@ -329,10 +294,10 @@ function App() {
   }
 
   // Start batch download with dependencies
-  const startBatchDownload = async (modId: string, isCollection: boolean, modName: string, dependencies: any[]) => {
+  const startBatchDownload = async (modId: string, isCollection: boolean, modName: string, dependencies: Dependency[]) => {
     const allItems = [
       { id: modId, name: modName, isCollection },
-      ...dependencies.map((dep: any) => ({ id: dep.id, name: dep.name || `Mod ${dep.id}`, isCollection: false }))
+      ...dependencies.map((dep) => ({ id: dep.id, name: dep.name || `Mod ${dep.id}`, isCollection: false }))
     ]
 
     // Add all to queue
@@ -626,8 +591,8 @@ function App() {
   }, [])
 
   // 设置保存后的回调
-  const handleConfigSaved = useCallback((newConfig: any) => {
-    setConfig(prev => prev ? { ...prev, ...newConfig } : newConfig)
+  const handleConfigSaved = useCallback((newConfig: AppConfig) => {
+    setConfig(newConfig)
   }, [])
 
   // 清除已完成的下载
@@ -784,7 +749,7 @@ function App() {
 
     if (isQueueScenario) {
       // 添加到队列场景
-      const selectedDeps = pendingDependencies.dependencies.filter((d: any) => selectedIds.includes(d.id))
+      const selectedDeps = pendingDependencies.dependencies.filter((dependency) => selectedIds.includes(dependency.id))
       const itemsToAdd: PendingDownloadItem[] = selectedDeps.map(dep => ({
         id: dep.id,
         name: dep.name || `Mod ${dep.id}`,
@@ -803,7 +768,7 @@ function App() {
       })
     } else {
       // 直接下载场景
-      const selectedDeps = pendingDependencies.dependencies.filter((d: any) => selectedIds.includes(d.id))
+      const selectedDeps = pendingDependencies.dependencies.filter((dependency) => selectedIds.includes(dependency.id))
       startBatchDownload(
         pendingDependencies.id,
         currentPageInfoRef.current?.isCollection || false,
@@ -850,7 +815,7 @@ function App() {
         currentPageInfo={currentPageInfo}
         gameVersion={gameVersion}
         onRefreshGameVersion={refreshGameVersion}
-        modsPaths={config ? (config as any).rimworld?.modsPaths : undefined}
+        modsPaths={config?.rimworld.modsPaths}
         onConfigSaved={handleConfigSaved}
       />
 

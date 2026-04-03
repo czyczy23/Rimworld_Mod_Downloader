@@ -2,13 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CurrentPageInfo } from './WebviewContainer'
 import type { ModsPath } from '../utils/modsPathUtils'
-
-interface ModVersionInfo {
-  supportedVersions: string[]
-  modName: string
-  dependencies: any[]
-}
-
+import type { AppConfig, ModVersionInfo } from '../../../shared/types'
 
 interface ToolbarProps {
   onSettingsClick: () => void
@@ -18,7 +12,7 @@ interface ToolbarProps {
   gameVersion?: string
   onRefreshGameVersion?: () => Promise<string>
   modsPaths?: ModsPath[]
-  onConfigSaved?: (newConfig: any) => void
+  onConfigSaved?: (newConfig: AppConfig) => void
 }
 
 export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion, modsPaths: propModsPaths, onConfigSaved }: ToolbarProps) {
@@ -44,7 +38,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         setVersionMismatch(false)
 
         try {
-          const info = await (window.api as any).checkModVersion(currentPageInfo.modId)
+          const info = await window.api.checkModVersion(currentPageInfo.modId)
           console.log('[Toolbar] Version info:', info)
           console.log('[Toolbar] Game version:', gameVersion)
           setVersionInfo(info)

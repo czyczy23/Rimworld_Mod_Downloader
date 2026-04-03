@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { DownloadItem, PendingDownloadItem } from '../../../shared/types'
+import type { BatchDownloadInfo, DownloadItem, PendingDownloadItem } from '../../../shared/types'
+
+interface DownloadUpdateDetail {
+  id: string
+  name: string
+  progress: number
+  status: DownloadItem['status']
+  error?: string
+}
 
 interface DownloadQueueProps {
   downloads?: DownloadItem[]
-  batchInfo?: any
+  batchInfo?: BatchDownloadInfo
   pendingQueue?: PendingDownloadItem[]
   selectedForDelete?: string[]
   onToggleSelectForDelete?: (id: string) => void
@@ -38,8 +46,8 @@ export function DownloadQueue({
   useEffect(() => {
     // This would normally be set up via IPC
     // For now, we'll use a placeholder
-    const handleDownloadUpdate = (event: CustomEvent) => {
-      const { id, name, progress, status, error } = event.detail
+    const handleDownloadUpdate = (event: Event) => {
+      const { id, name, progress, status, error } = (event as CustomEvent<DownloadUpdateDetail>).detail
       if (setDownloads) {
         setDownloads((prev) => {
           const existing = prev.find((d) => d.id === id)
@@ -54,14 +62,14 @@ export function DownloadQueue({
     }
 
     window.addEventListener(
-      'download-update' as any,
-      handleDownloadUpdate as any
+      'download-update',
+      handleDownloadUpdate as EventListener
     )
 
     return () => {
       window.removeEventListener(
-        'download-update' as any,
-        handleDownloadUpdate as any
+        'download-update',
+        handleDownloadUpdate as EventListener
       )
     }
   }, [setDownloads])

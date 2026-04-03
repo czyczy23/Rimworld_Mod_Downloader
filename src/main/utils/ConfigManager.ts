@@ -24,6 +24,7 @@ const defaultSteamCmdPath = ''
 const defaultSteamDownloadPath = ''
 
 const defaults: AppConfig = {
+  firstRunCompleted: false,
   app: {
     language: 'system'
   },
@@ -75,11 +76,14 @@ class ConfigManager {
   }
 
   // Get all config or specific key
-  get<K extends keyof AppConfig>(key?: K): K extends undefined ? AppConfig : AppConfig[K] {
+  get(): AppConfig
+  get<K extends keyof AppConfig>(key: K): AppConfig[K]
+  get<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
     if (key === undefined) {
-      return this.store.store as any
+      return this.store.store
     }
-    return this.store.get(key) as any
+
+    return this.store.get(key)
   }
 
   // Set config value

@@ -2,6 +2,9 @@
  * Core type definitions for RimWorld Mod Downloader
  */
 
+export type AppLanguage = 'en' | 'zh-TW' | 'zh-CN' | 'system'
+export type DownloadStatus = 'pending' | 'connecting' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error'
+
 export interface ModMetadata {
   id: string;
   name: string;
@@ -12,7 +15,7 @@ export interface ModMetadata {
   isCollection: boolean;
   collectionItems?: string[];
   localPath?: string;
-  downloadStatus: 'pending' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error';
+  downloadStatus: DownloadStatus;
   errorMessage?: string;
 }
 
@@ -31,8 +34,9 @@ export interface ModsPath {
 }
 
 export interface AppConfig {
+  firstRunCompleted: boolean;
   app: {
-    language: 'en' | 'zh-TW' | 'zh-CN' | 'system'
+    language: AppLanguage
   }
   steamcmd: {
     executablePath: string;
@@ -65,9 +69,11 @@ export interface AppConfig {
 
 export interface DownloadProgress {
   id: string;
-  status: string;
+  status: DownloadStatus;
   progress: number;
   message?: string;
+  current?: number;
+  total?: number;
 }
 
 export interface GitStatus {
@@ -86,7 +92,7 @@ export interface DownloadItem {
   id: string;
   name: string;
   progress: number;
-  status: 'pending' | 'connecting' | 'downloading' | 'checking' | 'moving' | 'completed' | 'error';
+  status: DownloadStatus;
   error?: string;
   message?: string;
 }
@@ -104,6 +110,69 @@ export interface PendingDownloadItem {
   name: string;
   isCollection: boolean;
   modName?: string;
+}
+
+export interface DownloadRequestItem {
+  id: string;
+  name: string;
+  isCollection: boolean;
+}
+
+export interface ModVersionDependency {
+  modId: string;
+  name: string;
+  required: boolean;
+}
+
+export interface ModVersionInfo {
+  supportedVersions: string[];
+  modName: string;
+  dependencies: ModVersionDependency[];
+}
+
+export interface FileDialogFilter {
+  name: string;
+  extensions: string[];
+}
+
+export interface SelectFileOptions {
+  title?: string;
+  defaultPath?: string;
+  filters?: FileDialogFilter[];
+  properties?: ('openFile' | 'multiSelections')[];
+}
+
+export interface AppUpdateInfo {
+  version: string;
+  releaseNotes: string;
+}
+
+export interface AppUpdateStatus {
+  checking: boolean;
+  available: boolean;
+  notAvailable: boolean;
+  downloading: boolean;
+  downloaded: boolean;
+  error: string | null;
+  updateInfo: AppUpdateInfo | null;
+}
+
+export interface AppUpdateProgress {
+  percent: number;
+  bytesPerSecond: number;
+  transferred: number;
+  total: number;
+}
+
+export interface UpdateCheckResult {
+  success: boolean;
+  updateInfo?: AppUpdateInfo;
+  error?: string;
+}
+
+export interface UpdateActionResult {
+  success: boolean;
+  error?: string;
 }
 
 // IPC Channel Types

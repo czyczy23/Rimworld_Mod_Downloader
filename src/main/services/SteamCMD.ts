@@ -41,10 +41,10 @@ export class SteamCMD extends EventEmitter {
    * Get current config paths (read fresh from config each time)
    */
   private getPaths() {
-    const config = configManager.get() as any
+    const config = configManager.get()
     return {
-      executablePath: config.steamcmd?.executablePath || '',
-      downloadPath: config.steamcmd?.downloadPath || ''
+      executablePath: config.steamcmd.executablePath,
+      downloadPath: config.steamcmd.downloadPath
     }
   }
 

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import type { AnyNode } from 'domhandler'
 
 export interface ModVersionInfo {
   supportedVersions: string[]
@@ -215,7 +216,7 @@ export class WorkshopScraper {
    * Helper to extract mod links from a given section
    */
   private extractLinksFromSection(
-    $section: cheerio.Cheerio<any>,
+    $section: cheerio.Cheerio<AnyNode>,
     dependencies: Dependency[],
     seenIds: Set<string>,
     $: cheerio.CheerioAPI

@@ -115,10 +115,10 @@ class AutoUpdaterManager {
   private setupIpcHandlers(): void {
     ipcMain.handle('check-for-updates', async () => {
       try {
-        const result = await autoUpdater.checkForUpdates()
+        await autoUpdater.checkForUpdates()
         return { success: true, updateInfo: this.status.updateInfo }
-      } catch (error: any) {
-        return { success: false, error: error.message }
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
       }
     })
 
@@ -126,8 +126,8 @@ class AutoUpdaterManager {
       try {
         await autoUpdater.downloadUpdate()
         return { success: true }
-      } catch (error: any) {
-        return { success: false, error: error.message }
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
       }
     })
 
@@ -144,7 +144,7 @@ class AutoUpdaterManager {
     this.status = { ...this.status, ...partial }
   }
 
-  private sendToRenderer(channel: string, data: any): void {
+  private sendToRenderer<T>(channel: string, data: T): void {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send(channel, data)
     }

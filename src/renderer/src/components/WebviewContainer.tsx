@@ -18,6 +18,29 @@ interface WebviewContainerProps {
   onPageChanged?: (info: CurrentPageInfo) => void
 }
 
+interface WebviewNavigationEvent extends Event {
+  url: string
+}
+
+interface WebviewWillNavigateEvent extends WebviewNavigationEvent {
+  preventDefault(): void
+}
+
+interface WebviewConsoleMessageEvent extends Event {
+  message: string
+}
+
+interface SteamWebviewElement extends HTMLElement {
+  src: string
+  canGoBack(): boolean
+  goBack(): void
+  canGoForward(): boolean
+  goForward(): void
+  reload(): void
+  loadURL(url: string): Promise<void>
+  executeJavaScript(script: string): Promise<unknown>
+}
+
 // Get language parameter string for Steam URL
 const getSteamLangParam = (lang: string): string => {
   if (lang === 'zh-CN') return 'schinese'
@@ -56,7 +79,7 @@ const updateUrlLanguageParam = (url: string, lang: string): string => {
 
 export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainerProps>(
   ({ onPageChanged }, ref) => {
-    const webviewRef = useRef<HTMLWebViewElement>(null)
+    const webviewRef = useRef<SteamWebviewElement>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [currentUrl, setCurrentUrl] = useState(getSteamWorkshopUrl())
     const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo>({
@@ -120,7 +143,7 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           }, true);
         })();
       `
-      ;(webview as any).executeJavaScript(script).catch(() => {})
+      webview.executeJavaScript(script).catch(() => {})
     }
 
     // Listen for i18n language changes and reload webview with new URL
@@ -136,7 +159,7 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           console.log('[WebviewContainer] Language changed -> reloading with URL:', newUrl)
           setCurrentUrl(newUrl)
           setCurrentPageInfo(prev => ({ ...prev, url: newUrl }))
-          ;(webview as any).loadURL(newUrl)
+          void webview.loadURL(newUrl)
         }
       }
 
@@ -195,19 +218,19 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
         setIsLoading(true)
       }
 
-      const handleDidNavigate = (e: any) => {
+      const handleDidNavigate = (e: WebviewNavigationEvent) => {
         console.log('Navigated to:', e.url)
         updatePageInfo(e.url)
       }
 
       // Handle in-page navigation (SPA navigation like Steam Workshop)
-      const handleDidNavigateInPage = (e: any) => {
+      const handleDidNavigateInPage = (e: WebviewNavigationEvent) => {
         console.log('In-page navigated to:', e.url)
         updatePageInfo(e.url)
       }
 
       // Intercept navigation to add language parameter
-      const handleWillNavigate = (e: any) => {
+      const handleWillNavigate = (e: WebviewWillNavigateEvent) => {
         console.log('[WebviewContainer] will-navigate:', e.url)
         const url = e.url
         // Only process Steam Workshop URLs
@@ -216,50 +239,50 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           if (newUrl !== url) {
             console.log('[WebviewContainer] Redirecting to:', newUrl)
             e.preventDefault()
-            ;(webview as any).loadURL(newUrl)
+            void webview.loadURL(newUrl)
           }
         }
       }
 
-      const handleConsoleMessage = (e: any) => {
+      const handleConsoleMessage = (e: WebviewConsoleMessageEvent) => {
         console.log('[Webview Console]', e.message)
       }
 
       webview.addEventListener('dom-ready', handleDomReady)
       webview.addEventListener('load-start', handleLoadStart)
-      webview.addEventListener('did-navigate', handleDidNavigate)
-      webview.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
-      webview.addEventListener('will-navigate', handleWillNavigate)
-      webview.addEventListener('console-message', handleConsoleMessage)
+      webview.addEventListener('did-navigate', handleDidNavigate as EventListener)
+      webview.addEventListener('did-navigate-in-page', handleDidNavigateInPage as EventListener)
+      webview.addEventListener('will-navigate', handleWillNavigate as EventListener)
+      webview.addEventListener('console-message', handleConsoleMessage as EventListener)
 
       return () => {
         webview.removeEventListener('dom-ready', handleDomReady)
         webview.removeEventListener('load-start', handleLoadStart)
-        webview.removeEventListener('did-navigate', handleDidNavigate)
-        webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
-        webview.removeEventListener('will-navigate', handleWillNavigate)
-        webview.removeEventListener('console-message', handleConsoleMessage)
+        webview.removeEventListener('did-navigate', handleDidNavigate as EventListener)
+        webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage as EventListener)
+        webview.removeEventListener('will-navigate', handleWillNavigate as EventListener)
+        webview.removeEventListener('console-message', handleConsoleMessage as EventListener)
       }
     }, [])
 
     const handleGoBack = () => {
       const webview = webviewRef.current
-      if (webview && (webview as any).canGoBack()) {
-        ;(webview as any).goBack()
+      if (webview && webview.canGoBack()) {
+        webview.goBack()
       }
     }
 
     const handleGoForward = () => {
       const webview = webviewRef.current
-      if (webview && (webview as any).canGoForward()) {
-        ;(webview as any).goForward()
+      if (webview && webview.canGoForward()) {
+        webview.goForward()
       }
     }
 
     const handleReload = () => {
       const webview = webviewRef.current
       if (webview) {
-        ;(webview as any).reload()
+        webview.reload()
       }
     }
 
@@ -271,7 +294,7 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           if (!url.startsWith('http')) {
             url = 'https://' + url
           }
-          ;(webview as any).src = url
+          webview.src = url
         }
       }
     }

@@ -3,14 +3,21 @@ import { configManager } from './utils/ConfigManager'
 import { steamCMD, DownloadProgress } from './services/SteamCMD'
 import { modProcessor } from './services/ModProcessor'
 import { workshopScraper } from './services/WorkshopScraper'
-import type { ModMetadata, Dependency } from '../shared/types'
+import type { AppConfig, ModMetadata, Dependency } from '../shared/types'
 import type { ModVersionInfo } from './services/WorkshopScraper'
 
 const MOD_ID_PATTERN = /^\d+$/
+const CONFIG_KEYS: Array<keyof AppConfig> = ['firstRunCompleted', 'app', 'steamcmd', 'rimworld', 'download', 'version', 'git']
 
 function assertValidModId(modId: string): void {
   if (!MOD_ID_PATTERN.test(modId)) {
     throw new Error(`Invalid mod ID: ${modId}`)
+  }
+}
+
+function assertValidConfigKey(key: string): asserts key is keyof AppConfig {
+  if (!CONFIG_KEYS.includes(key as keyof AppConfig)) {
+    throw new Error(`Invalid config key: ${key}`)
   }
 }
 
@@ -23,7 +30,12 @@ export function setupIpcHandlers(): void {
   // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('config:get', (_, key?: string) => {
     try {
-      return configManager.get(key as any)
+      if (key === undefined) {
+        return configManager.get()
+      }
+
+      assertValidConfigKey(key)
+      return configManager.get(key)
     } catch (error) {
       console.error('[IPC] Failed to get config:', error)
       throw new Error(`Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -32,6 +44,7 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle('config:set', (_, { key, value }) => {
     try {
+      assertValidConfigKey(key)
       configManager.set(key, value)
     } catch (error) {
       console.error('[IPC] Failed to set config:', error)

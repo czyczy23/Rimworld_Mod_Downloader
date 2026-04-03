@@ -3,23 +3,28 @@ import { useTranslation } from 'react-i18next'
 import { changeLanguage } from '../i18n'
 import { ModsPathManagerDialog } from './ModsPathManagerDialog'
 import type { ModsPath } from '../utils/modsPathUtils'
+import type { AppConfig, AppLanguage } from '../../../shared/types'
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   gameVersion?: string;
   onRefreshGameVersion?: () => Promise<string>;
-  onConfigSaved?: (newConfig: any) => void;
+  onConfigSaved?: (newConfig: AppConfig) => void;
 }
 
 export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, onRefreshGameVersion, onConfigSaved }: SettingsPanelProps) {
   const { t } = useTranslation()
-  const [config, setConfig] = useState<any>(null)
-  const [tempConfig, setTempConfig] = useState<any>(null)
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [tempConfig, setTempConfig] = useState<AppConfig | null>(null)
   const [localDetectedVersion, setLocalDetectedVersion] = useState<string>('1.6')
   const [showResetWarning, setShowResetWarning] = useState(false)
   
   const [showModsManager, setShowModsManager] = useState(false)
+
+  const updateTempConfig = (updater: (current: AppConfig) => AppConfig) => {
+    setTempConfig(prev => (prev ? updater(prev) : prev))
+  }
 
   const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
 
@@ -73,77 +78,79 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle save
   const handleSave = async () => {
-    if (window.api) {
-      // Validate SteamCMD executable path if provided
-      if (tempConfig.steamcmd?.executablePath) {
-        const exeName = tempConfig.steamcmd.executablePath.split(/[/\\]/).pop()?.toLowerCase()
-        if (exeName && exeName !== 'steamcmd.exe') {
-          alert(t('alerts.steamcmdWarning'))
-        }
-      }
+    if (!window.api || !tempConfig) return
 
-      // Save all config changes
-      for (const [key, value] of Object.entries(tempConfig)) {
-        await window.api.setConfig(key, value)
+    // Validate SteamCMD executable path if provided
+    if (tempConfig.steamcmd.executablePath) {
+      const exeName = tempConfig.steamcmd.executablePath.split(/[/\\]/).pop()?.toLowerCase()
+      if (exeName && exeName !== 'steamcmd.exe') {
+        alert(t('alerts.steamcmdWarning'))
       }
-
-      // Save language to main process
-      if (tempConfig.app?.language) {
-        await window.api.setLanguage(tempConfig.app.language)
-      }
-
-      setConfig({ ...tempConfig })
-      if (onConfigSaved) {
-        onConfigSaved(tempConfig)
-      }
-      onClose()
     }
+
+    // Save all config changes
+    for (const [key, value] of Object.entries(tempConfig) as [keyof AppConfig, AppConfig[keyof AppConfig]][]) {
+      await window.api.setConfig(key, value)
+    }
+
+    // Save language to main process
+    if (tempConfig.app.language) {
+      await window.api.setLanguage(tempConfig.app.language)
+    }
+
+    setConfig(tempConfig)
+    if (onConfigSaved) {
+      onConfigSaved(tempConfig)
+    }
+    onClose()
   }
 
   // Handle cancel
   const handleCancel = () => {
-    setTempConfig({ ...config })
+    if (!config) return
+
+    setTempConfig(config)
     onClose()
   }
 
   // Handle version detection
   const handleDetectVersion = async () => {
-    if (window.api) {
-      try {
-        let version: string
-        if (onRefreshGameVersion) {
-          version = await onRefreshGameVersion()
-        } else {
-          version = await window.api.detectGameVersion()
-          if (propGameVersion === undefined) {
-            setLocalDetectedVersion(version)
-          }
+    if (!window.api) return
+
+    try {
+      let version: string
+      if (onRefreshGameVersion) {
+        version = await onRefreshGameVersion()
+      } else {
+        version = await window.api.detectGameVersion()
+        if (propGameVersion === undefined) {
+          setLocalDetectedVersion(version)
         }
-
-        setTempConfig(prev => ({
-          ...prev,
-          version: {
-            ...prev.version,
-            autoDetect: true
-          },
-          rimworld: {
-            ...prev.rimworld,
-            currentVersion: version
-          }
-        }))
-
-        alert(`${t('alerts.versionDetected')}: ${version}`)
-      } catch (error) {
-        console.error('Failed to detect version:', error)
-        alert(t('alerts.versionDetectFailed'))
       }
+
+      updateTempConfig(prev => ({
+        ...prev,
+        version: {
+          ...prev.version,
+          autoDetect: true
+        },
+        rimworld: {
+          ...prev.rimworld,
+          currentVersion: version
+        }
+      }))
+
+      alert(`${t('alerts.versionDetected')}: ${version}`)
+    } catch (error) {
+      console.error('Failed to detect version:', error)
+      alert(t('alerts.versionDetectFailed'))
     }
   }
 
   // Handle manual version change
   const handleManualVersionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVersion = e.target.value
-    setTempConfig(prev => ({
+    updateTempConfig(prev => ({
       ...prev,
       version: {
         ...prev.version,
@@ -159,7 +166,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle version mismatch behavior change
   const handleVersionMismatchChange = (value: 'ask' | 'force' | 'skip') => {
-    setTempConfig(prev => ({
+    updateTempConfig(prev => ({
       ...prev,
       version: {
         ...prev.version,
@@ -170,7 +177,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle dependency mode change
   const handleDependencyModeChange = (value: 'ask' | 'auto' | 'ignore') => {
-    setTempConfig(prev => ({
+    updateTempConfig(prev => ({
       ...prev,
       download: {
         ...prev.download,
@@ -180,8 +187,8 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   }
 
   // Handle language change
-  const handleLanguageChange = async (value: 'en' | 'zh-TW' | 'zh-CN' | 'system') => {
-    setTempConfig(prev => ({
+  const handleLanguageChange = async (value: AppLanguage) => {
+    updateTempConfig(prev => ({
       ...prev,
       app: {
         ...prev.app,
@@ -196,7 +203,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Handle auto detect toggle
   const handleAutoDetectToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const autoDetect = e.target.checked
-    setTempConfig(prev => ({
+    updateTempConfig(prev => ({
       ...prev,
       version: {
         ...prev.version,
@@ -221,7 +228,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         properties: ['openFile']
       })
       if (filePath) {
-        setTempConfig(prev => ({
+        updateTempConfig(prev => ({
           ...prev,
           steamcmd: {
             ...prev.steamcmd,
@@ -237,7 +244,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     if (window.api) {
       const folderPath = await window.api.selectFolder()
       if (folderPath) {
-        setTempConfig(prev => ({
+        updateTempConfig(prev => ({
           ...prev,
           steamcmd: {
             ...prev.steamcmd,
@@ -254,7 +261,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   }
 
   const handleModsManagerSave = (paths: ModsPath[]) => {
-    setTempConfig(prev => ({
+    updateTempConfig(prev => ({
       ...prev,
       rimworld: {
         ...prev.rimworld,

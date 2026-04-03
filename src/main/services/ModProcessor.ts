@@ -1,5 +1,5 @@
 import { promises as fs, existsSync } from 'fs'
-import { join, dirname, basename } from 'path'
+import { join, dirname, resolve, relative, isAbsolute } from 'path'
 import { configManager } from '../utils/ConfigManager'
 
 export interface ProcessResult {
@@ -34,42 +34,92 @@ export class ModProcessorError extends Error {
 }
 
 export class ModProcessor {
+  private resolveConfiguredRoot(rootPath: string, modId: string, code: string): string {
+    if (!rootPath.trim()) {
+      throw new ModProcessorError(
+        'Required root path is not configured',
+        code,
+        modId
+      )
+    }
+
+    return resolve(rootPath)
+  }
+
+  private assertPathWithinRoot(rootPath: string, candidatePath: string, modId: string, code: string): string {
+    const resolvedRoot = this.resolveConfiguredRoot(rootPath, modId, code)
+    const resolvedCandidate = resolve(candidatePath)
+    const relativePath = relative(resolvedRoot, resolvedCandidate)
+
+    if (
+      relativePath.startsWith('..') ||
+      isAbsolute(relativePath)
+    ) {
+      throw new ModProcessorError(
+        `Resolved path escaped the expected root: ${resolvedCandidate}`,
+        code,
+        modId
+      )
+    }
+
+    return resolvedCandidate
+  }
+
+  private getDownloadRoot(modId: string): string {
+    const config = configManager.get()
+    return this.resolveConfiguredRoot(config.steamcmd.downloadPath, modId, 'E_INVALID_DOWNLOAD_ROOT')
+  }
+
+  private getActiveModsRoot(modId: string): string {
+    const activePath = configManager.getActiveModsPath()
+    if (!activePath) {
+      throw new ModProcessorError(
+        'No active mods path configured',
+        'E_NO_MODS_PATH',
+        modId
+      )
+    }
+
+    return this.resolveConfiguredRoot(activePath.path, modId, 'E_INVALID_MODS_ROOT')
+  }
+
   /**
    * Get the SteamCMD download path for a specific mod
    */
   private getSourcePath(modId: string): string {
-    const config = configManager.get() as any
-    return join(config.steamcmd?.downloadPath || '', modId)
+    const downloadRoot = this.getDownloadRoot(modId)
+    return this.assertPathWithinRoot(
+      downloadRoot,
+      join(downloadRoot, modId),
+      modId,
+      'E_INVALID_SOURCE_PATH'
+    )
   }
 
   /**
    * Get the target Mods folder path
    */
   private getTargetPath(modId: string): string {
-    const activePath = configManager.getActiveModsPath()
-    if (!activePath) {
-      throw new ModProcessorError(
-        'No active mods path configured',
-        'E_NO_MODS_PATH',
-        modId
-      )
-    }
-    return join(activePath.path, modId)
+    const modsRoot = this.getActiveModsRoot(modId)
+    return this.assertPathWithinRoot(
+      modsRoot,
+      join(modsRoot, modId),
+      modId,
+      'E_INVALID_TARGET_PATH'
+    )
   }
 
   /**
    * Get a temporary path for atomic operations
    */
   private getTempPath(modId: string): string {
-    const activePath = configManager.getActiveModsPath()
-    if (!activePath) {
-      throw new ModProcessorError(
-        'No active mods path configured',
-        'E_NO_MODS_PATH',
-        modId
-      )
-    }
-    return join(activePath.path, `.temp_${modId}_${Date.now()}`)
+    const modsRoot = this.getActiveModsRoot(modId)
+    return this.assertPathWithinRoot(
+      modsRoot,
+      join(modsRoot, `.temp_${modId}_${Date.now()}`),
+      modId,
+      'E_INVALID_TEMP_PATH'
+    )
   }
 
   /**
