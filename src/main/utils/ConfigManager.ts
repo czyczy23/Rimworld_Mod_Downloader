@@ -10,6 +10,7 @@ import { promises as fs, existsSync, copyFileSync } from 'fs'
 import { AppConfig, ModsPath } from '../../shared/types'
 import { randomUUID } from 'crypto'
 import { decryptSecret, encryptSecret, isEncryptedBlob } from './SecureStorage'
+import logger from './logger'
 
 // Legacy encryption key that was hardcoded in the source (insecure).
 // Kept only for migrating existing user configs away from it.
@@ -134,10 +135,10 @@ class ConfigManager {
         }
       }
 
-      console.log('[ConfigManager] Migrated config from legacy encrypted format')
+      logger.info('[ConfigManager] Migrated config from legacy encrypted format')
     } catch {
       // Migration failed — the backup file still exists for manual recovery
-      console.warn('[ConfigManager] Legacy config migration failed. Backup at:', backupPath)
+      logger.warn('[ConfigManager] Legacy config migration failed. Backup at:', backupPath)
       return
     }
 
@@ -205,7 +206,7 @@ class ConfigManager {
   async reset(): Promise<void> {
     this.store.clear()
     this.store.set(defaults)
-    console.log('[ConfigManager] Config has been reset to defaults')
+    logger.info('[ConfigManager] Config has been reset to defaults')
 
     // Create default mods folder if it doesn't exist
     await this.ensureDefaultModsFolder()
@@ -215,9 +216,9 @@ class ConfigManager {
   private async ensureDefaultModsFolder(): Promise<void> {
     try {
       await fs.mkdir(defaultModsPath, { recursive: true })
-      console.log(`[ConfigManager] Created default mods folder: ${defaultModsPath}`)
+      logger.info(`[ConfigManager] Created default mods folder: ${defaultModsPath}`)
     } catch (error) {
-      console.error('[ConfigManager] Failed to create default mods folder:', error)
+      logger.error('[ConfigManager] Failed to create default mods folder:', error)
     }
   }
 
@@ -230,7 +231,7 @@ class ConfigManager {
   async detectGameVersion(): Promise<string> {
     const activePath = this.getActiveModsPath()
     if (!activePath) {
-      console.log('[ConfigManager] No active mods path found')
+      logger.info('[ConfigManager] No active mods path found')
       return this.get('rimworld').currentVersion
     }
 
@@ -239,21 +240,21 @@ class ConfigManager {
       const gameRoot = dirname(activePath.path)
       const versionFile = join(gameRoot, 'Version.txt')
 
-      console.log(`[ConfigManager] Looking for Version.txt at: ${versionFile}`)
-      console.log(`[ConfigManager] Active mods path: ${activePath.path}`)
-      console.log(`[ConfigManager] Game root: ${gameRoot}`)
+      logger.info(`[ConfigManager] Looking for Version.txt at: ${versionFile}`)
+      logger.info(`[ConfigManager] Active mods path: ${activePath.path}`)
+      logger.info(`[ConfigManager] Game root: ${gameRoot}`)
 
       // Check if Version.txt exists
       try {
         await fs.access(versionFile)
       } catch {
-        console.log(`[ConfigManager] Version.txt not found at ${versionFile}`)
+        logger.info(`[ConfigManager] Version.txt not found at ${versionFile}`)
         return this.get('rimworld').currentVersion
       }
 
       // Read and parse version file
       const content = await fs.readFile(versionFile, 'utf-8')
-      console.log(`[ConfigManager] Version.txt content: ${content}`)
+      logger.info(`[ConfigManager] Version.txt content: ${content}`)
 
       // Match patterns like: 1.5.4063 rev1071 or version 1.5.4063 rev1071
       const match = content.match(/(?:version\s+)?(\d+\.\d+)\.\d+/)
@@ -261,7 +262,7 @@ class ConfigManager {
       if (match && match[1]) {
         // Cache detected version
         const currentVersion = match[1]
-        console.log(`[ConfigManager] Detected game version: ${currentVersion}`)
+        logger.info(`[ConfigManager] Detected game version: ${currentVersion}`)
         this.set('rimworld', {
           ...this.get('rimworld'),
           currentVersion
@@ -269,10 +270,10 @@ class ConfigManager {
         return currentVersion
       }
 
-      console.log(`[ConfigManager] Could not parse version from: ${content}`)
+      logger.info(`[ConfigManager] Could not parse version from: ${content}`)
       return this.get('rimworld').currentVersion
     } catch (error) {
-      console.error('Failed to detect game version:', error)
+      logger.error('Failed to detect game version:', error)
       return this.get('rimworld').currentVersion
     }
   }

@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow, app } from 'electron'
 import { configManager } from './utils/ConfigManager'
+import logger from './utils/logger'
 import { steamCMD, DownloadProgress } from './services/SteamCMD'
 import { modProcessor } from './services/ModProcessor'
 import { workshopScraper } from './services/WorkshopScraper'
@@ -38,7 +39,7 @@ export function setupIpcHandlers(): void {
       assertValidConfigKey(key)
       return configManager.get(key)
     } catch (error) {
-      console.error('[IPC] Failed to get config:', error)
+      logger.error('[IPC] Failed to get config:', error)
       throw new Error(`Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
@@ -51,7 +52,7 @@ export function setupIpcHandlers(): void {
       validateConfigValue(key, value)
       configManager.set(key, value)
     } catch (error) {
-      console.error('[IPC] Failed to set config:', error)
+      logger.error('[IPC] Failed to set config:', error)
       throw new Error(`Failed to set config: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
@@ -76,14 +77,14 @@ export function setupIpcHandlers(): void {
     try {
       return await configManager.detectGameVersion()
     } catch (error) {
-      console.error('[IPC] Failed to detect game version:', error)
+      logger.error('[IPC] Failed to detect game version:', error)
       throw new Error(`Failed to detect game version: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
 
   // ===== Mod Download Handler =====
   ipcMain.handle('mod:download', async (event, { id, isCollection }): Promise<ModMetadata> => {
-    console.log(`[IPC] Download requested for mod ${id}, collection: ${isCollection}`)
+    logger.info(`[IPC] Download requested for mod ${id}, collection: ${isCollection}`)
 
     const sender = event.sender
     const mainWindow = BrowserWindow.fromWebContents(sender)
@@ -93,7 +94,7 @@ export function setupIpcHandlers(): void {
       return await runDownloadPipeline(id, isCollection || false, mainWindow)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`[IPC] Download failed for mod ${id}:`, error)
+      logger.error(`[IPC] Download failed for mod ${id}:`, error)
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('download:error', { id, error: errorMessage })
@@ -117,12 +118,12 @@ export function setupIpcHandlers(): void {
   // ===== Mod Version Check Handler =====
   // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('mod:checkVersion', async (_, modId: string): Promise<ModVersionInfo> => {
-    console.log(`[IPC] Check version for mod ${modId}`)
+    logger.info(`[IPC] Check version for mod ${modId}`)
     try {
       assertValidModId(modId)
       return await workshopScraper.scrapeModVersion(modId)
     } catch (error) {
-      console.error(`[IPC] Failed to check version for mod ${modId}:`, error)
+      logger.error(`[IPC] Failed to check version for mod ${modId}:`, error)
       throw new Error(`Failed to check mod version: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
@@ -130,7 +131,7 @@ export function setupIpcHandlers(): void {
   // ===== Dependency Check Handler =====
   // P1 FIX: Added try-catch for consistent error handling
   ipcMain.handle('mod:checkDependencies', async (_, modId: string): Promise<Dependency[]> => {
-    console.log(`[IPC] Check dependencies for mod ${modId}`)
+    logger.info(`[IPC] Check dependencies for mod ${modId}`)
     try {
       assertValidModId(modId)
       const versionInfo = await workshopScraper.scrapeModVersion(modId)
@@ -142,14 +143,14 @@ export function setupIpcHandlers(): void {
         willDownload: true
       }))
     } catch (error) {
-      console.error(`[IPC] Failed to check dependencies for mod ${modId}:`, error)
+      logger.error(`[IPC] Failed to check dependencies for mod ${modId}:`, error)
       throw new Error(`Failed to check mod dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   })
 
   // ===== Batch Download Handler =====
   ipcMain.handle('mod:downloadBatch', async (event, { items }): Promise<ModMetadata[]> => {
-    console.log(`[IPC] Batch download requested for ${items.length} items`)
+    logger.info(`[IPC] Batch download requested for ${items.length} items`)
 
     const sender = event.sender
     const mainWindow = BrowserWindow.fromWebContents(sender)
@@ -175,7 +176,7 @@ export function setupIpcHandlers(): void {
         results.push(metadata)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
-        console.error(`[IPC] Download failed for ${item.id}:`, error)
+        logger.error(`[IPC] Download failed for ${item.id}:`, error)
 
         const metadata: ModMetadata = {
           id: item.id,
@@ -341,7 +342,7 @@ export function setupIpcHandlers(): void {
     try {
       return configManager.get('app').language
     } catch (error) {
-      console.error('[IPC] Failed to get language:', error)
+      logger.error('[IPC] Failed to get language:', error)
       return 'zh-TW'
     }
   })
@@ -349,13 +350,13 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('app:setLanguage', (_, lang: 'en' | 'zh-TW' | 'zh-CN' | 'system') => {
     try {
       configManager.set('app', { language: lang })
-      console.log(`[IPC] Language set to: ${lang}`)
+      logger.info(`[IPC] Language set to: ${lang}`)
       return true
     } catch (error) {
-      console.error('[IPC] Failed to set language:', error)
+      logger.error('[IPC] Failed to set language:', error)
       return false
     }
   })
 
-  console.log('[IPC] All handlers registered successfully')
+  logger.info('[IPC] All handlers registered successfully')
 }

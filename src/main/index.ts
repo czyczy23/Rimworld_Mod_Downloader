@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import logger from './utils/logger'
 import { configManager } from './utils/ConfigManager'
 import { autoUpdaterManager } from './utils/AutoUpdater'
 import { setupIpcHandlers } from './ipcHandlers'
@@ -76,7 +77,7 @@ class AppManager {
           void shell.openExternal(targetUrl.toString())
         }
       } catch (error) {
-        console.error('[App] Blocked invalid external URL:', details.url, error)
+        logger.error('[App] Blocked invalid external URL:', details.url, error)
       }
 
       return { action: 'deny' }
@@ -96,7 +97,7 @@ class AppManager {
 // Initialize and start the application
 const appManager = new AppManager()
 appManager.initialize().catch((error) => {
-  console.error('[App] Fatal initialization error:', error)
+  logger.error('[App] Fatal initialization error:', error)
   dialog.showErrorBox(
     'RimWorld Mod Downloader - Startup Error',
     `Failed to initialize the application:\n\n${error instanceof Error ? error.message : String(error)}`

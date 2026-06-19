@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { configManager } from '../utils/ConfigManager'
+import logger from '../utils/logger'
 import { RIMWORLD_APP_ID, STEAM_LOGIN, STEAMCMD_TIMEOUT_MS, STEAMCMD_GRACE_MS } from '../../shared/constants'
 
 const MOD_ID_PATTERN = /^\d+$/
@@ -169,7 +170,7 @@ export class SteamCMD extends EventEmitter {
 
     return new Promise((resolve) => {
       const args = buildArgs(modId)
-      console.log(`[SteamCMD] Starting download for mod ${modId}`)
+      logger.info(`[SteamCMD] Starting download for mod ${modId}`)
 
       // Remove spawn's built-in timeout — we handle it ourselves
       const proc = spawn(executablePath, args, { windowsHide: true })
@@ -223,7 +224,7 @@ export class SteamCMD extends EventEmitter {
 
       // Timeout with graceful shutdown
       const timeoutId = setTimeout(() => {
-        console.error('[SteamCMD] Download timeout')
+        logger.error('[SteamCMD] Download timeout')
         gracefulKill(proc)
 
         const msg = 'Download timeout after 5 minutes'

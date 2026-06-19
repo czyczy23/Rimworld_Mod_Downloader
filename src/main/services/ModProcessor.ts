@@ -1,6 +1,7 @@
 import { promises as fs, existsSync } from 'fs'
 import { join, dirname, resolve, relative, isAbsolute } from 'path'
 import { configManager } from '../utils/ConfigManager'
+import logger from '../utils/logger'
 
 export interface ProcessResult {
   success: boolean
@@ -166,7 +167,7 @@ export class ModProcessor {
             )
           }
         } catch (e) {
-          console.warn(`[ModProcessor] Failed to parse About.xml for ${modId}:`, e)
+          logger.warn(`[ModProcessor] Failed to parse About.xml for ${modId}:`, e)
         }
       }
 
@@ -207,9 +208,9 @@ export class ModProcessor {
     const targetPath = this.getTargetPath(modId)
     const tempPath = this.getTempPath(modId)
 
-    console.log(`[ModProcessor] Processing mod ${modId}`)
-    console.log(`[ModProcessor] Source: ${sourcePath}`)
-    console.log(`[ModProcessor] Target: ${targetPath}`)
+    logger.info(`[ModProcessor] Processing mod ${modId}`)
+    logger.info(`[ModProcessor] Source: ${sourcePath}`)
+    logger.info(`[ModProcessor] Target: ${targetPath}`)
 
     try {
       // Check if source exists
@@ -233,7 +234,7 @@ export class ModProcessor {
           )
         }
         // Missing About.xml is tolerable (some mods have non-standard structure)
-        console.warn(`[ModProcessor] Mod ${modId} validation warning: ${validation.error}`)
+        logger.warn(`[ModProcessor] Mod ${modId} validation warning: ${validation.error}`)
       }
 
       // Create target directory if it doesn't exist
@@ -242,13 +243,13 @@ export class ModProcessor {
 
       // If target already exists, remove it (update scenario)
       if (existsSync(targetPath)) {
-        console.log(`[ModProcessor] Removing existing mod at ${targetPath}`)
+        logger.info(`[ModProcessor] Removing existing mod at ${targetPath}`)
         await fs.rm(targetPath, { recursive: true, force: true })
       }
 
       // Atomic move: move to temp first, then rename to target
       // This ensures we don't end up with a partially copied mod
-      console.log(`[ModProcessor] Moving mod to temp location: ${tempPath}`)
+      logger.info(`[ModProcessor] Moving mod to temp location: ${tempPath}`)
       await fs.mkdir(dirname(tempPath), { recursive: true })
 
       // Copy instead of move to preserve source in case of failure
@@ -256,13 +257,13 @@ export class ModProcessor {
 
       // Then rename to target (atomic on most filesystems)
       // If rename fails with EXDEV (cross-volume), fall back to copy + delete
-      console.log(`[ModProcessor] Renaming to target: ${targetPath}`)
+      logger.info(`[ModProcessor] Renaming to target: ${targetPath}`)
       try {
         await fs.rename(tempPath, targetPath)
       } catch (renameError: unknown) {
         if (renameError instanceof Error && (renameError as NodeJS.ErrnoException).code === 'EXDEV') {
           // Cross-volume: copy from temp to target, then delete temp
-          console.log(`[ModProcessor] Cross-volume rename, falling back to copy`)
+          logger.info(`[ModProcessor] Cross-volume rename, falling back to copy`)
           await this.copyDirectory(tempPath, targetPath)
           await fs.rm(tempPath, { recursive: true, force: true })
         } else {
@@ -282,10 +283,10 @@ export class ModProcessor {
       // Validate the moved mod
       const finalValidation = await this.validateMod(modId, targetPath)
       if (!finalValidation.valid) {
-        console.warn(`[ModProcessor] Final validation warning: ${finalValidation.error}`)
+        logger.warn(`[ModProcessor] Final validation warning: ${finalValidation.error}`)
       }
 
-      console.log(`[ModProcessor] Successfully processed mod ${modId} to ${targetPath}`)
+      logger.info(`[ModProcessor] Successfully processed mod ${modId} to ${targetPath}`)
 
       return {
         success: true,
@@ -303,12 +304,12 @@ export class ModProcessor {
             await fs.rm(cleanupPath, { recursive: true, force: true })
           }
         } catch (cleanupError) {
-          console.error(`[ModProcessor] Failed to cleanup ${cleanupPath}:`, cleanupError)
+          logger.error(`[ModProcessor] Failed to cleanup ${cleanupPath}:`, cleanupError)
         }
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`[ModProcessor] Failed to process mod ${modId}:`, error)
+      logger.error(`[ModProcessor] Failed to process mod ${modId}:`, error)
 
       return {
         success: false,

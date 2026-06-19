@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import logger from '../utils/logger'
 import type { AnyNode } from 'domhandler'
 
 export interface ModVersionInfo {
@@ -37,7 +38,7 @@ export class WorkshopScraper {
   async scrapeModVersion(modId: string): Promise<ModVersionInfo> {
     try {
       const url = `${this.baseUrl}?id=${modId}`
-      console.log(`[WorkshopScraper] Fetching: ${url}`)
+      logger.info(`[WorkshopScraper] Fetching: ${url}`)
 
       const response = await axios.get(url, {
         headers: {
@@ -63,8 +64,8 @@ export class WorkshopScraper {
       // Extract dependencies
       const dependencies = this.extractDependencies($)
 
-      console.log(`[WorkshopScraper] Found ${supportedVersions.length} versions for mod ${modId}`)
-      console.log(`[WorkshopScraper] Found ${dependencies.length} dependencies for mod ${modId}`)
+      logger.info(`[WorkshopScraper] Found ${supportedVersions.length} versions for mod ${modId}`)
+      logger.info(`[WorkshopScraper] Found ${dependencies.length} dependencies for mod ${modId}`)
 
       return {
         supportedVersions,
@@ -72,7 +73,7 @@ export class WorkshopScraper {
         dependencies
       }
     } catch (error) {
-      console.error(`[WorkshopScraper] Failed to scrape mod ${modId}:`, error)
+      logger.error(`[WorkshopScraper] Failed to scrape mod ${modId}:`, error)
       // P0 FIX: Throw error instead of returning empty data
       throw new WorkshopScraperError(
         `Failed to fetch mod information for ${modId}: ${error instanceof Error ? error.message : 'Unknown error'}`,

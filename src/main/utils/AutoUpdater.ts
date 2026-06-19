@@ -1,5 +1,6 @@
 import { autoUpdater, UpdateInfo as ElectronUpdateInfo, UpdateDownloadedEvent } from 'electron-updater'
 import { BrowserWindow, ipcMain } from 'electron'
+import logger from './logger'
 
 export interface UpdateInfo {
   version: string
@@ -152,7 +153,7 @@ class AutoUpdaterManager {
 
   checkForUpdates(): void {
     autoUpdater.checkForUpdates().catch((error) => {
-      console.error('Failed to check for updates:', error)
+      logger.error('Failed to check for updates:', error)
     })
   }
 }
