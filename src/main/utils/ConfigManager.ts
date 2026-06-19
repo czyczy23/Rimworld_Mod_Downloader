@@ -98,8 +98,9 @@ class ConfigManager {
     try {
       // Back up the old encrypted file before it gets overwritten
       copyFileSync(configPath, backupPath)
-    } catch {
-      return // Can't back up — skip migration, let clearInvalidConfig handle it
+    } catch (error) {
+      logger.warn('[ConfigManager] Cannot back up legacy config, skipping migration:', error)
+      return
     }
 
     try {
@@ -113,8 +114,8 @@ class ConfigManager {
       // Remove old encrypted file so the new store starts fresh
       try {
         unlinkSync(configPath)
-      } catch {
-        // If we can't remove it, clearInvalidConfig will handle it
+      } catch (error) {
+        logger.warn('[ConfigManager] Could not remove old config file (clearInvalidConfig will handle):', error)
       }
 
       // Write decrypted values to the new store (no encryption key)
@@ -129,8 +130,9 @@ class ConfigManager {
             ...gitConfig,
             githubToken: encryptSecret(gitConfig.githubToken)
           })
-        } catch {
-          // safeStorage unavailable — keep as-is (better than losing it)
+        } catch (error) {
+          // safeStorage unavailable — keep token as-is rather than losing it
+          logger.warn('[ConfigManager] safeStorage unavailable, GitHub token stored unencrypted:', error)
         }
       }
 
@@ -144,8 +146,8 @@ class ConfigManager {
     // Clean up backup on success
     try {
       unlinkSync(backupPath)
-    } catch {
-      // Leave backup — not critical
+    } catch (error) {
+      logger.debug('[ConfigManager] Could not remove legacy backup file, left in place:', error)
     }
   }
 

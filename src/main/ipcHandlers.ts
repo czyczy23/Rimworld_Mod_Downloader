@@ -167,19 +167,13 @@ export function setupIpcHandlers(): void {
         const errorMessage = error instanceof Error ? error.message : String(error)
         logger.error(`[IPC] Download failed for ${item.id}:`, error)
 
-        const metadata: ModMetadata = {
-          id: item.id,
-          name: item.name || `Mod ${item.id}`,
-          author: 'Unknown',
-          description: `Download failed: ${errorMessage}`,
-          supportedVersions: [],
-          dependencies: [],
-          isCollection: item.isCollection || false,
-          localPath: '',
-          downloadStatus: 'error',
-          errorMessage
+        // Notify renderer via the same event channel as single download.
+        // The resolved array contains only successful items; failures are
+        // communicated via download:error so the UI can mark each failed mod.
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('download:error', { id: item.id, error: errorMessage })
         }
-        results.push(metadata)
+        // Continue to next item — partial success beats aborting the batch.
       }
     }
 
