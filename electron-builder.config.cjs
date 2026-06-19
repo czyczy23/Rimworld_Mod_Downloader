@@ -21,6 +21,7 @@ module.exports = {
         arch: ['x64']
       }
     ],
+    // Code signing disabled — see SECURITY.md for details
     signAndEditExecutable: false,
     signDlls: false,
     requestedExecutionLevel: 'requireAdministrator'

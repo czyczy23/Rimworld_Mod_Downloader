@@ -71,6 +71,9 @@ An Electron desktop application for downloading and managing RimWorld mods from 
 2. 下载最新版本的安装程序 (`RimWorld-Mod-Downloader-x.x.x-setup.exe`)
 3. 运行安装程序，按提示完成安装
 
+> **注意**：安装程序目前未经代码签名。Windows 可能会显示 SmartScreen 警告 —
+> 点击"更多信息" → "仍要运行"即可。如果你希望参与代码签名的改进，请参阅 [SECURITY.md](SECURITY.md)。
+
 ### 从源码构建
 
 ```bash

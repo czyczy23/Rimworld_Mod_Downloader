@@ -39,3 +39,11 @@ This application follows Electron security best practices:
 - The app spawns external processes (`steamcmd.exe`) — ensure the SteamCMD executable path is validated
 - The embedded webview has access to Steam session cookies within its partition
 - Configuration is stored in the user's AppData directory with OS-level encryption for sensitive fields
+
+## Code Signing
+
+**Current status**: Installers are **not code-signed**. Windows SmartScreen will show a warning on first run.
+
+**Why**: Code signing requires either a paid certificate (OV/EV from a CA) or a cloud signing service (Azure Trusted Signing). As an open-source project, this is a cost/infrastructure trade-off.
+
+**How to help**: If you'd like to contribute code signing infrastructure, please open an issue to discuss the approach (Azure Trusted Signing is the recommended path for open-source projects).
