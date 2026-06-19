@@ -1,6 +1,22 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# Source files — force LF in working tree (overrides core.autocrlf)
+.gitignore text eol=lf
+LICENSE    text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.cjs  text eol=lf
+*.mjs  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.css  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+
 # Binary files — prevent cross-platform line-ending corruption
 *.ico binary
 *.png binary
