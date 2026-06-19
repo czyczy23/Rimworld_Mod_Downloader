@@ -1,227 +1,238 @@
+<div align="center">
+
 # RimWorld 模組下載器
 
-[English](./README_en.md) | [简体中文](./README_zh-CN.md) | [繁體中文](./README_zh-TW.md)
+從 Steam Workshop 瀏覽和下載 RimWorld 模組的 Electron 桌面應用 —— 支援版本檢查、依賴解析和批次下載。
+
+[![Release](https://img.shields.io/github/v/release/czyczy23/Rimworld_Mod_Downloader?style=flat-square&label=Release)](https://github.com/czyczy23/Rimworld_Mod_Downloader/releases)
+[![License: MIT](https://img.shields.io/github/license/czyczy23/Rimworld_Mod_Downloader?style=flat-square)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/czyczy23/Rimworld_Mod_Downloader/release.yml?branch=main&label=Release%20CI&style=flat-square)](https://github.com/czyczy23/Rimworld_Mod_Downloader/actions/workflows/release.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/czyczy23/Rimworld_Mod_Downloader/test.yml?branch=main&label=Tests&style=flat-square)](https://github.com/czyczy23/Rimworld_Mod_Downloader/actions/workflows/test.yml)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue?style=flat-square)](#安裝)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](./CONTRIBUTING.md)
+
+[English](./README.md) · [简体中文](./README_zh-CN.md) · **繁體中文**
+
+</div>
 
 ---
 
-## 描述
-
-一個用於從 Steam Workshop 下載和管理 RimWorld 模組的 Electron 桌面應用程序。
-
-> **提醒**:本項目完全使用**Vibe Coding**進行編寫，可能會帶來不穩定的bug。
+> **⚠️ 專案說明**：本專案完全使用 **Vibe Coding**（AI 輔助編程）編寫，可能存在不穩定的問題。歡迎在 [Issues](https://github.com/czyczy23/Rimworld_Mod_Downloader/issues) 回報 bug。
 
 ## 功能特性
 
-- 內置 Steam Workshop 瀏覽器，可直接瀏覽和下載模組
-- 自動檢測 RimWorld 遊戲版本
-- 模組版本相容性檢查
-- 自動檢測並下載依賴項
-- 待下載佇列功能，支援批量下載
-- 多個模組資料夾路徑管理
-- 即時下載進度顯示
-- Steam 風格的使用者介面
+- 🌐 **內建 Steam Workshop 瀏覽器** — 應用內直接瀏覽和下載模組，無需開啟瀏覽器
+- 🎮 **自動偵測遊戲版本** — 從 RimWorld 安裝目錄讀取 `Version.txt`
+- ✅ **模組版本相容性檢查** — 下載前驗證模組支援的遊戲版本
+- 🔗 **依賴項自動偵測與下載** — 發現模組依賴並提示一併下載
+- 📋 **待下載佇列** — 瀏覽多個模組後批次下載
+- 📁 **多 Mods 路徑管理** — 支援新增多個模組資料夾，一鍵切換預設路徑
+- 📊 **即時下載進度** — SteamCMD 下載進度即時顯示
+- 🔄 **自動更新** — 應用啟動後自動檢查 GitHub Releases 新版本
+- 🎨 **Steam 風格介面** — 與 Steam 用戶端視覺一致的體驗
 
-## 技術棧
+## 截圖
 
-| 分類 | 技術 |
-|------|------|
-| 框架 | Electron 28.1.3 |
-| 構建工具 | electron-vite 2.0.0 |
-| UI | React 18.2.0 + TypeScript 5.3.3 |
-| 樣式 | Tailwind CSS 3.4.1 |
-| 設定管理 | electron-store 8.1.0 |
-| HTTP 請求 | axios 1.13.5 |
-| HTML 解析 | cheerio 1.2.0 |
+| 主介面 | Mod 詳情 |
+|--------|----------|
+| <img src="assets/main-ui.png" width="400"> | <img src="assets/mod-detail.png" width="400"> |
+
+| 下載佇列 | 設定面板 |
+|----------|----------|
+| <img src="assets/pending-queue.png" width="400"> | <img src="assets/settings-panel.png" width="400"> |
 
 ## 安裝
 
 ### 前置要求
 
-- Windows 10/11
-- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) (用於下載 Steam Workshop 內容)
-- RimWorld (可選，用於自動檢測版本)
+- **Windows 10/11**（64 位元）
+- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) — 用於下載 Steam Workshop 內容
+- RimWorld（選用，用於自動偵測遊戲版本）
 
-### 從 Release 安裝
+### 從 Release 安裝（推薦）
 
-1. 前往 [Releases](../../releases) 頁面
-2. 下載最新版本的.zip文件 (`RimWorld-Mod-Downloade-x.x.x.zip`)
-3. 運行`RimWorld Mod Downloader.exe`
+1. 前往 [Releases](https://github.com/czyczy23/Rimworld_Mod_Downloader/releases) 頁面
+2. 下載最新版本的安裝程式：
+   - `RimWorld-Mod-Downloader-x.x.x-setup.exe`（NSIS 安裝版，推薦）
+   - `RimWorld-Mod-Downloader-x.x.x.msi`（MSI 安裝版）
+3. 執行安裝程式，依提示完成安裝
 
-### 從原始碼構建
+> **關於 SmartScreen 警告**：安裝程式目前未經程式碼簽署，Windows 首次執行時會顯示 SmartScreen 警告。
+> 點擊 **「其他資訊」** → **「仍要執行」** 即可。
+> 這是開源專案的常見限制，詳見 [SECURITY.md](./SECURITY.md#code-signing)。
+>
+> v1.2.0 起安裝程式改為 **perUser 模式**，無需系統管理員權限，不會觸發 UAC 提示。
 
-```bash
-# 克隆倉庫
-git clone https://github.com/czyczy23/Rimworld_Mod_Downloader.git
-cd Rimworld_Mod_Downloader
+## 快速開始
 
-# 安裝依賴
-npm install
+1. 安裝 [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) 並記住安裝路徑
+2. 啟動 RimWorld Mod Downloader，首次執行會顯示歡迎精靈
+3. 在精靈中設定：
+   - **SteamCMD 路徑** — 選擇 `steamcmd.exe` 的位置
+   - **下載路徑** — 自動推導為 `steamcmd根目錄\steamapps\workshop\content\294100`
+   - **Mods 資料夾** — 使用預設路徑或自訂
+4. 在應用內瀏覽器中導航至 Steam Workshop 模組頁面
+5. 點擊 **Download** 立即下載，或 **Add** 加入佇列批次下載
 
-# 開發模式運行
-npm run dev
+## 技術棧
 
-# 類型檢查
-npm run typecheck
-
-# 構建
-npm run build
-
-# 打包 Windows 版本
-npm run build:win
-```
-
-## 使用說明
-
-### 首次啟動向導
-
-首次啟動時會自動顯示歡迎向導，引導您完成基礎配置：
-
-#### 步驟 1: 歡迎使用
-- 了解應用的主要功能特性
-
-#### 步驟 2: 配置 SteamCMD
-- 選擇 `steamcmd.exe` 的位置
-- 如果沒有安裝 SteamCMD，請先[下載安裝](https://developer.valvesoftware.com/wiki/SteamCMD)
-
-#### 步驟 3: 配置下載路徑
-- 系統會根據 SteamCMD 位置**自動推導**下載路徑
-- 格式：`steamcmd根目錄\steamapps\workshop\content\294100`
-- `294100` 是 RimWorld 的 Steam AppID
-- **程式會自動創建該目錄**，無需手動創建
-
-#### 步驟 4: 配置 Mods 資料夾
-- **使用預設路徑**：自動添加 RimWorld 預設 Mods 資料夾
-- **自訂路徑**：手動選擇其他位置作為 Mods 資料夾
-- 支援添加**多個路徑**，點擊 ★ 設定預設路徑
-
-#### 步驟 5: 完成
-- 查看設定摘要，確認無誤後點擊"開始使用"
-
-### 管理 Mods 路徑
-
-#### 方式 1: 工具列快速切換
-1. 點擊工具列中的 **Mods Path** 下拉框
-2. 選擇已添加的路徑，或點擊 **Browse** 添加新路徑
-
-#### 方式 2: 設定面板完整管理
-1. 點擊右上角的 ⚙️ **設定** 按鈕
-2. 找到 **📁 Mods 資料夾管理** 區域
-3. 您可以進行以下操作：
-   - **★/☆ 點擊星標**：設定預設路徑（下載時預設使用此路徑）
-   - **✎ 編輯**：點擊編輯按鈕修改路徑名稱，支援 Enter 儲存、ESC 取消
-   - **× 刪除**：移除不需要的路徑
-   - **🏠 使用預設路徑**：快速添加 RimWorld 預設 Mods 資料夾
-   - **📂 自訂路徑**：手動選擇其他位置
-4. 點擊 **儲存設定** 應用更改
-
-### 下載模組
-
-1. 在應用內的瀏覽器中導航到 Steam Workshop 模組頁面
-2. 應用會自動檢測模組資訊：
-   - 模組 ID
-   - 支援的遊戲版本
-   - 依賴項數量
-3. 點擊 "Download" 立即下載，或點擊 "Add" 添加到待下載佇列
-4. 如果有依賴項，會提示是否一併下載
-5. 如果模組版本不相容，會顯示警告
-
-### 待下載佇列
-
-1. 瀏覽多個模組頁面，點擊 "Add" 將它們添加到佇列
-2. 點擊下載佇列區域查看所有待下載的模組
-3. 可以選擇不需要的模組並刪除
-4. 點擊 "Download All" 開始批量下載
-
-### 設定選項
-
-| 選項 | 說明 |
+| 分類 | 技術 |
 |------|------|
-| SteamCMD Executable Path | SteamCMD 可執行檔路徑 |
-| SteamCMD Download Path | SteamCMD 下載暫存目錄 |
-| Mods Paths | RimWorld 模組資料夾列表 |
-| Auto Detect Game Version | 自動從 RimWorld 安裝目錄檢測版本 |
-| Skip Version Check | 跳過模組版本相容性檢查 |
-| On Version Mismatch | 版本不相容時的行為：詢問/強制下載/跳過 |
-| Dependency Mode | 依賴項處理方式：詢問/自動下載/忽略 |
+| 框架 | Electron + React + TypeScript |
+| 構建 | electron-vite, electron-builder |
+| 樣式 | Tailwind CSS |
+| 測試 | Vitest（單元）, Playwright（E2E） |
+| 日誌 | electron-log |
+| 設定 | electron-store |
+| HTTP / 解析 | axios + cheerio |
+| CI/CD | GitHub Actions |
 
 ## 專案結構
 
 ```
 src/
-├── main/                    # 主程序 (Node.js)
-│   ├── index.ts            # 視窗創建、應用入口
-│   ├── ipcHandlers.ts      # IPC 路由註冊
+├── main/                          # 主程序 (Node.js)
+│   ├── index.ts                   # 視窗建立、應用入口
+│   ├── ipcHandlers.ts             # IPC 路由 + 輸入驗證
+│   ├── polyfills.ts               # File/FormData polyfill
 │   ├── services/
-│   │   ├── SteamCMD.ts     # SteamCMD 進程包裝器
-│   │   ├── ModProcessor.ts # 檔案操作 + About.xml 驗證
-│   │   └── WorkshopScraper.ts # Steam 網頁抓取
+│   │   ├── SteamCMD.ts            # SteamCMD 程序封裝 + 純函式
+│   │   ├── ModProcessor.ts        # 檔案操作 + About.xml 驗證
+│   │   └── WorkshopScraper.ts     # Steam 網頁擷取
 │   └── utils/
-│       └── ConfigManager.ts # 設定管理
+│       ├── ConfigManager.ts       # 設定管理 + 加密遷移
+│       ├── SecureStorage.ts       # OS keychain 憑證加密
+│       ├── AutoUpdater.ts         # 自動更新管理
+│       └── logger.ts              # electron-log 封裝
 ├── preload/
-│   └── index.ts             # ContextBridge API 定義
-├── renderer/                # 渲染程序 (React)
+│   └── index.ts                   # ContextBridge API（僅暴露型別化 api）
+├── renderer/                      # 渲染程序 (React)
 │   └── src/
-│       ├── App.tsx          # 主應用
-│       └── components/
-│           ├── WebviewContainer.tsx    # Steam Workshop 瀏覽器
-│           ├── Toolbar.tsx              # 工具列
-│           ├── DownloadQueue.tsx        # 下載佇列
-│           ├── SettingsPanel.tsx        # 設定面板
-│           ├── DependencyDialog.tsx     # 依賴項選擇對話框
-│           ├── VersionMismatchDialog.tsx # 版本不相容警告
-│           ├── PendingQueueDialog.tsx   # 待下載佇列對話框
-│           └── DeleteConfirmDialog.tsx  # 刪除確認對話框
-└── shared/
-    └── types.ts             # 共享類型定義
+│       ├── App.tsx                # 主應用
+│       ├── i18n/                  # 國際化 (en/zh-CN/zh-TW)
+│       ├── utils/
+│       │   ├── urlGuard.ts        # Webview URL 白名單
+│       │   ├── url.ts             # URL 工具函式
+│       │   └── language.ts        # Steam 語言參數對映
+│       └── components/            # UI 元件
+├── shared/
+│   ├── types.ts                   # 共用型別
+│   ├── configSchema.ts            # IPC 設定執行期驗證
+│   ├── constants.ts               # 全域常數
+│   └── api.ts                     # Renderer API 契約
+└── __tests__/                     # 單元測試 (92 tests)
 ```
 
-## 故障排除
+## 開發
 
-### 網路環境問題
+### 環境要求
 
-如果您在使用應用時遇到以下問題：
-- Steam Workshop 頁面載入失敗或空白
-- 下載速度為 0 或下載失敗
-- 提示網路連線錯誤
+- Node.js 20+
+- npm
 
-**推薦使用 [Watt Toolkit (Steam++)](https://steampp.net/) 加速器**
+### 常用指令
 
-Watt Toolkit 是免費開源的 Steam 加速工具，可有效解決 Steam 創意工坊存取問題。
+```bash
+# 安裝依賴
+npm install
 
-**注意**：使用其他加速器（如 UU 加速器、雷神加速器等）時，可能會出現：
-- 創意工坊頁面無法載入
-- 下載速度為 0
-- 下載卡在 "Downloading" 狀態
+# 開發模式（熱重載）
+npm run dev
 
-這是因為部分加速器僅加速遊戲流量，不加速 Steam Web 頁面或 SteamCMD。建議遇到此類問題時切換到 **Watt Toolkit**。
+# 完整品質檢查（lint + typecheck + test + build）
+npm run verify
 
-### SteamCMD 下載失敗
+# 僅單元測試
+npm run test:unit
+
+# 覆蓋率報告
+npm run test:coverage
+
+# E2E 測試（需先 npm run test:e2e:install）
+npm run test:e2e
+
+# 打包 Windows 安裝程式
+npm run build:win
+```
+
+完整開發指南、提交規範、分支策略見 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+### 安全
+
+本專案遵循 Electron 安全最佳實踐（context isolation、URL 白名單、OS keychain 加密、IPC 輸入驗證）。
+安全架構與漏洞回報流程見 [SECURITY.md](./SECURITY.md)。
+
+## 疑難排解
+
+<details>
+<summary><b>網路問題 / Steam Workshop 無法存取</b></summary>
+
+如果你遇到 Steam Workshop 頁面載入失敗、下載速度為 0、下載卡住等問題：
+
+**推薦使用 [Watt Toolkit (Steam++)](https://steampp.net/)** — 免費開源的 Steam 加速工具。
+
+其他加速器（UU、雷神等）可能僅加速遊戲流量，不加速 Steam Web 頁面或 SteamCMD，導致創意工坊無法存取。
+
+</details>
+
+<details>
+<summary><b>SteamCMD 下載失敗</b></summary>
 
 - 確認 `steamcmd.exe` 存在於設定的路徑中
-- 檢查 Windows Defender/防毒軟體是否阻止了 SteamCMD
+- 檢查 Windows Defender / 防毒軟體是否阻止了 SteamCMD
 - 確認有足夠的磁碟空間
 
-### 檔案移動失敗 / 權限錯誤
+</details>
+
+<details>
+<summary><b>檔案移動失敗 / 權限錯誤</b></summary>
 
 - 確認 Mods 資料夾存在且可寫入
 - 檢查防毒軟體是否阻止了檔案操作
-- 確認沒有檔案被鎖定（關閉 RimWorld！）
-- **以系統管理員身份運行程式**（某些系統需要管理員權限才能寫入 Mods 資料夾）
+- **關閉 RimWorld** — 執行中的遊戲會鎖定 Mods 資料夾
+- v1.2.0 起無需系統管理員權限；若仍遇權限問題，檢查資料夾 ACL
 
-### 下載按鈕不工作
+</details>
 
-- 確認您在 Steam Workshop 模組詳情頁面
-- 檢查主控台是否有錯誤資訊
+<details>
+<summary><b>下載按鈕不作用</b></summary>
 
-### 版本檢測不工作
+- 確認你在 Steam Workshop **模組詳情頁面**（而非列表頁）
+- 按 `F12` 開啟 DevTools 檢查主控台錯誤
+
+</details>
+
+<details>
+<summary><b>版本偵測不作用</b></summary>
 
 - 確認 Mods 資料夾的父目錄是 RimWorld 安裝目錄
-- 確認 `Version.txt` 檔案存在
+- 確認 RimWorld 安裝目錄下有 `Version.txt` 檔案
 
-## 許可證
+</details>
 
-MIT License
+## 路線圖
+
+- [x] Windows NSIS + MSI 安裝包
+- [x] 自動更新（GitHub Releases）
+- [x] 安全加固（safeStorage 加密、URL 白名單、IPC 驗證）
+- [x] 單元測試覆蓋（92 tests）
+- [ ] macOS / Linux 支援
+- [ ] Git 同步功能（`git:init` / `git:commit`）
+- [ ] 模組版本解析（`mod:resolveVersion`）
+- [ ] 程式碼簽署
 
 ## 貢獻
 
-歡迎提交 Issue 和 Pull Request！
+歡迎提交 Issue 和 Pull Request！請先閱讀 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解開發流程和提交規範。
+
+## 更新日誌
+
+所有版本變更記錄見 [CHANGELOG.md](./CHANGELOG.md)。
+
+## 授權條款
+
+[MIT License](./LICENSE) © 2026 czyczy23
+
+## 免責聲明
+
+本工具僅供學習和個人使用。請遵守 [Steam 服務條款](https://store.steampowered.com/subscriber_agreement/) 和 RimWorld 模組的授權條款。模組版權歸各自的模組作者所有。
