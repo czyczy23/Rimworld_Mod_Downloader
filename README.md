@@ -68,8 +68,8 @@ An Electron desktop application for downloading and managing RimWorld mods from 
 ### 从 Release 安装
 
 1. 前往 [Releases](../../releases) 页面
-2. 下载最新版本的.zip文件 (`RimWorld-Mod-Downloade-x.x.x.zip`)
-3. 运行`RimWorld Mod Downloader.exe`
+2. 下载最新版本的安装程序 (`RimWorld-Mod-Downloader-x.x.x-setup.exe`)
+3. 运行安装程序，按提示完成安装
 
 ### 从源码构建
 

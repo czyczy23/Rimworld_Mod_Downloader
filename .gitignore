@@ -101,21 +101,15 @@ user-data/
 *.bak
 *.backup
 
-# Screenshots and images (except assets/)
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.svg
-!assets/*.png
-!assets/*.jpg
-!assets/*.jpeg
-!assets/*.gif
-!assets/*.svg
+# Screenshots and images at project root (not in tracked asset dirs)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.bmp
 
-# Temporary text files
-*.txt
+# Temporary text files at root only
+/*.txt
 !tsconfig*.txt
 !*.md
 
@@ -127,6 +121,7 @@ BUILD.md
 RELEASE_NOTES*.md
 RELEASE_GUIDE.md
 docs/
+.zread/
 
 # Temporary files from earlier
 files-to-remove.txt

@@ -7,6 +7,7 @@ export interface ProcessResult {
   modId: string
   sourcePath: string
   targetPath: string
+  bytes?: number
   error?: string
 }
 
@@ -14,6 +15,7 @@ export interface ValidationResult {
   valid: boolean
   modId: string
   error?: string
+  errorCode?: 'E_MISSING_ABOUT' | 'E_IO_ERROR' | 'E_PARSE_ERROR'
   details?: {
     hasAboutXml: boolean
     modName?: string
@@ -135,6 +137,7 @@ export class ModProcessor {
         return {
           valid: false,
           modId,
+          errorCode: 'E_IO_ERROR',
           error: `Path is not a directory: ${sourcePath}`
         }
       }
@@ -168,22 +171,29 @@ export class ModProcessor {
       }
 
       // Mod is valid if it has About.xml
-      // Some mods might not have it during partial downloads
-      return {
-        valid: hasAboutXml,
-        modId,
-        error: hasAboutXml ? undefined : `Missing About/About.xml in ${sourcePath}`,
-        details: {
-          hasAboutXml,
-          modName,
-          supportedVersions
+      // Some mods might not have it during partial downloads (tolerable)
+      if (!hasAboutXml) {
+        return {
+          valid: false,
+          modId,
+          errorCode: 'E_MISSING_ABOUT',
+          error: `Missing About/About.xml in ${sourcePath}`,
+          details: { hasAboutXml, modName, supportedVersions }
         }
       }
 
+      return {
+        valid: true,
+        modId,
+        details: { hasAboutXml, modName, supportedVersions }
+      }
+
     } catch (error) {
+      // IO/permission errors are NOT tolerable — caller should abort
       return {
         valid: false,
         modId,
+        errorCode: 'E_IO_ERROR',
         error: `Failed to validate mod: ${error instanceof Error ? error.message : String(error)}`
       }
     }
@@ -214,9 +224,16 @@ export class ModProcessor {
       // Validate the mod before moving
       const validation = await this.validateMod(modId, sourcePath)
       if (!validation.valid) {
+        // IO errors should abort the pipeline — the mod is unreadable
+        if (validation.errorCode === 'E_IO_ERROR') {
+          throw new ModProcessorError(
+            validation.error || 'Mod validation failed with IO error',
+            'E_VALIDATION_IO_ERROR',
+            modId
+          )
+        }
+        // Missing About.xml is tolerable (some mods have non-standard structure)
         console.warn(`[ModProcessor] Mod ${modId} validation warning: ${validation.error}`)
-        // Don't throw here - some mods might not have About.xml during partial downloads
-        // SteamCMD might still be downloading
       }
 
       // Create target directory if it doesn't exist
@@ -235,11 +252,23 @@ export class ModProcessor {
       await fs.mkdir(dirname(tempPath), { recursive: true })
 
       // Copy instead of move to preserve source in case of failure
-      await this.copyDirectory(sourcePath, tempPath)
+      const bytes = await this.copyDirectory(sourcePath, tempPath)
 
       // Then rename to target (atomic on most filesystems)
+      // If rename fails with EXDEV (cross-volume), fall back to copy + delete
       console.log(`[ModProcessor] Renaming to target: ${targetPath}`)
-      await fs.rename(tempPath, targetPath)
+      try {
+        await fs.rename(tempPath, targetPath)
+      } catch (renameError: unknown) {
+        if (renameError instanceof Error && (renameError as NodeJS.ErrnoException).code === 'EXDEV') {
+          // Cross-volume: copy from temp to target, then delete temp
+          console.log(`[ModProcessor] Cross-volume rename, falling back to copy`)
+          await this.copyDirectory(tempPath, targetPath)
+          await fs.rm(tempPath, { recursive: true, force: true })
+        } else {
+          throw renameError
+        }
+      }
 
       // Verify the move was successful
       if (!existsSync(targetPath)) {
@@ -262,17 +291,20 @@ export class ModProcessor {
         success: true,
         modId,
         sourcePath,
-        targetPath
+        targetPath,
+        bytes
       }
 
     } catch (error) {
-      // Clean up temp directory if it exists
-      try {
-        if (existsSync(tempPath)) {
-          await fs.rm(tempPath, { recursive: true, force: true })
+      // Clean up temp directory AND target half-written files
+      for (const cleanupPath of [tempPath, targetPath]) {
+        try {
+          if (existsSync(cleanupPath)) {
+            await fs.rm(cleanupPath, { recursive: true, force: true })
+          }
+        } catch (cleanupError) {
+          console.error(`[ModProcessor] Failed to cleanup ${cleanupPath}:`, cleanupError)
         }
-      } catch (cleanupError) {
-        console.error(`[ModProcessor] Failed to cleanup temp directory:`, cleanupError)
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -289,22 +321,26 @@ export class ModProcessor {
   }
 
   /**
-   * Recursively copy a directory
+   * Recursively copy a directory, returning total bytes copied.
    */
-  private async copyDirectory(source: string, target: string): Promise<void> {
+  private async copyDirectory(source: string, target: string): Promise<number> {
     await fs.mkdir(target, { recursive: true })
     const entries = await fs.readdir(source, { withFileTypes: true })
+    let totalBytes = 0
 
     for (const entry of entries) {
       const sourcePath = join(source, entry.name)
       const targetPath = join(target, entry.name)
 
       if (entry.isDirectory()) {
-        await this.copyDirectory(sourcePath, targetPath)
+        totalBytes += await this.copyDirectory(sourcePath, targetPath)
       } else {
         await fs.copyFile(sourcePath, targetPath)
+        const stats = await fs.stat(sourcePath)
+        totalBytes += stats.size
       }
     }
+    return totalBytes
   }
 }
 

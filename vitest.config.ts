@@ -13,7 +13,11 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: 'coverage/unit',
       reporter: ['text', 'json-summary', 'html', 'lcov'],
-      exclude: ['node_modules/', 'src/renderer/src/i18n/locales/']
+      exclude: ['node_modules/', 'src/renderer/src/i18n/locales/'],
+      thresholds: {
+        lines: 50,
+        functions: 50
+      }
     }
   },
   resolve: {

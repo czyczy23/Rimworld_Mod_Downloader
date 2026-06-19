@@ -1,2 +1,2 @@
-coverage
-eb-config.json
+# Ignore patterns are in .eslintrc.cjs ignorePatterns
+# This file kept for legacy tooling compatibility

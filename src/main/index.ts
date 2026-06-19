@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { configManager } from './utils/ConfigManager'
@@ -95,4 +95,11 @@ class AppManager {
 
 // Initialize and start the application
 const appManager = new AppManager()
-appManager.initialize().catch(console.error)
+appManager.initialize().catch((error) => {
+  console.error('[App] Fatal initialization error:', error)
+  dialog.showErrorBox(
+    'RimWorld Mod Downloader - Startup Error',
+    `Failed to initialize the application:\n\n${error instanceof Error ? error.message : String(error)}`
+  )
+  app.quit()
+})

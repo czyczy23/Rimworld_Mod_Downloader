@@ -1,6 +1,6 @@
 const { version } = require('./package.json')
 
-const installerBaseName = 'RimWorld-Mod-Downloader-${version}'
+const installerBaseName = `RimWorld-Mod-Downloader-${version}`
 
 module.exports = {
   appId: 'com.rimworld.moddownloader',
@@ -26,7 +26,7 @@ module.exports = {
     requestedExecutionLevel: 'requireAdministrator'
   },
   nsis: {
-    artifactName: `${installerBaseName}-setup.${'${ext}'}`,
+    artifactName: `${installerBaseName}-setup.\${ext}`,
     installerIcon: 'assets/app-icon.ico',
     uninstallerIcon: 'assets/app-icon.ico',
     oneClick: false,
@@ -34,10 +34,14 @@ module.exports = {
     perMachine: true
   },
   msi: {
-    artifactName: `${installerBaseName}.${'${ext}'}`,
+    artifactName: `${installerBaseName}.\${ext}`,
     perMachine: true
   },
   asar: true,
   compression: 'maximum',
-  publish: null
+  publish: {
+    provider: 'github',
+    owner: 'czyczy23',
+    repo: 'Rimworld_Mod_Downloader'
+  }
 }

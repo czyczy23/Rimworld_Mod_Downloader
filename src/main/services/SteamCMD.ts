@@ -1,7 +1,11 @@
 import { spawn } from 'child_process'
 import { EventEmitter } from 'events'
 import { existsSync } from 'fs'
+import { join } from 'path'
 import { configManager } from '../utils/ConfigManager'
+import { RIMWORLD_APP_ID, STEAM_LOGIN, STEAMCMD_TIMEOUT_MS, STEAMCMD_GRACE_MS } from '../../shared/constants'
+
+const MOD_ID_PATTERN = /^\d+$/
 
 export interface DownloadProgress {
   modId: string
@@ -31,7 +35,7 @@ export class SteamCMDError extends Error {
 }
 
 export class SteamCMD extends EventEmitter {
-  private timeout: number = 300000 // 5 minutes
+  private timeout: number = STEAMCMD_TIMEOUT_MS
 
   constructor() {
     super()
@@ -69,6 +73,15 @@ export class SteamCMD extends EventEmitter {
    * @returns Promise resolving to download result
    */
   async downloadMod(modId: string): Promise<SteamCMDResult> {
+    // SECURITY: validate modId at execution point (defense-in-depth)
+    if (!MOD_ID_PATTERN.test(modId)) {
+      throw new SteamCMDError(
+        `Invalid mod ID: ${modId}`,
+        'E_INVALID_MOD_ID',
+        'Mod ID must be a numeric string'
+      )
+    }
+
     const { executablePath, downloadPath } = this.getPaths()
 
     // Validate first
@@ -90,13 +103,12 @@ export class SteamCMD extends EventEmitter {
 
     return new Promise((resolve) => {
       const args = [
-        '+login', 'anonymous',
-        '+workshop_download_item', '294100', modId,
+        '+login', STEAM_LOGIN,
+        '+workshop_download_item', RIMWORLD_APP_ID, modId,
         '+quit'
       ]
 
       console.log(`[SteamCMD] Starting download for mod ${modId}`)
-      console.log(`[SteamCMD] Command: ${executablePath} ${args.join(' ')}`)
 
       const process = spawn(executablePath, args, {
         windowsHide: true, // Hide console window
@@ -158,22 +170,17 @@ export class SteamCMD extends EventEmitter {
       process.on('close', (code: number | null) => {
         console.log(`[SteamCMD] Process exited with code ${code}`)
 
-        // Check if download was successful
-        // SteamCMD returns 0 on success, but may also return 0 even on some failures
-        // We need to check the output for success indicators
-
-        const hasSuccessIndicator = stdout.includes('Success. Downloaded item') ||
-                                    stdout.includes('Downloaded item') ||
-                                    isDownloading
+        // Success determination: exit code 0 + file on disk is the primary check.
+        // Stdout string matching is only supplementary — SteamCMD output format
+        // can vary across versions, so we never rely on it alone.
+        const modPath = join(downloadPath, modId)
+        const fileExists = existsSync(modPath)
 
         const hasErrorIndicator = stdout.includes('ERROR') ||
                                    stdout.includes('Failure') ||
                                    stderr.includes('ERROR')
 
-        if (code === 0 && hasSuccessIndicator && !hasErrorIndicator) {
-          // Download successful
-          const modPath = `${downloadPath}/${modId}`
-
+        if (code === 0 && fileExists && !hasErrorIndicator) {
           this.emit('progress', {
             modId,
             stage: 'completed',
@@ -191,13 +198,14 @@ export class SteamCMD extends EventEmitter {
           let errorMessage = 'Download failed'
 
           if (hasErrorIndicator) {
-            // Extract error from output
             const errorMatch = stdout.match(/ERROR[^\n]*/) || stderr.match(/ERROR[^\n]*/)
             if (errorMatch) {
               errorMessage = errorMatch[0]
             }
           } else if (code !== 0) {
             errorMessage = `Process exited with code ${code}`
+          } else if (!fileExists) {
+            errorMessage = `Download folder not found at ${modPath} after process exited successfully`
           } else {
             errorMessage = 'Download may have failed. Check SteamCMD output.'
           }
@@ -265,7 +273,7 @@ export class SteamCMD extends EventEmitter {
               console.error('[SteamCMD] Failed to force kill process:', forceKillError)
             }
           }
-        }, 5000) // Give 5 seconds for graceful shutdown
+        }, STEAMCMD_GRACE_MS)
 
         this.emit('progress', {
           modId,

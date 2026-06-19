@@ -6,9 +6,14 @@
 import Store from 'electron-store'
 import { app } from 'electron'
 import { join, dirname } from 'path'
-import { promises as fs, existsSync } from 'fs'
+import { promises as fs, existsSync, copyFileSync } from 'fs'
 import { AppConfig, ModsPath } from '../../shared/types'
 import { randomUUID } from 'crypto'
+import { decryptSecret, encryptSecret, isEncryptedBlob } from './SecureStorage'
+
+// Legacy encryption key that was hardcoded in the source (insecure).
+// Kept only for migrating existing user configs away from it.
+const LEGACY_ENCRYPTION_KEY = 'rw-mod-downloader-v1'
 
 const defaultModsPath = join(
   process.env.USERPROFILE || process.env.HOME || '',
@@ -65,14 +70,84 @@ class ConfigManager {
   private store: Store<AppConfig>
 
   constructor() {
-    this.store = new Store<AppConfig>(
-      {
+    // Migrate from the old fully-encrypted config (using the leaked hardcoded key)
+    // BEFORE creating the new unencrypted store. This must happen synchronously
+    // because electron-store writes to disk immediately on construction.
+    this.migrateFromLegacy()
+
+    this.store = new Store<AppConfig>({
+      name: 'config',
+      defaults,
+      clearInvalidConfig: true
+    })
+  }
+
+  /**
+   * Migrate config from the old insecure hardcoded encryptionKey format.
+   * - Backs up the old encrypted config file
+   * - Reads it with a temporary Store using the legacy key
+   * - Writes decrypted values to a fresh store
+   * - Encrypts sensitive fields (githubToken) with OS safeStorage
+   */
+  private migrateFromLegacy(): void {
+    const configPath = join(app.getPath('userData'), 'config.json')
+    if (!existsSync(configPath)) return
+
+    const backupPath = configPath + '.legacy-backup'
+    try {
+      // Back up the old encrypted file before it gets overwritten
+      copyFileSync(configPath, backupPath)
+    } catch {
+      return // Can't back up — skip migration, let clearInvalidConfig handle it
+    }
+
+    try {
+      // Read old config using the legacy encryption key
+      const legacyStore = new Store<AppConfig>({
         name: 'config',
-        defaults,
-        encryptionKey: 'rw-mod-downloader-v1',
-        clearInvalidConfig: true
+        encryptionKey: LEGACY_ENCRYPTION_KEY
+      })
+      const legacyConfig = legacyStore.store
+
+      // Remove old encrypted file so the new store starts fresh
+      try {
+        const { unlinkSync } = require('fs')
+        unlinkSync(configPath)
+      } catch {
+        // If we can't remove it, clearInvalidConfig will handle it
       }
-    )
+
+      // Write decrypted values to the new store (no encryption key)
+      const newStore = new Store<AppConfig>({ name: 'config', defaults })
+      newStore.set(legacyConfig)
+
+      // Encrypt sensitive fields with safeStorage
+      const gitConfig = legacyConfig.git
+      if (gitConfig?.githubToken) {
+        try {
+          newStore.set('git', {
+            ...gitConfig,
+            githubToken: encryptSecret(gitConfig.githubToken)
+          })
+        } catch {
+          // safeStorage unavailable — keep as-is (better than losing it)
+        }
+      }
+
+      console.log('[ConfigManager] Migrated config from legacy encrypted format')
+    } catch {
+      // Migration failed — the backup file still exists for manual recovery
+      console.warn('[ConfigManager] Legacy config migration failed. Backup at:', backupPath)
+      return
+    }
+
+    // Clean up backup on success
+    try {
+      const { unlinkSync } = require('fs')
+      unlinkSync(backupPath)
+    } catch {
+      // Leave backup — not critical
+    }
   }
 
   // Get all config or specific key
@@ -80,15 +155,50 @@ class ConfigManager {
   get<K extends keyof AppConfig>(key: K): AppConfig[K]
   get<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
     if (key === undefined) {
-      return this.store.store
+      const config = this.store.store
+      return { ...config, git: this.decryptGitToken(config.git) }
     }
 
-    return this.store.get(key)
+    const value = this.store.get(key)
+    // Transparently decrypt sensitive fields
+    if (key === 'git') {
+      return this.decryptGitToken(value as AppConfig['git']) as AppConfig[K]
+    }
+    return value
   }
 
-  // Set config value
+  // Set config value — encrypts sensitive fields before persisting
   set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
-    this.store.set(key, value)
+    if (key === 'git') {
+      const gitVal = value as AppConfig['git']
+      this.store.set(key, this.encryptGitToken(gitVal) as AppConfig[K])
+    } else {
+      this.store.set(key, value)
+    }
+  }
+
+  private decryptGitToken(gitConfig: AppConfig['git']): AppConfig['git'] {
+    if (!gitConfig?.githubToken) return gitConfig
+    if (isEncryptedBlob(gitConfig.githubToken)) {
+      const decrypted = decryptSecret(gitConfig.githubToken)
+      if (decrypted !== null) {
+        return { ...gitConfig, githubToken: decrypted }
+      }
+      // Decryption failed — return as-is rather than losing the reference
+    }
+    return gitConfig
+  }
+
+  private encryptGitToken(gitConfig: AppConfig['git']): AppConfig['git'] {
+    if (!gitConfig?.githubToken) return gitConfig
+    // Don't re-encrypt if already encrypted
+    if (isEncryptedBlob(gitConfig.githubToken)) return gitConfig
+    try {
+      return { ...gitConfig, githubToken: encryptSecret(gitConfig.githubToken) }
+    } catch {
+      // safeStorage unavailable — store as-is
+      return gitConfig
+    }
   }
 
   // Reset config to defaults

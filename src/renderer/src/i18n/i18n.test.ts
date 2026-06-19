@@ -1,25 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import { mapToSupportedLanguage, getSteamLangParam } from '../utils/language'
+import { updateUrlLanguageParam, isModDetailPage, extractModId } from '../utils/url'
 
-describe('i18n', () => {
-  it('should have correct language codes', () => {
-    const supportedLanguages = ['en', 'zh-CN', 'zh-TW']
-    expect(supportedLanguages).toContain('en')
-    expect(supportedLanguages).toContain('zh-CN')
-    expect(supportedLanguages).toContain('zh-TW')
-  })
-
+describe('language utils', () => {
   it('should map language codes correctly', () => {
-    const mapToSupportedLanguage = (locale: string): 'en' | 'zh-TW' | 'zh-CN' => {
-      const lower = locale.toLowerCase().replace('_', '-')
-      if (lower.startsWith('zh')) {
-        if (lower === 'zh-cn' || lower === 'zh-sg' || lower === 'zh-hans') {
-          return 'zh-CN'
-        }
-        return 'zh-TW'
-      }
-      return 'en'
-    }
-
     expect(mapToSupportedLanguage('en-US')).toBe('en')
     expect(mapToSupportedLanguage('zh-CN')).toBe('zh-CN')
     expect(mapToSupportedLanguage('zh-TW')).toBe('zh-TW')
@@ -29,14 +13,12 @@ describe('i18n', () => {
     expect(mapToSupportedLanguage('ja-JP')).toBe('en')
   })
 
-  it('should map Steam language codes correctly', () => {
-    const getSteamLangParam = (lang: string): string => {
-      if (lang === 'zh-CN') return 'schinese'
-      if (lang === 'zh-TW') return 'tchinese'
-      if (lang === 'en') return 'english'
-      return ''
-    }
+  it('should handle underscore-separated locales', () => {
+    expect(mapToSupportedLanguage('zh_CN')).toBe('zh-CN')
+    expect(mapToSupportedLanguage('zh_TW')).toBe('zh-TW')
+  })
 
+  it('should map Steam language codes correctly', () => {
     expect(getSteamLangParam('zh-CN')).toBe('schinese')
     expect(getSteamLangParam('zh-TW')).toBe('tchinese')
     expect(getSteamLangParam('en')).toBe('english')
@@ -44,75 +26,45 @@ describe('i18n', () => {
   })
 })
 
-describe('URL utilities', () => {
-  it('should update URL language parameter correctly', () => {
-    const updateUrlLanguageParam = (url: string, lang: string): string => {
-      const langParam = (() => {
-        if (lang === 'zh-CN') return 'schinese'
-        if (lang === 'zh-TW') return 'tchinese'
-        if (lang === 'en') return 'english'
-        return ''
-      })()
+describe('URL utils', () => {
+  const baseUrl = 'https://steamcommunity.com/app/294100/workshop/'
 
-      try {
-        const urlObj = new URL(url)
-        if (langParam) {
-          urlObj.searchParams.set('l', langParam)
-        } else {
-          urlObj.searchParams.delete('l')
-        }
-        return urlObj.toString()
-      } catch {
-        return url
-      }
-    }
-
-    const baseUrl = 'https://steamcommunity.com/app/294100/workshop/'
-    expect(updateUrlLanguageParam(baseUrl, 'zh-CN')).toBe('https://steamcommunity.com/app/294100/workshop/?l=schinese')
-    expect(updateUrlLanguageParam(baseUrl, 'zh-TW')).toBe('https://steamcommunity.com/app/294100/workshop/?l=tchinese')
-    expect(updateUrlLanguageParam(baseUrl, 'en')).toBe('https://steamcommunity.com/app/294100/workshop/?l=english')
-
-    // Should replace existing lang param
-    const urlWithLang = 'https://steamcommunity.com/app/294100/workshop/?l=schinese'
-    expect(updateUrlLanguageParam(urlWithLang, 'en')).toBe('https://steamcommunity.com/app/294100/workshop/?l=english')
+  it('should add language parameter to URL', () => {
+    expect(updateUrlLanguageParam(baseUrl, 'zh-CN')).toContain('l=schinese')
+    expect(updateUrlLanguageParam(baseUrl, 'zh-TW')).toContain('l=tchinese')
+    expect(updateUrlLanguageParam(baseUrl, 'en')).toContain('l=english')
   })
 
-  it('should handle mod detail URLs', () => {
-    const isModDetailPage = (url: string): boolean => {
-      return url.includes('/sharedfiles/filedetails/')
-    }
+  it('should replace existing language parameter', () => {
+    const urlWithLang = 'https://steamcommunity.com/app/294100/workshop/?l=schinese'
+    expect(updateUrlLanguageParam(urlWithLang, 'en')).toContain('l=english')
+  })
 
-    const extractModId = (url: string): string | null => {
-      try {
-        if (url.includes('/sharedfiles/filedetails/')) {
-          const urlObj = new URL(url)
-          return urlObj.searchParams.get('id')
-        }
-      } catch {}
-      return null
-    }
+  it('should remove language parameter for unknown language', () => {
+    const urlWithLang = 'https://steamcommunity.com/app/294100/workshop/?l=schinese'
+    const result = updateUrlLanguageParam(urlWithLang, 'unknown')
+    expect(result).not.toContain('l=')
+  })
 
+  it('should return original URL on parse failure', () => {
+    expect(updateUrlLanguageParam('not-a-url', 'en')).toBe('not-a-url')
+  })
+
+  it('should detect mod detail pages', () => {
     const modUrl = 'https://steamcommunity.com/sharedfiles/filedetails/?id=1234567890&l=schinese'
     expect(isModDetailPage(modUrl)).toBe(true)
-    expect(extractModId(modUrl)).toBe('1234567890')
 
     const workshopUrl = 'https://steamcommunity.com/app/294100/workshop/?l=schinese'
     expect(isModDetailPage(workshopUrl)).toBe(false)
-    expect(extractModId(workshopUrl)).toBe(null)
   })
-})
 
-describe('Version comparison', () => {
-  it('should compare version strings correctly', () => {
-    const isVersionCompatible = (modVersions: string[], gameVersion: string): boolean => {
-      if (!gameVersion || modVersions.length === 0) return true
-      return modVersions.includes(gameVersion)
-    }
+  it('should extract mod ID from detail page URL', () => {
+    const modUrl = 'https://steamcommunity.com/sharedfiles/filedetails/?id=1234567890&l=schinese'
+    expect(extractModId(modUrl)).toBe('1234567890')
+  })
 
-    expect(isVersionCompatible(['1.4', '1.5'], '1.4')).toBe(true)
-    expect(isVersionCompatible(['1.4', '1.5'], '1.5')).toBe(true)
-    expect(isVersionCompatible(['1.4', '1.5'], '1.3')).toBe(false)
-    expect(isVersionCompatible([], '1.4')).toBe(true)
-    expect(isVersionCompatible(['1.4'], '')).toBe(true)
+  it('should return undefined for non-detail URLs', () => {
+    const workshopUrl = 'https://steamcommunity.com/app/294100/workshop/'
+    expect(extractModId(workshopUrl)).toBeUndefined()
   })
 })

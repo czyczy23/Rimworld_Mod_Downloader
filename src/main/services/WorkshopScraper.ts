@@ -130,9 +130,14 @@ export class WorkshopScraper {
     const descVersions = this.parseVersionsFromText(description)
     descVersions.forEach(v => versions.add(v))
 
-    // Strategy 3: Parse entire HTML for version patterns
-    const htmlVersions = this.parseVersionsFromText(html)
-    htmlVersions.forEach(v => versions.add(v))
+    // Strategy 3 (narrowed): only scan text content nodes, not full HTML
+    // Full HTML scanning produces false positives from scripts/CSS/IDs
+    // Only apply if strategies 1 & 2 found nothing
+    if (versions.size === 0) {
+      const bodyText = $('body').text()
+      const bodyVersions = this.parseVersionsFromText(bodyText)
+      bodyVersions.forEach(v => versions.add(v))
+    }
 
     return Array.from(versions).sort()
   }

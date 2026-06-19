@@ -84,3 +84,9 @@ These directories are generated artifacts and should not be committed.
 - Unit tests cover renderer and shared logic with Vitest.
 - End-to-end tests are currently smoke tests for the rendered app shell and key UI surfaces.
 - Full native Electron integration is still a separate concern from the browser-based Playwright flow.
+
+> **Current status (as of v1.1.1):** Unit test coverage is effectively 0%. Existing tests
+> re-declare functions inline instead of importing source code, so they pass but do not
+> exercise any real implementation. Core main-process logic (SteamCMD, ModProcessor,
+> WorkshopScraper, ConfigManager) has no test coverage at all. Improving this is tracked
+> as an active work item.

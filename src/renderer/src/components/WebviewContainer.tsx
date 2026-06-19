@@ -1,5 +1,8 @@
 import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import i18n from '../i18n'
+import { isAllowedSteamUrl } from '../utils/urlGuard'
+import { getSteamLangParam } from '../utils/language'
+import { updateUrlLanguageParam, isModDetailPage, extractModId } from '../utils/url'
 
 export interface CurrentPageInfo {
   url: string
@@ -41,14 +44,6 @@ interface SteamWebviewElement extends HTMLElement {
   executeJavaScript(script: string): Promise<unknown>
 }
 
-// Get language parameter string for Steam URL
-const getSteamLangParam = (lang: string): string => {
-  if (lang === 'zh-CN') return 'schinese'
-  if (lang === 'zh-TW') return 'tchinese'
-  if (lang === 'en') return 'english'
-  return ''
-}
-
 // Get Steam Workshop URL with language parameter based on current i18n language
 const getSteamWorkshopUrl = (): string => {
   const lang = i18n.language
@@ -58,23 +53,6 @@ const getSteamWorkshopUrl = (): string => {
     return `https://steamcommunity.com/app/294100/workshop/?l=${langParam}`
   }
   return `https://steamcommunity.com/app/294100/workshop/`
-}
-
-// Update language parameter in a URL
-const updateUrlLanguageParam = (url: string, lang: string): string => {
-  const langParam = getSteamLangParam(lang)
-
-  try {
-    const urlObj = new URL(url)
-    if (langParam) {
-      urlObj.searchParams.set('l', langParam)
-    } else {
-      urlObj.searchParams.delete('l')
-    }
-    return urlObj.toString()
-  } catch {
-    return url
-  }
 }
 
 export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainerProps>(
@@ -87,23 +65,30 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
       isModDetailPage: false
     })
 
+    // Ref to hold latest URL for use in event handlers with [] dependency
+    // (avoids stale closure problem)
+    const currentPageUrlRef = useRef(currentPageInfo.url)
+    useEffect(() => { currentPageUrlRef.current = currentPageInfo.url }, [currentPageInfo.url])
+
     // Expose getCurrentPageInfo to parent via ref
     useImperativeHandle(ref, () => ({
       getCurrentPageInfo: () => currentPageInfo
     }), [currentPageInfo])
 
     // Inject navigation interceptor script into webview
+    // SECURITY: language code is passed as a function argument to avoid
+    // string interpolation in executeJavaScript (XSS risk in Steam context).
     const injectNavigationScript = () => {
       const webview = webviewRef.current
       if (!webview) return
 
       const lang = i18n.language
       const script = `
-        (function() {
+        (function(lang) {
           let langCode = '';
-          if ('${lang}' === 'zh-CN') langCode = 'schinese';
-          else if ('${lang}' === 'zh-TW') langCode = 'tchinese';
-          else if ('${lang}' === 'en') langCode = 'english';
+          if (lang === 'zh-CN') langCode = 'schinese';
+          else if (lang === 'zh-TW') langCode = 'tchinese';
+          else if (lang === 'en') langCode = 'english';
           if (!langCode) return;
 
           function addLangParam(url) {
@@ -141,9 +126,11 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
               }
             }
           }, true);
-        })();
+        })(${JSON.stringify(lang)});
       `
-      webview.executeJavaScript(script).catch(() => {})
+      webview.executeJavaScript(script).catch((e) => {
+        console.warn('[WebviewContainer] Script injection failed:', e)
+      })
     }
 
     // Listen for i18n language changes and reload webview with new URL
@@ -159,7 +146,9 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           console.log('[WebviewContainer] Language changed -> reloading with URL:', newUrl)
           setCurrentUrl(newUrl)
           setCurrentPageInfo(prev => ({ ...prev, url: newUrl }))
-          void webview.loadURL(newUrl)
+          void webview.loadURL(newUrl).catch((e) => {
+            console.warn('[WebviewContainer] Failed to load URL on language change:', e)
+          })
         }
       }
 
@@ -176,15 +165,11 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
         isModDetailPage: false
       }
 
-      // Check if this is a mod detail page
-      if (url.includes('/sharedfiles/filedetails/')) {
-        const urlObj = new URL(url)
-        const modId = urlObj.searchParams.get('id')
-
+      if (isModDetailPage(url)) {
+        const modId = extractModId(url)
         if (modId) {
           info.isModDetailPage = true
           info.modId = modId
-          // We'll try to get the mod name from the page title later
         }
       }
 
@@ -239,7 +224,9 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           if (newUrl !== url) {
             console.log('[WebviewContainer] Redirecting to:', newUrl)
             e.preventDefault()
-            void webview.loadURL(newUrl)
+            void webview.loadURL(newUrl).catch((e) => {
+              console.warn('[WebviewContainer] Failed to redirect will-navigate:', e)
+            })
           }
         }
       }
@@ -290,9 +277,14 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
       if (e.key === 'Enter') {
         const webview = webviewRef.current
         if (webview) {
-          let url = e.currentTarget.value
+          let url = e.currentTarget.value.trim()
           if (!url.startsWith('http')) {
             url = 'https://' + url
+          }
+          // SECURITY: block navigation to non-Steam domains
+          if (!isAllowedSteamUrl(url)) {
+            console.warn('[WebviewContainer] Blocked navigation to non-Steam URL:', url)
+            return
           }
           webview.src = url
         }
@@ -341,7 +333,6 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
             data-testid="steam-webview"
             src={currentUrl}
             partition="persist:steam"
-            allowpopups
             style={{
               width: '100%',
               height: '100%',

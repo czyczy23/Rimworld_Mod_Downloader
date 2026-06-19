@@ -6,6 +6,7 @@
     "src/preload/**/*"
   ],
   "compilerOptions": {
+    "strict": true,
     "composite": true,
     "jsx": "react-jsx",
     "baseUrl": ".",

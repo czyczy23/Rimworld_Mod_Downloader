@@ -5,6 +5,7 @@ import { modProcessor } from './services/ModProcessor'
 import { workshopScraper } from './services/WorkshopScraper'
 import type { AppConfig, ModMetadata, Dependency } from '../shared/types'
 import type { ModVersionInfo } from './services/WorkshopScraper'
+import { validateConfigValue } from '../shared/configSchema'
 
 const MOD_ID_PATTERN = /^\d+$/
 const CONFIG_KEYS: Array<keyof AppConfig> = ['firstRunCompleted', 'app', 'steamcmd', 'rimworld', 'download', 'version', 'git']
@@ -45,6 +46,9 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('config:set', (_, { key, value }) => {
     try {
       assertValidConfigKey(key)
+      // SECURITY: validate value structure before persisting
+      // Prevents renderer (or a compromised webview) from writing arbitrary paths
+      validateConfigValue(key, value)
       configManager.set(key, value)
     } catch (error) {
       console.error('[IPC] Failed to set config:', error)
@@ -86,108 +90,15 @@ export function setupIpcHandlers(): void {
 
     try {
       assertValidModId(id)
-
-      // Step 1: Download using SteamCMD
-      console.log(`[IPC] Starting SteamCMD download for mod ${id}`)
-
-      // Set up progress listener
-      const progressHandler = (progress: DownloadProgress) => {
-        if (progress.modId !== id) {
-          return
-        }
-
-        console.log(`[SteamCMD] Progress: ${progress.percent}% - ${progress.message}`)
-
-        // Send progress to renderer
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('download:progress', {
-            id,
-            status: progress.stage,
-            progress: progress.percent,
-            message: progress.message,
-            current: progress.current,
-            total: progress.total
-          })
-        }
-      }
-
-      steamCMD.on('progress', progressHandler)
-
-      let downloadResult
-      try {
-        // Execute download
-        downloadResult = await steamCMD.downloadMod(id)
-      } finally {
-        // Always remove progress listener, even if download throws
-        steamCMD.off('progress', progressHandler)
-      }
-
-      if (!downloadResult.success) {
-        throw new Error(downloadResult.error || 'Download failed')
-      }
-
-      console.log(`[IPC] SteamCMD download completed: ${downloadResult.downloadPath}`)
-
-      // Step 2: Process the mod (move to target location)
-      console.log(`[IPC] Starting file processing for mod ${id}`)
-
-      // Send processing status
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download:progress', {
-          id,
-          status: 'moving',
-          progress: 95,
-          message: 'Moving files to Mods folder...'
-        })
-      }
-
-      const processResult = await modProcessor.processMod(id)
-
-      if (!processResult.success) {
-        throw new Error(processResult.error || 'File processing failed')
-      }
-
-      console.log(`[IPC] File processing completed: ${processResult.targetPath}`)
-
-      // Validate the final mod
-      const validation = await modProcessor.validateMod(id, processResult.targetPath)
-
-      // Build the final metadata
-      const metadata: ModMetadata = {
-        id,
-        name: validation.details?.modName || (isCollection ? `Collection ${id}` : `Mod ${id}`),
-        author: 'Unknown', // Could be extracted from About.xml
-        description: validation.valid ? 'Mod downloaded successfully' : (validation.error || 'Validation failed'),
-        supportedVersions: validation.details?.supportedVersions || [],
-        dependencies: [], // TODO: Extract from About.xml
-        isCollection: isCollection || false,
-        collectionItems: isCollection ? [] : undefined,
-        localPath: processResult.targetPath,
-        downloadStatus: validation.valid ? 'completed' : 'error',
-        errorMessage: validation.valid ? undefined : validation.error
-      }
-
-      // Send completion notification
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download:complete', metadata)
-      }
-
-      console.log(`[IPC] Download workflow completed for mod ${id}`)
-      return metadata
-
+      return await runDownloadPipeline(id, isCollection || false, mainWindow)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`[IPC] Download failed for mod ${id}:`, error)
 
-      // Send error notification
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download:error', {
-          id,
-          error: errorMessage
-        })
+        mainWindow.webContents.send('download:error', { id, error: errorMessage })
       }
 
-      // Return error metadata
       return {
         id,
         name: isCollection ? `Collection ${id}` : `Mod ${id}`,
@@ -260,8 +171,7 @@ export function setupIpcHandlers(): void {
       }
 
       try {
-        // Reuse single download logic
-        const metadata = await downloadSingleMod(item.id, item.isCollection || false, mainWindow)
+        const metadata = await runDownloadPipeline(item.id, item.isCollection || false, mainWindow)
         results.push(metadata)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -286,9 +196,8 @@ export function setupIpcHandlers(): void {
     return results
   })
 
-  // Helper function to download single mod
-  async function downloadSingleMod(id: string, isCollection: boolean, mainWindow: BrowserWindow | null): Promise<ModMetadata> {
-    console.log(`[IPC] Starting download for mod ${id}, collection: ${isCollection}`)
+  // Shared download pipeline used by both single and batch download handlers.
+  async function runDownloadPipeline(id: string, isCollection: boolean, mainWindow: BrowserWindow | null): Promise<ModMetadata> {
     assertValidModId(id)
 
     // Step 1: Download using SteamCMD
@@ -362,23 +271,18 @@ export function setupIpcHandlers(): void {
     return metadata
   }
 
-  // ===== Version Resolver Handler ===== (Phase 3 - 尚未实现)
+  // ===== Version Resolver Handler ===== (Phase 3 - not yet implemented)
   ipcMain.handle('mod:resolveVersion', async (_, localPath: string): Promise<string[]> => {
-    console.log(`[IPC] Resolve version for path ${localPath}`)
-    // Phase 3: Implement About.xml parsing
-    return []
+    throw new Error(`Not implemented: mod:resolveVersion (requested for ${localPath})`)
   })
 
-  // ===== Git Handlers ===== (Phase 4 - 尚未实现)
-  ipcMain.handle('git:init', async (_, { remoteUrl, token }) => {
-    console.log(`[IPC] Git init with remote: ${remoteUrl}`)
-    // Phase 4: Implement Git integration
+  // ===== Git Handlers ===== (Phase 4 - not yet implemented)
+  ipcMain.handle('git:init', async (_, _params: { remoteUrl: string; token: string }) => {
+    throw new Error('Not implemented: git:init')
   })
 
-  ipcMain.handle('git:commit', async (_, message: string) => {
-    console.log(`[IPC] Git commit: ${message}`)
-    // Phase 4: Implement Git integration
-    return 'placeholder-commit-hash'
+  ipcMain.handle('git:commit', async (_, _message: string) => {
+    throw new Error('Not implemented: git:commit')
   })
 
   // ===== Dialog Handlers =====

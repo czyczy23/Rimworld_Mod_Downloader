@@ -3,26 +3,15 @@ import { initReactI18next } from 'react-i18next'
 import en from './locales/en.json'
 import zhTW from './locales/zh-TW.json'
 import zhCN from './locales/zh-CN.json'
+import { mapToSupportedLanguage } from '../utils/language'
+
+// Re-export for testability and external consumers
+export { mapToSupportedLanguage } from '../utils/language'
 
 const resources = {
   en: { translation: en },
   'zh-TW': { translation: zhTW },
   'zh-CN': { translation: zhCN }
-}
-
-// Map any language code to our supported languages
-const mapToSupportedLanguage = (locale: string): 'en' | 'zh-TW' | 'zh-CN' => {
-  const lower = locale.toLowerCase().replace('_', '-')
-  if (lower.startsWith('zh')) {
-    // Distinguish between Simplified and Traditional Chinese
-    // zh-CN, zh-SG -> Simplified Chinese
-    // zh-TW, zh-HK, zh-MO -> Traditional Chinese
-    if (lower === 'zh-cn' || lower === 'zh-sg' || lower === 'zh-hans') {
-      return 'zh-CN'
-    }
-    return 'zh-TW'
-  }
-  return 'en'
 }
 
 // Detect system language
