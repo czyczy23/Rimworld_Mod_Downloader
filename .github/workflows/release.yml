@@ -172,6 +172,7 @@ jobs:
           path: |
             release/**/builder-debug.yml
             release/**/*.blockmap
+            release/**/latest.yml
           retention-days: 30
 
       - name: Resolve previous release tag
@@ -220,3 +221,9 @@ jobs:
             "release/$env:RELEASE_VERSION/RimWorld-Mod-Downloader-$env:RELEASE_VERSION.msi" `
             --repo $env:REPOSITORY `
             --clobber
+
+          # Upload latest.yml for electron-updater auto-update
+          $latestYml = "release/$env:RELEASE_VERSION/latest.yml"
+          if (Test-Path $latestYml) {
+            gh release upload $env:RELEASE_TAG $latestYml --repo $env:REPOSITORY --clobber
+          }

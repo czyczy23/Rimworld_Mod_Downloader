@@ -35,7 +35,17 @@
     "test:e2e:ui": "playwright test --ui",
     "release:notes": "node scripts/render-release-notes.cjs",
     "verify": "npm run lint && npm run typecheck && npm run test:unit && npm run build:app",
-    "verify:ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build:app"
+    "verify:ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build:app",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,cjs,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
@@ -67,6 +77,8 @@
     "electron-builder": "^24.9.1",
     "electron-vite": "^2.0.0",
     "eslint": "^8.56.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
     "eslint-plugin-react": "^7.33.2",
     "jsdom": "^29.0.1",
     "playwright": "^1.58.2",

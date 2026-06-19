@@ -15,7 +15,10 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     steps:
