@@ -6,7 +6,7 @@
 import Store from 'electron-store'
 import { app } from 'electron'
 import { join, dirname } from 'path'
-import { promises as fs, existsSync, copyFileSync } from 'fs'
+import { promises as fs, existsSync, copyFileSync, unlinkSync } from 'fs'
 import { AppConfig, ModsPath } from '../../shared/types'
 import { randomUUID } from 'crypto'
 import { decryptSecret, encryptSecret, isEncryptedBlob } from './SecureStorage'
@@ -112,7 +112,6 @@ class ConfigManager {
 
       // Remove old encrypted file so the new store starts fresh
       try {
-        const { unlinkSync } = require('fs')
         unlinkSync(configPath)
       } catch {
         // If we can't remove it, clearInvalidConfig will handle it
@@ -144,7 +143,6 @@ class ConfigManager {
 
     // Clean up backup on success
     try {
-      const { unlinkSync } = require('fs')
       unlinkSync(backupPath)
     } catch {
       // Leave backup — not critical
@@ -185,7 +183,8 @@ class ConfigManager {
       if (decrypted !== null) {
         return { ...gitConfig, githubToken: decrypted }
       }
-      // Decryption failed — return as-is rather than losing the reference
+      // Decryption failed — warn and return as-is rather than losing the reference
+      logger.warn('[ConfigManager] Failed to decrypt githubToken — returning encrypted blob as-is')
     }
     return gitConfig
   }

@@ -3,7 +3,7 @@
 
 if (typeof File === 'undefined') {
   console.log('[Polyfill] Initializing File API polyfill')
-  // @ts-ignore
+  // @ts-expect-error - augmenting global before TS knows about it
   global.File = class File {
     name: string
     size: number
@@ -23,7 +23,7 @@ if (typeof File === 'undefined') {
 // Polyfill FormData API
 if (typeof FormData === 'undefined') {
   console.log('[Polyfill] Initializing FormData API polyfill')
-  // @ts-ignore
+  // @ts-expect-error - augmenting global before TS knows about it
   global.FormData = class FormData {
     private data: Map<string, any> = new Map()
     append(key: string, value: any) { this.data.set(key, value) }

@@ -40,6 +40,7 @@ interface SteamWebviewElement extends HTMLElement {
   canGoForward(): boolean
   goForward(): void
   reload(): void
+  stop(): void
   loadURL(url: string): Promise<void>
   executeJavaScript(script: string): Promise<unknown>
 }
@@ -211,6 +212,11 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
       // Handle in-page navigation (SPA navigation like Steam Workshop)
       const handleDidNavigateInPage = (e: WebviewNavigationEvent) => {
         console.log('In-page navigated to:', e.url)
+        // SECURITY: block non-Steam in-page navigation
+        if (!isAllowedSteamUrl(e.url)) {
+          webview.stop()
+          return
+        }
         updatePageInfo(e.url)
       }
 
@@ -218,6 +224,11 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
       const handleWillNavigate = (e: WebviewWillNavigateEvent) => {
         console.log('[WebviewContainer] will-navigate:', e.url)
         const url = e.url
+        // SECURITY: block navigation to non-Steam domains entirely
+        if (!isAllowedSteamUrl(url)) {
+          e.preventDefault()
+          return
+        }
         // Only process Steam Workshop URLs
         if (url.includes('steamcommunity.com/app/294100')) {
           const newUrl = updateUrlLanguageParam(url, i18n.language)

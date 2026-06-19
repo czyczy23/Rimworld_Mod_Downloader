@@ -5,6 +5,9 @@
 
 import { safeStorage } from 'electron'
 
+/** Prefix marking a value as encrypted by our SecureStorage (v1 format). */
+const ENCRYPTED_PREFIX = 'enc:v1:'
+
 export class SecureStorageError extends Error {
   constructor(message: string) {
     super(message)
@@ -14,6 +17,7 @@ export class SecureStorageError extends Error {
 
 /**
  * Encrypt a plaintext string using the OS keychain/DPAPI.
+ * Returns a string prefixed with ENCRYPTED_PREFIX for identification.
  * Throws if encryption is not available on this platform.
  */
 export function encryptSecret(plaintext: string): string {
@@ -24,21 +28,24 @@ export function encryptSecret(plaintext: string): string {
     )
   }
   const encrypted = safeStorage.encryptString(plaintext)
-  return encrypted.toString('base64')
+  return ENCRYPTED_PREFIX + encrypted.toString('base64')
 }
 
 /**
- * Decrypt a base64-encoded encrypted string.
- * Returns null if decryption fails or input is invalid.
+ * Decrypt a prefixed encrypted string.
+ * Returns null if the input lacks the prefix or decryption fails.
  */
-export function decryptSecret(encryptedBase64: string): string | null {
+export function decryptSecret(encryptedValue: string): string | null {
+  // Only attempt decryption on values we encrypted
+  if (!encryptedValue.startsWith(ENCRYPTED_PREFIX)) {
+    return null
+  }
   try {
     if (!safeStorage.isEncryptionAvailable()) {
-      throw new SecureStorageError(
-        'OS-level decryption is not available.'
-      )
+      throw new SecureStorageError('OS-level decryption is not available.')
     }
-    const buffer = Buffer.from(encryptedBase64, 'base64')
+    const base64 = encryptedValue.slice(ENCRYPTED_PREFIX.length)
+    const buffer = Buffer.from(base64, 'base64')
     return safeStorage.decryptString(buffer)
   } catch {
     return null
@@ -46,16 +53,9 @@ export function decryptSecret(encryptedBase64: string): string | null {
 }
 
 /**
- * Check if a string looks like a safeStorage-encrypted base64 blob
- * (as opposed to a plaintext token).
- * This is a heuristic: base64 strings are longer and contain only base64 chars.
+ * Check if a string was encrypted by our SecureStorage.
+ * Reliable prefix check — no heuristics.
  */
 export function isEncryptedBlob(value: string): boolean {
-  // GitHub tokens start with 'ghp_' or 'github_pat_' (plaintext)
-  // Encrypted blobs are pure base64 (no underscores at specific positions)
-  if (value.startsWith('ghp_') || value.startsWith('github_pat_')) {
-    return false
-  }
-  // Base64 regex: only A-Z, a-z, 0-9, +, /, = and at least 32 chars
-  return /^[A-Za-z0-9+/=]{32,}$/.test(value)
+  return value.startsWith(ENCRYPTED_PREFIX)
 }

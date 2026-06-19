@@ -20,12 +20,10 @@ import { safeStorage } from 'electron'
 
 describe('SecureStorage', () => {
   describe('encryptSecret', () => {
-    it('should encrypt and return base64 string', () => {
+    it('should encrypt and return prefixed string', () => {
       const result = encryptSecret('my-secret-token')
       expect(result).toBeTruthy()
-      expect(typeof result).toBe('string')
-      // Should be valid base64
-      expect(() => Buffer.from(result, 'base64')).not.toThrow()
+      expect(result.startsWith('enc:v1:')).toBe(true)
     })
 
     it('should throw when encryption is not available', () => {
@@ -41,14 +39,14 @@ describe('SecureStorage', () => {
       expect(decrypted).toBe('test-token')
     })
 
-    it('should return null for invalid input', () => {
-      const result = decryptSecret('not-valid-base64-encrypted-data!!!')
-      expect(result).toBeNull()
+    it('should return null for values without prefix', () => {
+      expect(decryptSecret('not-valid-base64-encrypted-data!!!')).toBeNull()
+      expect(decryptSecret('ghp_abc123')).toBeNull()
     })
 
     it('should return null when decryption is not available', () => {
       vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValueOnce(false)
-      const result = decryptSecret('some-data')
+      const result = decryptSecret('enc:v1:somedata')
       expect(result).toBeNull()
     })
   })
@@ -59,8 +57,13 @@ describe('SecureStorage', () => {
       expect(isEncryptedBlob('github_pat_abc123')).toBe(false)
     })
 
-    it('should return true for base64-like strings', () => {
-      expect(isEncryptedBlob('SGVsbG8gV29ybGQhISEhISEhISEhISEh')).toBe(true)
+    it('should return true for prefixed encrypted values', () => {
+      const encrypted = encryptSecret('test')
+      expect(isEncryptedBlob(encrypted)).toBe(true)
+    })
+
+    it('should return false for plain base64 without prefix', () => {
+      expect(isEncryptedBlob('SGVsbG8gV29ybGQhISEhISEhISEhISEh')).toBe(false)
     })
 
     it('should return false for short strings', () => {

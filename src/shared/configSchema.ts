@@ -4,6 +4,7 @@
  * through the IPC config:set channel.
  */
 
+import { isAbsolute } from 'path'
 import type { AppConfig } from './types'
 
 type ConfigKey = keyof AppConfig
@@ -76,7 +77,6 @@ function validateSteamcmdConfig(value: AppConfig['steamcmd']): void {
     }
     if (v !== '') {
       // Must be an absolute path (starts with drive letter on Windows, / on Unix)
-      const { isAbsolute } = require('path')
       if (!isAbsolute(v)) {
         throw new Error(`steamcmd.${field} must be an absolute path`)
       }

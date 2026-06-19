@@ -11,13 +11,13 @@ import { validateConfigValue } from '../shared/configSchema'
 const MOD_ID_PATTERN = /^\d+$/
 const CONFIG_KEYS: Array<keyof AppConfig> = ['firstRunCompleted', 'app', 'steamcmd', 'rimworld', 'download', 'version', 'git']
 
-function assertValidModId(modId: string): void {
+export function assertValidModId(modId: string): void {
   if (!MOD_ID_PATTERN.test(modId)) {
     throw new Error(`Invalid mod ID: ${modId}`)
   }
 }
 
-function assertValidConfigKey(key: string): asserts key is keyof AppConfig {
+export function assertValidConfigKey(key: string): asserts key is keyof AppConfig {
   if (!CONFIG_KEYS.includes(key as keyof AppConfig)) {
     throw new Error(`Invalid config key: ${key}`)
   }
@@ -100,18 +100,7 @@ export function setupIpcHandlers(): void {
         mainWindow.webContents.send('download:error', { id, error: errorMessage })
       }
 
-      return {
-        id,
-        name: isCollection ? `Collection ${id}` : `Mod ${id}`,
-        author: 'Unknown',
-        description: `Download failed: ${errorMessage}`,
-        supportedVersions: [],
-        dependencies: [],
-        isCollection: isCollection || false,
-        localPath: '',
-        downloadStatus: 'error',
-        errorMessage
-      }
+      throw new Error(`Download failed: ${errorMessage}`)
     }
   })
 

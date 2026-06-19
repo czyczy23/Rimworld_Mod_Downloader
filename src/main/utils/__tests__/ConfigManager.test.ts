@@ -55,14 +55,14 @@ vi.mock('electron-store', () => ({
   }
 }))
 
-// Mock SecureStorage
+// Mock SecureStorage with enc:v1: prefix format
 vi.mock('../SecureStorage', () => ({
-  encryptSecret: vi.fn((text: string) => `encrypted:${text}`),
+  encryptSecret: vi.fn((text: string) => `enc:v1:${text}`),
   decryptSecret: vi.fn((encrypted: string) => {
-    if (encrypted.startsWith('encrypted:')) return encrypted.slice(10)
+    if (encrypted.startsWith('enc:v1:')) return encrypted.slice(7)
     return null
   }),
-  isEncryptedBlob: vi.fn((value: string) => value.startsWith('encrypted:'))
+  isEncryptedBlob: vi.fn((value: string) => value.startsWith('enc:v1:'))
 }))
 
 import { configManager } from '../ConfigManager'
@@ -102,7 +102,7 @@ describe('ConfigManager', () => {
       })
 
       // The raw store should have the encrypted version
-      expect(storeState.data.git.githubToken).toBe('encrypted:ghp_real_token_123')
+      expect(storeState.data.git.githubToken).toBe('enc:v1:ghp_real_token_123')
     })
 
     it('should decrypt githubToken on get', () => {
@@ -110,7 +110,7 @@ describe('ConfigManager', () => {
       storeState.data.git = {
         enabled: true,
         autoCommit: true,
-        githubToken: 'encrypted:ghp_real_token_456'
+        githubToken: 'enc:v1:ghp_real_token_456'
       }
 
       const git = configManager.get('git')
@@ -118,14 +118,16 @@ describe('ConfigManager', () => {
     })
 
     it('should not re-encrypt an already encrypted token', () => {
+      // When isEncryptedBlob returns true, encryptGitToken skips encryption
+      const token = 'enc:v1:already_encrypted'
       configManager.set('git', {
         enabled: true,
         autoCommit: true,
-        githubToken: 'encrypted:already_encrypted'
+        githubToken: token
       })
 
-      // Should not double-encrypt
-      expect(storeState.data.git.githubToken).toBe('encrypted:already_encrypted')
+      // isEncryptedBlob mock returns true for enc:v1: prefix, so no re-encryption
+      expect(storeState.data.git.githubToken).toBe(token)
     })
 
     it('should handle missing githubToken gracefully', () => {

@@ -23,8 +23,7 @@ module.exports = {
     ],
     // Code signing disabled — see SECURITY.md for details
     signAndEditExecutable: false,
-    signDlls: false,
-    requestedExecutionLevel: 'requireAdministrator'
+    signDlls: false
   },
   nsis: {
     artifactName: `${installerBaseName}-setup.\${ext}`,
@@ -32,11 +31,11 @@ module.exports = {
     uninstallerIcon: 'assets/app-icon.ico',
     oneClick: false,
     allowToChangeInstallationDirectory: true,
-    perMachine: true
+    perMachine: false
   },
   msi: {
     artifactName: `${installerBaseName}.\${ext}`,
-    perMachine: true
+    perMachine: false
   },
   asar: true,
   compression: 'maximum',

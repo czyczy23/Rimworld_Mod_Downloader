@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 import type { RendererApi } from '../shared/api'
 import type {
   AppConfig,
@@ -75,17 +74,14 @@ const api: RendererApi = {
 
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
     console.error(error)
   }
 } else {
   const unsafeWindow = globalThis as typeof globalThis & {
-    electron: typeof electronAPI
     api: RendererApi
   }
 
-  unsafeWindow.electron = electronAPI
   unsafeWindow.api = api
 }
