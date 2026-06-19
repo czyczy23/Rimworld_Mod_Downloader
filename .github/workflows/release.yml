@@ -223,7 +223,9 @@ jobs:
             --clobber
 
           # Upload latest.yml for electron-updater auto-update
+          # Force-fail if missing — without it, electron-updater silently breaks.
           $latestYml = "release/$env:RELEASE_VERSION/latest.yml"
-          if (Test-Path $latestYml) {
-            gh release upload $env:RELEASE_TAG $latestYml --repo $env:REPOSITORY --clobber
+          if (-not (Test-Path $latestYml)) {
+            throw "latest.yml not found at $latestYml — electron-updater auto-update would be broken."
           }
+          gh release upload $env:RELEASE_TAG $latestYml --repo $env:REPOSITORY --clobber
