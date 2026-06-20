@@ -1,13 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import { validateConfigValue } from '../configSchema'
+import { resolve } from 'path'
+
+// Platform-appropriate absolute paths (resolve() produces Windows or Linux paths).
+const VALID_EXE = resolve('steamcmd', 'steamcmd.exe')
+const VALID_DL  = resolve('steamcmd', 'steamapps')
+
+// Build a path that is absolute AND contains '..' — use string concat because
+// path.join() would resolve the '..' away and the assertion would never match.
+const SEP = process.platform === 'win32' ? '\\' : '/'
+const TRAVERSAL = resolve('safe') + SEP + '..' + SEP + '..' + SEP + 'evil'
 
 describe('configSchema', () => {
   describe('steamcmd validation', () => {
     it('should accept valid steamcmd config', () => {
       expect(() =>
         validateConfigValue('steamcmd', {
-          executablePath: 'C:\\SteamCMD\\steamcmd.exe',
-          downloadPath: 'C:\\SteamCMD\\steamapps'
+          executablePath: VALID_EXE,
+          downloadPath: VALID_DL
         })
       ).not.toThrow()
     })
@@ -34,7 +44,7 @@ describe('configSchema', () => {
       expect(() =>
         validateConfigValue('steamcmd', {
           executablePath: '',
-          downloadPath: 'C:\\safe\\..\\..\\Windows\\evil'
+          downloadPath: TRAVERSAL
         })
       ).toThrow('..')
     })
