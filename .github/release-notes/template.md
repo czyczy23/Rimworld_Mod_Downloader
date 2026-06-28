@@ -27,6 +27,10 @@ See [README.md](https://github.com/{{REPOSITORY}}/blob/main/README.md) for insta
 - Windows is the only officially packaged platform.
 - Installers may be unsigned unless release signing is explicitly enabled.
 
+### Full Changes
+
+{{COMPARE_SECTION_EN}}
+
 ## 中文
 
 ### 摘要
@@ -54,6 +58,6 @@ See [README.md](https://github.com/{{REPOSITORY}}/blob/main/README.md) for insta
 - 当前仅正式打包 Windows 平台。
 - 除非发布流程显式启用代码签名，否则安装包可能未签名。
 
-## Full Changes / 完整变更
+### 完整变更
 
-{{COMPARE_SECTION}}
+{{COMPARE_SECTION_ZH}}

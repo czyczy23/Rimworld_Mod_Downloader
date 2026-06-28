@@ -18,12 +18,14 @@ The `Release Pipeline` resolves release notes in this order:
 - `{{REPOSITORY}}`
 - `{{COMPARE_URL}}`
 - `{{COMPARE_SECTION}}`
+- `{{COMPARE_SECTION_EN}}`
+- `{{COMPARE_SECTION_ZH}}`
 
 ### Recommended Workflow
 
 1. Copy `template.md` before release.
 2. Save it as `.github/release-notes/versions/vX.Y.Z.md`.
-3. Fill in both English and Chinese sections.
+3. Fill in the English section first, then the Chinese section.
 4. Render a local preview before tagging.
 
 ### Local Preview
@@ -50,12 +52,14 @@ node scripts/render-release-notes.cjs --tag v1.3.0 --previous-tag v1.2.0 --outpu
 - `{{REPOSITORY}}`
 - `{{COMPARE_URL}}`
 - `{{COMPARE_SECTION}}`
+- `{{COMPARE_SECTION_EN}}`
+- `{{COMPARE_SECTION_ZH}}`
 
 ### 推荐流程
 
 1. 发版前复制 `template.md`。
 2. 保存为 `.github/release-notes/versions/vX.Y.Z.md`。
-3. 同时补全英文与中文部分。
+3. 先补全英文部分，再补全中文部分，避免同一标题或句子中英混排。
 4. 打 tag 前先在本地渲染预览。
 
 ### 本地预览
