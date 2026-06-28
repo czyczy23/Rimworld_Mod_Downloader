@@ -46,8 +46,11 @@ This application follows Electron security best practices:
 
 ## Code Signing
 
-**Current status**: Code signing is supported but disabled by default for local builds.
+**Current status**: Code signing is an optional release hook, not an active roadmap item.
 Unsigned local installers are expected unless `WINDOWS_CODE_SIGNING` is explicitly set.
+For mainland China-based individual development, public-trust signing should not be assumed
+available or cost-effective; keep unsigned local builds as the default unless a certificate or
+organization-backed signing account is explicitly provisioned.
 
 Supported signing modes:
 
