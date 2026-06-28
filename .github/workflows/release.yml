@@ -148,6 +148,23 @@ jobs:
       - name: Build application bundle
         run: npm run build:app
 
+      - name: Check Windows signing configuration
+        shell: pwsh
+        env:
+          WINDOWS_CODE_SIGNING: ${{ vars.WINDOWS_CODE_SIGNING || 'disabled' }}
+          WINDOWS_SIGN_PUBLISHER_NAME: ${{ vars.WINDOWS_SIGN_PUBLISHER_NAME }}
+          WINDOWS_SIGN_TIMESTAMP_SERVER: ${{ vars.WINDOWS_SIGN_TIMESTAMP_SERVER }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
+        run: |
+          npm run signing:check
+
       - name: Package for Windows
         shell: pwsh
         env:
@@ -167,22 +184,23 @@ jobs:
 
       - name: Verify Windows signatures
         shell: pwsh
+        env:
+          WINDOWS_CODE_SIGNING: ${{ vars.WINDOWS_CODE_SIGNING || 'disabled' }}
+          WINDOWS_SIGN_PUBLISHER_NAME: ${{ vars.WINDOWS_SIGN_PUBLISHER_NAME }}
+          WINDOWS_SIGN_TIMESTAMP_SERVER: ${{ vars.WINDOWS_SIGN_TIMESTAMP_SERVER }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
         run: |
-          $version = '${{ steps.package_version.outputs.version }}'
-          $files = @(
-            "release/$version/RimWorld-Mod-Downloader-$version-setup.exe",
-            "release/$version/RimWorld-Mod-Downloader-$version.msi"
-          )
-          foreach ($file in $files) {
-            if (-not (Test-Path $file)) {
-              throw "Missing installer: $file"
-            }
-
-            $signature = Get-AuthenticodeSignature $file
-            Write-Host "$file => $($signature.Status)"
-            if ('${{ vars.WINDOWS_CODE_SIGNING || 'disabled' }}' -ne 'disabled' -and $signature.Status -ne 'Valid') {
-              throw "Expected a valid Authenticode signature for $file, got $($signature.Status)."
-            }
+          if ('${{ vars.WINDOWS_CODE_SIGNING || 'disabled' }}' -eq 'disabled') {
+            npm run signing:verify
+          } else {
+            npm run signing:require-valid
           }
 
       - name: List output files

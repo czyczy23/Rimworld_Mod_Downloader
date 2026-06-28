@@ -4,6 +4,20 @@ const SIGNING_MODE = {
   azure: 'azure'
 }
 
+const REQUIRED_SIGNING_ENV = {
+  [SIGNING_MODE.disabled]: [],
+  [SIGNING_MODE.signtool]: ['WIN_CSC_LINK', 'WIN_CSC_KEY_PASSWORD', 'WINDOWS_SIGN_PUBLISHER_NAME'],
+  [SIGNING_MODE.azure]: [
+    'AZURE_TENANT_ID',
+    'AZURE_CLIENT_ID',
+    'AZURE_CLIENT_SECRET',
+    'AZURE_TRUSTED_SIGNING_ENDPOINT',
+    'AZURE_TRUSTED_SIGNING_ACCOUNT',
+    'AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE',
+    'WINDOWS_SIGN_PUBLISHER_NAME'
+  ]
+}
+
 function readBooleanEnv(name, defaultValue = false) {
   const raw = process.env[name]
   if (raw == null || raw === '') return defaultValue
@@ -22,12 +36,28 @@ function getSigningMode() {
   return mode
 }
 
-function requireEnv(name) {
+function requiredSigningEnv(mode = getSigningMode()) {
+  if (!Object.values(SIGNING_MODE).includes(mode)) {
+    throw new Error(
+      `WINDOWS_CODE_SIGNING must be one of: ${Object.values(SIGNING_MODE).join(', ')}`
+    )
+  }
+
+  return REQUIRED_SIGNING_ENV[mode]
+}
+
+function requireEnv(name, mode = getSigningMode()) {
   const value = process.env[name]
   if (!value) {
-    throw new Error(`${name} is required when WINDOWS_CODE_SIGNING=${getSigningMode()}`)
+    throw new Error(`${name} is required when WINDOWS_CODE_SIGNING=${mode}`)
   }
   return value
+}
+
+function assertRequiredSigningEnv(mode = getSigningMode()) {
+  for (const name of requiredSigningEnv(mode)) {
+    requireEnv(name, mode)
+  }
 }
 
 function buildWindowsSigningConfig() {
@@ -48,8 +78,7 @@ function buildWindowsSigningConfig() {
   }
 
   if (mode === SIGNING_MODE.signtool) {
-    requireEnv('WIN_CSC_LINK')
-    requireEnv('WIN_CSC_KEY_PASSWORD')
+    assertRequiredSigningEnv(mode)
 
     return {
       enabled: true,
@@ -68,13 +97,7 @@ function buildWindowsSigningConfig() {
     }
   }
 
-  requireEnv('AZURE_TENANT_ID')
-  requireEnv('AZURE_CLIENT_ID')
-  requireEnv('AZURE_CLIENT_SECRET')
-  requireEnv('AZURE_TRUSTED_SIGNING_ENDPOINT')
-  requireEnv('AZURE_TRUSTED_SIGNING_ACCOUNT')
-  requireEnv('AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE')
-  requireEnv('WINDOWS_SIGN_PUBLISHER_NAME')
+  assertRequiredSigningEnv(mode)
 
   return {
     enabled: true,
@@ -110,9 +133,11 @@ function signingSummary() {
 
 module.exports = {
   SIGNING_MODE,
+  assertRequiredSigningEnv,
   buildSigningEnv,
   buildWindowsSigningConfig,
   getSigningMode,
   readBooleanEnv,
+  requiredSigningEnv,
   signingSummary
 }
