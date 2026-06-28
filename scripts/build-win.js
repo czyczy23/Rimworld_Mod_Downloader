@@ -1,19 +1,19 @@
 const { execSync } = require('child_process')
 const { version } = require('../package.json')
+const { buildSigningEnv, signingSummary } = require('./signing-config.cjs')
 
 const outputDir = `release/${version}`
-
-// Set environment variables to disable signing
-const env = {
-  ...process.env,
-  CSC_IDENTITY_AUTO_DISCOVERY: 'false',
-  WIN_CSC_LINK: '',
-  WIN_CSC_KEY_PASSWORD: ''
-}
+const env = buildSigningEnv()
+const signing = signingSummary()
 
 console.log('========================================')
 console.log('RimWorld Mod Downloader Build Script')
 console.log('========================================')
+console.log()
+console.log(`Windows code signing: ${signing.enabled ? signing.mode : 'disabled'}`)
+if (signing.publisherName) {
+  console.log(`Signing publisher: ${signing.publisherName}`)
+}
 console.log()
 
 console.log('[1/3] Building application...')

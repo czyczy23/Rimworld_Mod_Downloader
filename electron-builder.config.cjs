@@ -1,6 +1,8 @@
 const { version } = require('./package.json')
+const { buildWindowsSigningConfig } = require('./scripts/signing-config.cjs')
 
 const installerBaseName = `RimWorld-Mod-Downloader-${version}`
+const signingConfig = buildWindowsSigningConfig()
 
 module.exports = {
   appId: 'com.rimworld.moddownloader',
@@ -21,8 +23,7 @@ module.exports = {
         arch: ['x64']
       }
     ],
-    // Code signing disabled; keep resource editing for icon and metadata.
-    signExecutable: false
+    ...signingConfig.win
   },
   nsis: {
     artifactName: `${installerBaseName}-setup.\${ext}`,

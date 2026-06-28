@@ -57,7 +57,7 @@ An Electron desktop app for browsing and downloading RimWorld mods from Steam Wo
    - `RimWorld-Mod-Downloader-x.x.x.msi` for the MSI installer.
 3. Run the installer and follow the prompts.
 
-> **About SmartScreen warnings:** The installer is not code-signed, so Windows can show a SmartScreen warning on first run. Click **More info** and then **Run anyway** if you trust the downloaded release. See [SECURITY.md](./SECURITY.md#code-signing) for details.
+> **About SmartScreen warnings:** Local installers are unsigned unless release signing is explicitly enabled. Windows can show a SmartScreen warning for unsigned builds. Click **More info** and then **Run anyway** only if you trust the downloaded release. See [SECURITY.md](./SECURITY.md#code-signing) for details.
 >
 > Since v1.2.0, the installer uses per-user installation mode and does not require administrator privileges.
 
@@ -150,6 +150,12 @@ npm run test:e2e
 # Native Electron smoke test
 npm run test:e2e:electron
 
+# Published update metadata smoke test
+npm run smoke:release:update
+
+# Opt-in real SteamCMD download smoke test
+npm run smoke:release:download -- --steamcmd-exe <path> --steamcmd-download-path <path> --mods-path <path> --mod-id <id>
+
 # Package Windows installers
 npm run build:win
 ```
@@ -223,10 +229,11 @@ If you see blank Workshop pages, zero download speed, or stuck downloads, check 
 - [x] Security hardening: safeStorage encryption, URL allow-list, IPC validation
 - [x] Unit test coverage with full-src reporting
 - [x] Browser and native Electron smoke tests
+- [x] Configurable Windows code signing support
+- [x] Opt-in real SteamCMD download and update metadata smoke commands
 - [ ] macOS and Linux support
 - [ ] Git sync functionality (`git:init`, `git:commit`)
 - [ ] Mod version resolution (`mod:resolveVersion`)
-- [ ] Code signing
 
 ## Contributing
 
