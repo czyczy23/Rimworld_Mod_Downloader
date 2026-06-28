@@ -151,7 +151,6 @@ CI 会额外运行覆盖率、浏览器 Playwright 冒烟测试、原生 Electro
 - [x] 安全加固：safeStorage 加密、URL 白名单、IPC 校验
 - [x] 单元测试覆盖率和全 `src` 覆盖率报告
 - [x] 浏览器和原生 Electron 冒烟测试
-- [x] 可配置的 Windows 代码签名支持
 - [x] 可选真实 SteamCMD 下载和更新元数据冒烟命令
 - [ ] macOS / Linux 支持
 - [ ] Git 同步功能（`git:init`、`git:commit`）
