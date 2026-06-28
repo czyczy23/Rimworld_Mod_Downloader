@@ -74,5 +74,18 @@ Required repository variables when signing is enabled:
 - `WINDOWS_CODE_SIGNING`: `signtool` or `azure`
 - `WINDOWS_SIGN_PUBLISHER_NAME`: exact publisher name from the certificate
 
+Local verification commands:
+
+```bash
+# Show whether signing is disabled or required signing variables are present.
+npm run signing:check
+
+# Inspect Authenticode status for release/<version> installers.
+npm run signing:verify
+
+# Fail unless generated installers have valid Authenticode signatures.
+npm run signing:require-valid
+```
+
 The release workflow verifies Authenticode status for the generated `.exe` and `.msi`.
 When signing is enabled, a non-valid signature fails the release packaging job.

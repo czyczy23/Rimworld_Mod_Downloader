@@ -156,6 +156,12 @@ npm run smoke:release:update
 # Opt-in real SteamCMD download smoke test
 npm run smoke:release:download -- --steamcmd-exe <path> --steamcmd-download-path <path> --mods-path <path> --mod-id <id>
 
+# Check Windows signing configuration
+npm run signing:check
+
+# Verify Authenticode status for generated Windows installers
+npm run signing:verify
+
 # Package Windows installers
 npm run build:win
 ```
