@@ -1,4 +1,4 @@
-# Release {{RELEASE_TAG}} / 发布 {{RELEASE_TAG}}
+# Release {{RELEASE_TAG}}
 
 ## English
 
