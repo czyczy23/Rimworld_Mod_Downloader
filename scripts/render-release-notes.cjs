@@ -75,6 +75,20 @@ function buildCompareSection(repository, previousTag, currentTag) {
   return `- Compare / 对比: ${previousTag || 'N/A'} -> ${currentTag}`
 }
 
+function buildLocalizedCompareSection(repository, previousTag, currentTag, language) {
+  if (repository && previousTag) {
+    return `- [${previousTag}...${currentTag}](https://github.com/${repository}/compare/${previousTag}...${currentTag})`
+  }
+
+  if (repository) {
+    const label = language === 'zh' ? `查看 ${currentTag} 提交记录` : `View ${currentTag} commits`
+    return `- [${label}](https://github.com/${repository}/commits/${currentTag})`
+  }
+
+  const label = language === 'zh' ? '对比' : 'Compare'
+  return `- ${label}: ${previousTag || 'N/A'} -> ${currentTag}`
+}
+
 function renderTemplate(template, replacements) {
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => replacements[key] ?? '')
 }
@@ -116,7 +130,9 @@ function main() {
       : repository
         ? `https://github.com/${repository}/commits/${tag}`
         : '',
-    COMPARE_SECTION: buildCompareSection(repository, previousTag, tag)
+    COMPARE_SECTION: buildCompareSection(repository, previousTag, tag),
+    COMPARE_SECTION_EN: buildLocalizedCompareSection(repository, previousTag, tag, 'en'),
+    COMPARE_SECTION_ZH: buildLocalizedCompareSection(repository, previousTag, tag, 'zh')
   }
 
   const content = renderTemplate(fs.readFileSync(templatePath, 'utf8'), replacements).trimEnd()

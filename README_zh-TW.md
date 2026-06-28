@@ -110,16 +110,16 @@ npm run test:unit
 # 覆蓋率報告
 npm run test:coverage
 
-# 瀏覽器端冒煙測試
+# 瀏覽器端流程驗證
 npm run test:e2e
 
-# 原生 Electron 冒煙測試
+# 原生 Electron 流程驗證
 npm run test:e2e:electron
 
-# 本機更新中繼資料冒煙測試
+# 本機更新中繼資料驗證
 npm run smoke:release:update
 
-# 真實 SteamCMD 下載冒煙測試（需要明確提供本機路徑）
+# 真實 SteamCMD 下載流程驗證（需要明確提供本機路徑）
 npm run smoke:release:download -- --steamcmd-exe <path> --steamcmd-download-path <path> --mods-path <path> --mod-id <id>
 
 # 打包 Windows 安裝器
@@ -130,7 +130,7 @@ npm run build:win
 
 ## 安全
 
-本專案遵循 Electron 安全實務：啟用 context isolation、停用 renderer Node integration、限制 Steam URL、使用 OS keychain 加密敏感設定，並對 IPC 輸入做執行期驗證。
+本專案遵循 Electron 安全實務：啟用上下文隔離、停用渲染進程中的 Node.js 整合、限制 Steam URL、使用系統鑰匙圈加密敏感設定，並對 IPC 輸入做執行期驗證。
 
 安全架構和漏洞回報流程見 [SECURITY.md](./SECURITY.md)。
 
@@ -142,7 +142,7 @@ npm run build:win
 npm run verify
 ```
 
-CI 會額外執行覆蓋率、瀏覽器 Playwright 冒煙測試、原生 Electron 冒煙測試、依賴審計和 Windows 發布打包。目前覆蓋率基線和產物目錄見 [TESTING.md](./TESTING.md)。
+CI 會額外執行覆蓋率、瀏覽器 Playwright 流程驗證、原生 Electron 流程驗證、依賴審計和 Windows 發布打包。目前覆蓋率基線和產物目錄見 [TESTING.md](./TESTING.md)。
 
 ## 路線圖
 
@@ -150,9 +150,8 @@ CI 會額外執行覆蓋率、瀏覽器 Playwright 冒煙測試、原生 Electro
 - [x] 透過 GitHub Releases 自動更新
 - [x] 安全加固：safeStorage 加密、URL 白名單、IPC 驗證
 - [x] 單元測試覆蓋率和全 `src` 覆蓋率報告
-- [x] 瀏覽器和原生 Electron 冒煙測試
-- [x] 可設定的 Windows 程式碼簽章支援
-- [x] 可選真實 SteamCMD 下載和更新中繼資料冒煙命令
+- [x] 瀏覽器和原生 Electron 流程驗證
+- [x] 可選真實 SteamCMD 下載和更新中繼資料驗證命令
 - [ ] macOS / Linux 支援
 - [ ] Git 同步功能（`git:init`、`git:commit`）
 - [ ] 模組版本解析（`mod:resolveVersion`）
