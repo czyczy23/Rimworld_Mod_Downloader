@@ -7,6 +7,38 @@ const { version } = require('../package.json')
 const DEFAULT_MOD_ID = '735106432'
 const DEFAULT_RELEASE_BASE_URL = `https://github.com/czyczy23/Rimworld_Mod_Downloader/releases/download/v${version}`
 
+async function createSmokeProfile() {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'rimworld-mod-downloader-smoke-'))
+  const appData = path.join(root, 'appdata')
+  const localAppData = path.join(root, 'localappdata')
+  const userData = path.join(root, 'user-data')
+  const xdgConfigHome = path.join(root, 'xdg-config')
+  const xdgCacheHome = path.join(root, 'xdg-cache')
+
+  await Promise.all(
+    [appData, localAppData, userData, xdgConfigHome, xdgCacheHome].map((dir) =>
+      fs.promises.mkdir(dir, { recursive: true })
+    )
+  )
+
+  return {
+    root,
+    userData,
+    env: {
+      ...process.env,
+      APPDATA: appData,
+      LOCALAPPDATA: localAppData,
+      XDG_CONFIG_HOME: xdgConfigHome,
+      XDG_CACHE_HOME: xdgCacheHome
+    }
+  }
+}
+
+function isPathInside(parent, child) {
+  const relative = path.relative(parent, child)
+  return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
 function requireEnv(name) {
   const value = process.env[name]
   if (!value) throw new Error(`${name} is required`)
@@ -122,11 +154,27 @@ async function smokeDownload(args) {
   await fs.promises.mkdir(steamcmdDownloadPath, { recursive: true })
   await fs.promises.mkdir(modsPath, { recursive: true })
 
-  const app = await electron.launch({
-    args: [path.join(process.cwd(), 'out/main/index.js')]
-  })
+  const smokeProfile = await createSmokeProfile()
+  let app
+  let smokePassed = false
 
   try {
+    app = await electron.launch({
+      args: [
+        path.join(process.cwd(), 'out/main/index.js'),
+        `--user-data-dir=${smokeProfile.userData}`
+      ],
+      env: smokeProfile.env
+    })
+
+    const userDataPath = await app.evaluate(async ({ app }) => app.getPath('userData'))
+    if (!isPathInside(smokeProfile.root, userDataPath)) {
+      throw new Error(
+        `Smoke Electron profile was not isolated: ${userDataPath} is outside ${smokeProfile.root}`
+      )
+    }
+    console.log(`[ok] Electron smoke profile isolated at ${userDataPath}`)
+
     const page = await app.firstWindow()
     await page.getByTestId('app-shell').waitFor({ state: 'visible', timeout: 15000 })
 
@@ -172,8 +220,16 @@ async function smokeDownload(args) {
 
     console.log(`[ok] Downloaded and processed mod ${modId}`)
     console.log(`[ok] Local path: ${result.localPath}`)
+    smokePassed = true
   } finally {
-    await app.close()
+    if (app) {
+      await app.close()
+    }
+    if (smokePassed) {
+      await fs.promises.rm(smokeProfile.root, { recursive: true, force: true })
+    } else {
+      console.log(`[info] Preserved smoke profile for inspection: ${smokeProfile.root}`)
+    }
   }
 }
 
