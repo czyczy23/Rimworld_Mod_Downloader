@@ -57,7 +57,7 @@
    - `RimWorld-Mod-Downloader-x.x.x.msi`：MSI 安装器。
 3. 运行安装器并按提示完成安装。
 
-> **关于 SmartScreen 提示：** 当前安装包未进行代码签名，Windows 首次运行时可能显示 SmartScreen 警告。确认来源可信后，可点击 **更多信息** 再点击 **仍要运行**。详情见 [SECURITY.md](./SECURITY.md#code-signing)。
+> **关于 SmartScreen 提示：** 本地安装包默认不签名，发布流程可显式启用代码签名。未签名构建在 Windows 首次运行时可能显示 SmartScreen 警告。确认来源可信后，可点击 **更多信息** 再点击 **仍要运行**。详情见 [SECURITY.md](./SECURITY.md#code-signing)。
 >
 > v1.2.0 起安装器采用当前用户安装模式，不需要管理员权限。
 
@@ -116,6 +116,12 @@ npm run test:e2e
 # 原生 Electron 冒烟测试
 npm run test:e2e:electron
 
+# 本地更新元数据冒烟测试
+npm run smoke:release:update
+
+# 真实 SteamCMD 下载冒烟测试（需要显式提供本机路径）
+npm run smoke:release:download -- --steamcmd-exe <path> --steamcmd-download-path <path> --mods-path <path> --mod-id <id>
+
 # 打包 Windows 安装器
 npm run build:win
 ```
@@ -145,10 +151,11 @@ CI 会额外运行覆盖率、浏览器 Playwright 冒烟测试、原生 Electro
 - [x] 安全加固：safeStorage 加密、URL 白名单、IPC 校验
 - [x] 单元测试覆盖率和全 `src` 覆盖率报告
 - [x] 浏览器和原生 Electron 冒烟测试
+- [x] 可配置的 Windows 代码签名支持
+- [x] 可选真实 SteamCMD 下载和更新元数据冒烟命令
 - [ ] macOS / Linux 支持
 - [ ] Git 同步功能（`git:init`、`git:commit`）
 - [ ] 模组版本解析（`mod:resolveVersion`）
-- [ ] 代码签名
 
 ## 贡献
 

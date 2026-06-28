@@ -46,8 +46,33 @@ This application follows Electron security best practices:
 
 ## Code Signing
 
-**Current status**: Installers are **not code-signed**. Windows SmartScreen will show a warning on first run.
+**Current status**: Code signing is supported but disabled by default for local builds.
+Unsigned local installers are expected unless `WINDOWS_CODE_SIGNING` is explicitly set.
 
-**Why**: Code signing requires either a paid certificate (OV/EV from a CA) or a cloud signing service (Azure Trusted Signing). As an open-source project, this is a cost/infrastructure trade-off.
+Supported signing modes:
 
-**How to help**: If you'd like to contribute code signing infrastructure, please open an issue to discuss the approach (Azure Trusted Signing is the recommended path for open-source projects).
+- `WINDOWS_CODE_SIGNING=disabled` - default. Builds unsigned installers while keeping icon and version metadata.
+- `WINDOWS_CODE_SIGNING=signtool` - signs with a PFX/base64 certificate via `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`.
+- `WINDOWS_CODE_SIGNING=azure` - signs with Azure Trusted Signing using Entra credentials and Trusted Signing account metadata.
+
+Required CI secrets for PFX signing:
+
+- `WIN_CSC_LINK`
+- `WIN_CSC_KEY_PASSWORD`
+
+Required CI secrets for Azure Trusted Signing:
+
+- `AZURE_TENANT_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_TRUSTED_SIGNING_ENDPOINT`
+- `AZURE_TRUSTED_SIGNING_ACCOUNT`
+- `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE`
+
+Required repository variables when signing is enabled:
+
+- `WINDOWS_CODE_SIGNING`: `signtool` or `azure`
+- `WINDOWS_SIGN_PUBLISHER_NAME`: exact publisher name from the certificate
+
+The release workflow verifies Authenticode status for the generated `.exe` and `.msi`.
+When signing is enabled, a non-valid signature fails the release packaging job.
