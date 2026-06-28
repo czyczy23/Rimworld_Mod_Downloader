@@ -28,11 +28,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high
 
       - name: Run quality gate
         run: npm run verify:ci
@@ -59,7 +62,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -73,6 +76,11 @@ jobs:
         env:
           CI: true
 
+      - name: Run native Electron smoke tests
+        run: npm run test:e2e:electron
+        env:
+          CI: true
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,5 +88,6 @@ jobs:
           name: playwright-report-${{ github.ref_name }}
           path: |
             playwright-report
+            playwright-report-electron
             test-results
           retention-days: 14

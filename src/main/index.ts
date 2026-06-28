@@ -2,10 +2,9 @@ import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import logger from './utils/logger'
-import { configManager } from './utils/ConfigManager'
 import { autoUpdaterManager } from './utils/AutoUpdater'
 import { setupIpcHandlers } from './ipcHandlers'
-import type { ModMetadata, Dependency } from '../shared/types'
+import { isAllowedSteamUrl } from '../shared/urlGuard'
 
 class AppManager {
   private mainWindow: BrowserWindow | null = null
@@ -19,6 +18,24 @@ class AppManager {
     // Default open or close DevTools by F12 in development
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
+    })
+
+    app.on('web-contents-created', (_, contents) => {
+      if (contents.getType() !== 'webview') {
+        return
+      }
+
+      contents.on('will-navigate', (event, url) => {
+        if (!isAllowedSteamUrl(url)) {
+          logger.warn('[App] Blocked webview navigation:', url)
+          event.preventDefault()
+        }
+      })
+
+      contents.setWindowOpenHandler((details) => {
+        logger.warn('[App] Blocked webview window open:', details.url)
+        return { action: 'deny' }
+      })
     })
 
     // Create main window
@@ -51,7 +68,7 @@ class AppManager {
       title: 'RimWorld Mod Downloader',
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
-        sandbox: false,
+        sandbox: true,
         webviewTag: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -83,6 +100,17 @@ class AppManager {
       return { action: 'deny' }
     })
 
+    this.mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+      webPreferences.preload = undefined
+      webPreferences.nodeIntegration = false
+      webPreferences.contextIsolation = true
+
+      if (!isAllowedSteamUrl(params.src)) {
+        logger.warn('[App] Blocked webview attach:', params.src)
+        event.preventDefault()
+      }
+    })
+
     // Load the renderer
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
       this.mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -90,8 +118,6 @@ class AppManager {
       this.mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
     }
   }
-
-
 }
 
 // Initialize and start the application

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModsPath } from '../utils/modsPathUtils'
 import { getDefaultModsPath } from '../utils/modsPathUtils'
+import { useConfigStore } from '../stores/configStore'
+import { AppIcon } from './AppIcon'
 
 interface WelcomeWizardProps {
   isOpen: boolean
@@ -31,19 +33,22 @@ const animations = {
 
 export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
   const { t } = useTranslation()
+  const saveConfigValue = useConfigStore((state) => state.saveConfigValue)
   const [currentStep, setCurrentStep] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [direction, setDirection] = useState<'next' | 'prev'>('next')
-  
+
   // 配置状态
   const [steamcmdExePath, setSteamcmdExePath] = useState('')
   const [steamcmdDownloadPath, setSteamcmdDownloadPath] = useState('')
   const [modsPaths, setModsPaths] = useState<ModsPath[]>([])
   const [activePathId, setActivePathId] = useState<string>('')
-  
+
   // 动画状态
   const [showContent, setShowContent] = useState(true)
-  const [particles, setParticles] = useState<Array<{id: number, x: number, y: number, delay: number}>>([])
+  const [particles, setParticles] = useState<
+    Array<{ id: number; x: number; y: number; delay: number }>
+  >([])
 
   // 生成背景粒子
   useEffect(() => {
@@ -61,25 +66,30 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
   // 自动推导下载路径
   useEffect(() => {
     if (steamcmdExePath) {
-      const basePath = steamcmdExePath.replace(/\\steamcmd\.exe$/i, '').replace(/\/steamcmd\.exe$/i, '')
+      const basePath = steamcmdExePath
+        .replace(/\\steamcmd\.exe$/i, '')
+        .replace(/\/steamcmd\.exe$/i, '')
       const derivedPath = `${basePath}\\steamapps\\workshop\\content\\294100`
       setSteamcmdDownloadPath(derivedPath)
     }
   }, [steamcmdExePath])
 
-  const navigateToStep = useCallback((targetStep: number) => {
-    if (isAnimating) return
-    
-    setDirection(targetStep > currentStep ? 'next' : 'prev')
-    setIsAnimating(true)
-    setShowContent(false)
-    
-    setTimeout(() => {
-      setCurrentStep(targetStep)
-      setShowContent(true)
-      setTimeout(() => setIsAnimating(false), animations.slideDuration)
-    }, animations.fadeDuration)
-  }, [currentStep, isAnimating])
+  const navigateToStep = useCallback(
+    (targetStep: number) => {
+      if (isAnimating) return
+
+      setDirection(targetStep > currentStep ? 'next' : 'prev')
+      setIsAnimating(true)
+      setShowContent(false)
+
+      setTimeout(() => {
+        setCurrentStep(targetStep)
+        setShowContent(true)
+        setTimeout(() => setIsAnimating(false), animations.slideDuration)
+      }, animations.fadeDuration)
+    },
+    [currentStep, isAnimating]
+  )
 
   const handleNext = () => {
     if (currentStep < 4) {
@@ -97,29 +107,34 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
   const saveConfigAndComplete = async () => {
     if (!window.api) return
-    
+
     // 保存 SteamCMD 配置
-    await window.api.setConfig('steamcmd', {
+    await saveConfigValue('steamcmd', {
       executablePath: steamcmdExePath,
       downloadPath: steamcmdDownloadPath
     })
-    
+
     // 保存 Mods 路径配置
     const defaultPath = getDefaultModsPath()
-    await window.api.setConfig('rimworld', {
+    await saveConfigValue('rimworld', {
       currentVersion: '1.6',
-      modsPaths: modsPaths.length > 0 ? modsPaths : [{
-        id: crypto.randomUUID(),
-        name: 'Default Mods Folder',
-        path: defaultPath,
-        isActive: true
-      }],
+      modsPaths:
+        modsPaths.length > 0
+          ? modsPaths
+          : [
+              {
+                id: crypto.randomUUID(),
+                name: 'Default Mods Folder',
+                path: defaultPath,
+                isActive: true
+              }
+            ],
       autoCheckUpdates: false
     })
-    
+
     // 标记已完成首次设置
-    await window.api.setConfig('firstRunCompleted', true)
-    
+    await saveConfigValue('firstRunCompleted', true)
+
     onComplete()
   }
 
@@ -127,7 +142,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
   const handleSelectSteamCmdExe = async () => {
     if (!window.api) return
     const filePath = await window.api.selectFile({
-      title: '选择 steamcmd.exe',
+      title: t('welcome.steamcmdExePath'),
       filters: [
         { name: 'Executable Files', extensions: ['exe'] },
         { name: 'All Files', extensions: ['*'] }
@@ -158,7 +173,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
         path: defaultPath,
         isActive: modsPaths.length === 0
       }
-      setModsPaths(prev => [...prev, newPath])
+      setModsPaths((prev) => [...prev, newPath])
       if (modsPaths.length === 0) setActivePathId(newPath.id)
     } else {
       if (!window.api) return
@@ -170,7 +185,7 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
           path: folderPath,
           isActive: modsPaths.length === 0
         }
-        setModsPaths(prev => [...prev, newPath])
+        setModsPaths((prev) => [...prev, newPath])
         if (modsPaths.length === 0) setActivePathId(newPath.id)
       }
     }
@@ -178,8 +193,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
   // 删除 Mods 路径
   const handleRemoveModsPath = (id: string) => {
-    setModsPaths(prev => {
-      const filtered = prev.filter(p => p.id !== id)
+    setModsPaths((prev) => {
+      const filtered = prev.filter((p) => p.id !== id)
       // 如果删除的是当前激活的，设置第一个为激活
       if (id === activePathId && filtered.length > 0) {
         setActivePathId(filtered[0].id)
@@ -191,10 +206,12 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
   // 设置激活路径
   const handleSetActivePath = (id: string) => {
     setActivePathId(id)
-    setModsPaths(prev => prev.map(p => ({
-      ...p,
-      isActive: p.id === id
-    })))
+    setModsPaths((prev) =>
+      prev.map((p) => ({
+        ...p,
+        isActive: p.id === id
+      }))
+    )
   }
 
   // 步骤验证
@@ -214,21 +231,23 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.bgLight} 50%, ${colors.bg} 100%)`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      overflow: 'hidden'
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.bgLight} 50%, ${colors.bg} 100%)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        overflow: 'hidden'
+      }}
+    >
       {/* 背景粒子动画 */}
-      {particles.map(particle => (
+      {particles.map((particle) => (
         <div
           key={particle.id}
           style={{
@@ -248,39 +267,47 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
       ))}
 
       {/* 主容器 */}
-      <div style={{
-        width: '700px',
-        maxWidth: '90vw',
-        background: colors.bgLight,
-        borderRadius: '8px',
-        border: `1px solid ${colors.bgLighter}`,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
-        {/* 进度条 */}
-        <div style={{
-          height: '3px',
-          background: colors.bgLighter,
+      <div
+        style={{
+          width: '700px',
+          maxWidth: '90vw',
+          background: colors.bgLight,
+          borderRadius: '8px',
+          border: `1px solid ${colors.bgLighter}`,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
           position: 'relative'
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${((currentStep + 1) / 5) * 100}%`,
-            background: `linear-gradient(90deg, ${colors.accent}, ${colors.success})`,
-            transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: `0 0 10px ${colors.accent}`
-          }} />
+        }}
+      >
+        {/* 进度条 */}
+        <div
+          style={{
+            height: '3px',
+            background: colors.bgLighter,
+            position: 'relative'
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${((currentStep + 1) / 5) * 100}%`,
+              background: `linear-gradient(90deg, ${colors.accent}, ${colors.success})`,
+              transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: `0 0 10px ${colors.accent}`
+            }}
+          />
         </div>
 
         {/* 步骤指示器 */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '8px',
-          padding: '20px 0 10px',
-          background: 'rgba(0,0,0,0.2)'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '20px 0 10px',
+            background: 'rgba(0,0,0,0.2)'
+          }}
+        >
           {[0, 1, 2, 3, 4].map((step) => (
             <div
               key={step}
@@ -294,95 +321,118 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                 fontSize: '13px',
                 fontWeight: 'bold',
                 transition: 'all 0.3s ease',
-                background: step === currentStep 
-                  ? colors.accent 
-                  : step < currentStep 
-                    ? colors.success 
-                    : colors.bgLighter,
+                background:
+                  step === currentStep
+                    ? colors.accent
+                    : step < currentStep
+                      ? colors.success
+                      : colors.bgLighter,
                 color: step <= currentStep ? colors.bg : colors.textMuted,
                 transform: step === currentStep ? 'scale(1.1)' : 'scale(1)',
                 boxShadow: step === currentStep ? `0 0 15px ${colors.accent}` : 'none'
               }}
             >
-              {step < currentStep ? '✓' : step + 1}
+              {step < currentStep ? <AppIcon name="check" size={16} stroke={2.4} /> : step + 1}
             </div>
           ))}
         </div>
 
         {/* 内容区域 */}
-        <div style={{
-          padding: '40px',
-          minHeight: '350px',
-          position: 'relative'
-        }}>
+        <div
+          style={{
+            padding: '40px',
+            minHeight: '350px',
+            position: 'relative'
+          }}
+        >
           {/* 步骤 0: 欢迎 */}
           {currentStep === 0 && (
-            <div style={{
-              opacity: showContent ? 1 : 0,
-              transform: showContent 
-                ? 'translateX(0)' 
-                : direction === 'next' ? 'translateX(-30px)' : 'translateX(30px)',
-              transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-              textAlign: 'center'
-            }}>
-              <div style={{
-                fontSize: '64px',
-                marginBottom: '24px',
-                animation: 'pulse 2s ease-in-out infinite'
-              }}>
-                📦
+            <div
+              style={{
+                opacity: showContent ? 1 : 0,
+                transform: showContent
+                  ? 'translateX(0)'
+                  : direction === 'next'
+                    ? 'translateX(-30px)'
+                    : 'translateX(30px)',
+                transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+                textAlign: 'center'
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: '24px',
+                  animation: 'pulse 2s ease-in-out infinite',
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}
+              >
+                <AppIcon name="app" size={64} color={colors.accent} stroke={1.4} />
               </div>
-              <h1 style={{
-                fontSize: '28px',
-                color: colors.text,
-                marginBottom: '16px',
-                fontWeight: 'bold'
-              }}>
+              <h1
+                style={{
+                  fontSize: '28px',
+                  color: colors.text,
+                  marginBottom: '16px',
+                  fontWeight: 'bold'
+                }}
+              >
                 {t('welcome.title')}
               </h1>
-              <p style={{
-                fontSize: '15px',
-                color: colors.textMuted,
-                lineHeight: '1.8',
-                marginBottom: '32px'
-              }}>
-                {t('welcome.subtitle')}<br/>
+              <p
+                style={{
+                  fontSize: '15px',
+                  color: colors.textMuted,
+                  lineHeight: '1.8',
+                  marginBottom: '32px'
+                }}
+              >
+                {t('welcome.subtitle')}
+                <br />
                 {t('welcome.subtitle2')}
               </p>
-              <div style={{
-                display: 'flex',
-                gap: '16px',
-                justifyContent: 'center',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{
-                  padding: '12px 20px',
-                  background: colors.bgLighter,
-                  borderRadius: '6px',
-                  border: `1px solid ${colors.accent}`,
-                  color: colors.accent,
-                  fontSize: '13px'
-                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '16px',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <div
+                  style={{
+                    padding: '12px 20px',
+                    background: colors.bgLighter,
+                    borderRadius: '6px',
+                    border: `1px solid ${colors.accent}`,
+                    color: colors.accent,
+                    fontSize: '13px'
+                  }}
+                >
                   {t('welcome.quickDownload')}
                 </div>
-                <div style={{
-                  padding: '12px 20px',
-                  background: colors.bgLighter,
-                  borderRadius: '6px',
-                  border: `1px solid ${colors.accent}`,
-                  color: colors.accent,
-                  fontSize: '13px'
-                }}>
+                <div
+                  style={{
+                    padding: '12px 20px',
+                    background: colors.bgLighter,
+                    borderRadius: '6px',
+                    border: `1px solid ${colors.accent}`,
+                    color: colors.accent,
+                    fontSize: '13px'
+                  }}
+                >
                   {t('welcome.batchManagement')}
                 </div>
-                <div style={{
-                  padding: '12px 20px',
-                  background: colors.bgLighter,
-                  borderRadius: '6px',
-                  border: `1px solid ${colors.accent}`,
-                  color: colors.accent,
-                  fontSize: '13px'
-                }}>
+                <div
+                  style={{
+                    padding: '12px 20px',
+                    background: colors.bgLighter,
+                    borderRadius: '6px',
+                    border: `1px solid ${colors.accent}`,
+                    color: colors.accent,
+                    fontSize: '13px'
+                  }}
+                >
                   {t('welcome.dependencyCheck')}
                 </div>
               </div>
@@ -391,31 +441,40 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
           {/* 步骤 1: SteamCMD 可执行文件 */}
           {currentStep === 1 && (
-            <div style={{
-              opacity: showContent ? 1 : 0,
-              transform: showContent 
-                ? 'translateX(0)' 
-                : direction === 'next' ? 'translateX(30px)' : 'translateX(-30px)',
-              transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
-            }}>
-              <h2 style={{
-                fontSize: '22px',
-                color: colors.text,
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>🔧</span>
+            <div
+              style={{
+                opacity: showContent ? 1 : 0,
+                transform: showContent
+                  ? 'translateX(0)'
+                  : direction === 'next'
+                    ? 'translateX(30px)'
+                    : 'translateX(-30px)',
+                transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '22px',
+                  color: colors.text,
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <AppIcon name="configure" size={30} color={colors.accent} />
                 {t('welcome.configureSteamcmd')}
               </h2>
-              <p style={{
-                fontSize: '14px',
-                color: colors.textMuted,
-                marginBottom: '32px',
-                lineHeight: '1.6'
-              }}>
-                {t('welcome.steamcmdDescription')}<br/>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: colors.textMuted,
+                  marginBottom: '32px',
+                  lineHeight: '1.6'
+                }}
+              >
+                {t('welcome.steamcmdDescription')}
+                <br />
                 {t('welcome.steamcmdDescription2')}{' '}
                 <a
                   href="https://developer.valvesoftware.com/wiki/SteamCMD"
@@ -428,25 +487,29 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
               </p>
 
               <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  color: colors.text,
-                  fontSize: '14px',
-                  marginBottom: '12px',
-                  fontWeight: 500
-                }}>
-                  SteamCMD 可执行文件路径
+                <label
+                  style={{
+                    display: 'block',
+                    color: colors.text,
+                    fontSize: '14px',
+                    marginBottom: '12px',
+                    fontWeight: 500
+                  }}
+                >
+                  {t('welcome.steamcmdExePath')}
                 </label>
-                <div style={{
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'center'
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center'
+                  }}
+                >
                   <input
                     type="text"
                     value={steamcmdExePath}
                     readOnly
-                    placeholder="点击右侧按钮选择 steamcmd.exe"
+                    placeholder={t('welcome.clickToSelect')}
                     style={{
                       flex: 1,
                       padding: '14px 16px',
@@ -482,24 +545,27 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                       e.currentTarget.style.transform = 'translateY(0)'
                     }}
                   >
-                    浏览...
+                    {t('welcome.browse')}
                   </button>
                 </div>
                 {steamcmdExePath && (
-                  <div style={{
-                    marginTop: '12px',
-                    padding: '10px 14px',
-                    background: 'rgba(76, 175, 80, 0.1)',
-                    border: `1px solid ${colors.success}`,
-                    borderRadius: '6px',
-                    color: colors.success,
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    animation: 'slideIn 0.3s ease'
-                  }}>
-                    <span>✓</span> 已选择有效的 steamcmd.exe
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px 14px',
+                      background: 'rgba(76, 175, 80, 0.1)',
+                      border: `1px solid ${colors.success}`,
+                      borderRadius: '6px',
+                      color: colors.success,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      animation: 'slideIn 0.3s ease'
+                    }}
+                  >
+                    <AppIcon name="check" size={16} />
+                    {t('welcome.selectedValid')}
                   </div>
                 )}
               </div>
@@ -508,51 +574,62 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
           {/* 步骤 2: SteamCMD 下载路径 */}
           {currentStep === 2 && (
-            <div style={{
-              opacity: showContent ? 1 : 0,
-              transform: showContent 
-                ? 'translateX(0)' 
-                : direction === 'next' ? 'translateX(30px)' : 'translateX(-30px)',
-              transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
-            }}>
-              <h2 style={{
-                fontSize: '22px',
-                color: colors.text,
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>📥</span>
-                配置下载路径
+            <div
+              style={{
+                opacity: showContent ? 1 : 0,
+                transform: showContent
+                  ? 'translateX(0)'
+                  : direction === 'next'
+                    ? 'translateX(30px)'
+                    : 'translateX(-30px)',
+                transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '22px',
+                  color: colors.text,
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <AppIcon name="download" size={30} color={colors.accent} />
+                {t('welcome.configureDownloadPath')}
               </h2>
-              <p style={{
-                fontSize: '14px',
-                color: colors.textMuted,
-                marginBottom: '32px',
-                lineHeight: '1.6'
-              }}>
-                已根据 SteamCMD 位置自动推导下载路径。<br/>
-                <span style={{ color: colors.warning }}>
-                  294100 是 RimWorld 的 Steam AppID，程序会自动在此目录下存储下载的模组。
-                </span>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: colors.textMuted,
+                  marginBottom: '32px',
+                  lineHeight: '1.6'
+                }}
+              >
+                {t('welcome.autoDerivedPath')}
+                <br />
+                <span style={{ color: colors.warning }}>{t('welcome.pathNote')}</span>
               </p>
 
               <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  color: colors.text,
-                  fontSize: '14px',
-                  marginBottom: '12px',
-                  fontWeight: 500
-                }}>
-                  SteamCMD 下载路径
+                <label
+                  style={{
+                    display: 'block',
+                    color: colors.text,
+                    fontSize: '14px',
+                    marginBottom: '12px',
+                    fontWeight: 500
+                  }}
+                >
+                  {t('settings.steamcmdDownloadPath')}
                 </label>
-                <div style={{
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'center'
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center'
+                  }}
+                >
                   <input
                     type="text"
                     value={steamcmdDownloadPath}
@@ -590,35 +667,42 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                       e.currentTarget.style.color = colors.text
                     }}
                   >
-                    修改路径
+                    {t('welcome.changePath')}
                   </button>
                 </div>
-                
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'rgba(102, 192, 244, 0.1)',
-                  border: `1px solid ${colors.accent}`,
-                  borderRadius: '6px'
-                }}>
-                  <div style={{
-                    color: colors.accent,
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span>💡</span> 路径说明
+
+                <div
+                  style={{
+                    marginTop: '16px',
+                    padding: '16px',
+                    background: 'rgba(102, 192, 244, 0.1)',
+                    border: `1px solid ${colors.accent}`,
+                    borderRadius: '6px'
+                  }}
+                >
+                  <div
+                    style={{
+                      color: colors.accent,
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <AppIcon name="hint" size={18} />
+                    {t('welcome.pathHint')}
                   </div>
-                  <div style={{
-                    color: colors.textMuted,
-                    fontSize: '12px',
-                    lineHeight: '1.8',
-                    fontFamily: 'monospace'
-                  }}>
-                    {steamcmdDownloadPath || '请先配置 SteamCMD 可执行文件'}
+                  <div
+                    style={{
+                      color: colors.textMuted,
+                      fontSize: '12px',
+                      lineHeight: '1.8',
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    {steamcmdDownloadPath || t('welcome.clickToSelect')}
                   </div>
                 </div>
               </div>
@@ -627,52 +711,71 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
           {/* 步骤 3: Mods 文件夹 */}
           {currentStep === 3 && (
-            <div style={{
-              opacity: showContent ? 1 : 0,
-              transform: showContent 
-                ? 'translateX(0)' 
-                : direction === 'next' ? 'translateX(30px)' : 'translateX(-30px)',
-              transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
-            }}>
-              <h2 style={{
-                fontSize: '22px',
-                color: colors.text,
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>📁</span>
-                配置 Mods 文件夹
+            <div
+              style={{
+                opacity: showContent ? 1 : 0,
+                transform: showContent
+                  ? 'translateX(0)'
+                  : direction === 'next'
+                    ? 'translateX(30px)'
+                    : 'translateX(-30px)',
+                transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '22px',
+                  color: colors.text,
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <AppIcon name="folder" size={30} color={colors.accent} />
+                {t('welcome.configureModsFolder')}
               </h2>
-              <p style={{
-                fontSize: '14px',
-                color: colors.textMuted,
-                marginBottom: '24px',
-                lineHeight: '1.6'
-              }}>
-                选择 RimWorld 的 Mods 文件夹作为下载目标位置。<br/>
-                您可以添加多个路径，并通过点击星标设置默认路径。
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: colors.textMuted,
+                  marginBottom: '24px',
+                  lineHeight: '1.6'
+                }}
+              >
+                {t('welcome.modsFolderDescription')}
+                <br />
+                {t('welcome.modsFolderDescription2')}
               </p>
 
               {/* Mods 路径列表 */}
-              <div style={{
-                maxHeight: '200px',
-                overflowY: 'auto',
-                marginBottom: '20px',
-                padding: '4px'
-              }}>
+              <div
+                style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  marginBottom: '20px',
+                  padding: '4px'
+                }}
+              >
                 {modsPaths.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '40px 20px',
-                    color: colors.textMuted,
-                    border: `2px dashed ${colors.bgLighter}`,
-                    borderRadius: '8px'
-                  }}>
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📂</div>
-                    <div style={{ fontSize: '14px' }}>尚未添加 Mods 文件夹</div>
-                    <div style={{ fontSize: '12px', marginTop: '8px' }}>点击下方按钮添加</div>
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      color: colors.textMuted,
+                      border: `2px dashed ${colors.bgLighter}`,
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div
+                      style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}
+                    >
+                      <AppIcon name="folderOpen" size={34} color={colors.textMuted} stroke={1.5} />
+                    </div>
+                    <div style={{ fontSize: '14px' }}>{t('welcome.noModsFolder')}</div>
+                    <div style={{ fontSize: '12px', marginTop: '8px' }}>
+                      {t('welcome.clickBelowToAdd')}
+                    </div>
                   </div>
                 ) : (
                   modsPaths.map((path, index) => (
@@ -702,27 +805,44 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                           transition: 'transform 0.2s',
                           transform: path.isActive ? 'scale(1.2)' : 'scale(1)'
                         }}
-                        title={path.isActive ? '默认路径' : '设为默认'}
+                        title={
+                          path.isActive
+                            ? t('modsPathManager.default')
+                            : t('modsPathManager.setAsDefault')
+                        }
                       >
-                        {path.isActive ? '★' : '☆'}
+                        <AppIcon
+                          name="favorite"
+                          size={20}
+                          fill={path.isActive ? colors.accent : 'none'}
+                        />
                       </button>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '13px',
-                          fontWeight: path.isActive ? 500 : 'normal',
-                          color: path.isActive ? colors.accent : colors.text,
-                          marginBottom: '4px'
-                        }}>
-                          {path.name} {path.isActive && <span style={{ fontSize: '11px', opacity: 0.8 }}>(默认)</span>}
+                        <div
+                          style={{
+                            fontSize: '13px',
+                            fontWeight: path.isActive ? 500 : 'normal',
+                            color: path.isActive ? colors.accent : colors.text,
+                            marginBottom: '4px'
+                          }}
+                        >
+                          {path.name}{' '}
+                          {path.isActive && (
+                            <span style={{ fontSize: '11px', opacity: 0.8 }}>
+                              ({t('modsPathManager.default')})
+                            </span>
+                          )}
                         </div>
-                        <div style={{
-                          fontSize: '11px',
-                          color: colors.textMuted,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontFamily: 'monospace'
-                        }}>
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            color: colors.textMuted,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontFamily: 'monospace'
+                          }}
+                        >
                           {path.path}
                         </div>
                       </div>
@@ -744,9 +864,9 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'none'
                         }}
-                        title="删除"
+                        title={t('modsPathManager.delete')}
                       >
-                        ×
+                        <AppIcon name="close" size={18} />
                       </button>
                     </div>
                   ))
@@ -754,11 +874,13 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
               </div>
 
               {/* 添加按钮 */}
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                justifyContent: 'center'
-              }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'center'
+                }}
+              >
                 <button
                   onClick={() => handleAddModsPath(true)}
                   style={{
@@ -783,7 +905,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                     e.currentTarget.style.color = colors.text
                   }}
                 >
-                  <span>🏠</span> 使用默认路径
+                  <AppIcon name="home" size={18} />
+                  {t('welcome.useDefaultPath')}
                 </button>
                 <button
                   onClick={() => handleAddModsPath(false)}
@@ -810,7 +933,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                     e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
-                  <span>📂</span> 自定义路径
+                  <AppIcon name="folderOpen" size={18} />
+                  {t('welcome.customPath')}
                 </button>
               </div>
             </div>
@@ -818,65 +942,116 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
 
           {/* 步骤 4: 完成 */}
           {currentStep === 4 && (
-            <div style={{
-              opacity: showContent ? 1 : 0,
-              transform: showContent 
-                ? 'translateX(0)' 
-                : direction === 'next' ? 'translateX(30px)' : 'translateX(-30px)',
-              transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-              textAlign: 'center'
-            }}>
-              <div style={{
-                fontSize: '72px',
-                marginBottom: '24px',
-                animation: 'bounce 1s ease infinite'
-              }}>
-                🎉
+            <div
+              style={{
+                opacity: showContent ? 1 : 0,
+                transform: showContent
+                  ? 'translateX(0)'
+                  : direction === 'next'
+                    ? 'translateX(30px)'
+                    : 'translateX(-30px)',
+                transition: `all ${animations.slideDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+                textAlign: 'center'
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: '24px',
+                  animation: 'bounce 1s ease infinite',
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}
+              >
+                <AppIcon name="complete" size={72} color={colors.success} stroke={1.4} />
               </div>
-              <h2 style={{
-                fontSize: '26px',
-                color: colors.text,
-                marginBottom: '16px',
-                fontWeight: 'bold'
-              }}>
-                配置完成！
+              <h2
+                style={{
+                  fontSize: '26px',
+                  color: colors.text,
+                  marginBottom: '16px',
+                  fontWeight: 'bold'
+                }}
+              >
+                {t('welcome.setupComplete')}
               </h2>
-              <p style={{
-                fontSize: '15px',
-                color: colors.textMuted,
-                lineHeight: '1.8',
-                marginBottom: '32px'
-              }}>
-                您已完成所有必要配置<br/>
-                现在可以开始浏览 Steam 创意工坊并下载模组了
+              <p
+                style={{
+                  fontSize: '15px',
+                  color: colors.textMuted,
+                  lineHeight: '1.8',
+                  marginBottom: '32px'
+                }}
+              >
+                {t('welcome.configComplete')}
+                <br />
+                {t('welcome.configComplete2')}
               </p>
 
               {/* 配置摘要 */}
-              <div style={{
-                background: colors.bg,
-                borderRadius: '8px',
-                padding: '20px',
-                marginBottom: '24px',
-                textAlign: 'left',
-                border: `1px solid ${colors.bgLighter}`
-              }}>
+              <div
+                style={{
+                  background: colors.bg,
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '24px',
+                  textAlign: 'left',
+                  border: `1px solid ${colors.bgLighter}`
+                }}
+              >
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>SteamCMD</div>
-                  <div style={{ fontSize: '13px', color: colors.text, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>
+                    SteamCMD
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      color: colors.text,
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-all'
+                    }}
+                  >
                     {steamcmdExePath}
                   </div>
                 </div>
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>下载路径</div>
-                  <div style={{ fontSize: '13px', color: colors.text, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>
+                    {t('settings.steamcmdDownloadPath')}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      color: colors.text,
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-all'
+                    }}
+                  >
                     {steamcmdDownloadPath}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>Mods 路径 ({modsPaths.length}个)</div>
-                  {modsPaths.map(p => (
-                    <div key={p.id} style={{ fontSize: '13px', color: colors.text, fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                      {p.isActive && '★ '}{p.path}
+                  <div style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '4px' }}>
+                    {t('settings.modsFolderManagement')} ({modsPaths.length})
+                  </div>
+                  {modsPaths.map((p) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        fontSize: '13px',
+                        color: colors.text,
+                        fontFamily: 'monospace',
+                        wordBreak: 'break-all'
+                      }}
+                    >
+                      {p.isActive && (
+                        <AppIcon
+                          name="favorite"
+                          size={13}
+                          fill={colors.accent}
+                          color={colors.accent}
+                          style={{ display: 'inline', marginRight: '4px' }}
+                        />
+                      )}
+                      {p.path}
                     </div>
                   ))}
                 </div>
@@ -886,14 +1061,16 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
         </div>
 
         {/* 底部按钮 */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '24px 40px',
-          borderTop: `1px solid ${colors.bgLighter}`,
-          background: 'rgba(0,0,0,0.2)'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '24px 40px',
+            borderTop: `1px solid ${colors.bgLighter}`,
+            background: 'rgba(0,0,0,0.2)'
+          }}
+        >
           <button
             onClick={handlePrev}
             disabled={currentStep === 0}
@@ -909,7 +1086,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
               opacity: currentStep === 0 ? 0.5 : 1
             }}
           >
-            ← {t('welcome.previous')}
+            <AppIcon name="back" size={17} />
+            {t('welcome.previous')}
           </button>
 
           <div style={{ display: 'flex', gap: '12px' }}>
@@ -937,7 +1115,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   e.currentTarget.style.boxShadow = `0 4px 15px rgba(76, 175, 80, 0.3)`
                 }}
               >
-                ✓ {t('welcome.startUsing')}
+                <AppIcon name="check" size={18} />
+                {t('welcome.startUsing')}
               </button>
             )}
             {currentStep < 4 && (
@@ -969,7 +1148,8 @@ export function WelcomeWizard({ isOpen, onComplete }: WelcomeWizardProps) {
                   }
                 }}
               >
-                {t('welcome.next')} →
+                {t('welcome.next')}
+                <AppIcon name="next" size={18} />
               </button>
             )}
           </div>

@@ -3,9 +3,12 @@
 ## Supported Versions
 
 | Version | Supported |
-|---------|-----------|
-| 1.1.x   | Yes |
-| < 1.1   | No |
+| ------- | --------- |
+| 1.2.x   | Yes       |
+| 1.1.x   | Yes       |
+| < 1.1   | No        |
+
+Update this table with each minor release so users know which branches receive security fixes.
 
 ## Reporting a Vulnerability
 
@@ -15,6 +18,7 @@ If you discover a security vulnerability, please report it responsibly:
 2. **Email**: Open an issue with the `security` label (do not include exploit details in public issues)
 
 Please include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -25,8 +29,8 @@ We aim to acknowledge reports within 48 hours and provide a fix timeline within 
 
 This application follows Electron security best practices:
 
-- **Context Isolation**: Enabled — renderer cannot access Node.js APIs directly
-- **Node Integration**: Disabled — renderer runs in a sandboxed browser context
+- **Context Isolation**: Enabled - renderer cannot access Node.js APIs directly
+- **Node Integration**: Disabled - renderer runs in a sandboxed browser context
 - **Preload Bridge**: All IPC communication goes through a typed `contextBridge` API
 - **Webview Sandbox**: Steam Workshop webview uses a separate `persist:steam` partition
 - **URL Guard**: Webview navigation is restricted to `steamcommunity.com` and related Steam domains
@@ -36,7 +40,7 @@ This application follows Electron security best practices:
 
 ## Known Considerations
 
-- The app spawns external processes (`steamcmd.exe`) — ensure the SteamCMD executable path is validated
+- The app spawns external processes (`steamcmd.exe`) - ensure the SteamCMD executable path is validated
 - The embedded webview has access to Steam session cookies within its partition
 - Configuration is stored in the user's AppData directory with OS-level encryption for sensitive fields
 

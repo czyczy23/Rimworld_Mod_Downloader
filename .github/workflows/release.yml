@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -75,6 +75,11 @@ jobs:
         env:
           CI: true
 
+      - name: Run native Electron smoke tests
+        run: npm run test:e2e:electron
+        env:
+          CI: true
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,6 +87,7 @@ jobs:
           name: playwright-report-${{ github.ref_name }}
           path: |
             playwright-report
+            playwright-report-electron
             test-results
           retention-days: 14
 
@@ -104,7 +110,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -223,9 +229,9 @@ jobs:
             --clobber
 
           # Upload latest.yml for electron-updater auto-update
-          # Force-fail if missing — without it, electron-updater silently breaks.
+          # Force-fail if missing - without it, electron-updater silently breaks.
           $latestYml = "release/$env:RELEASE_VERSION/latest.yml"
           if (-not (Test-Path $latestYml)) {
-            throw "latest.yml not found at $latestYml — electron-updater auto-update would be broken."
+            throw "latest.yml not found at $latestYml - electron-updater auto-update would be broken."
           }
           gh release upload $env:RELEASE_TAG $latestYml --repo $env:REPOSITORY --clobber

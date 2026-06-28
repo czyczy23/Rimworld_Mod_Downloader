@@ -183,7 +183,7 @@
     "saveChanges": "Save Changes"
   },
   "alerts": {
-    "pleaseConfigSteamcmd": "Please configure SteamCMD paths first!\n\n1. SteamCMD Executable Path: Location of steamcmd.exe\n2. SteamCMD Download Path: steamcmd_root\\steamapps\\workshop\\content\\294100\n\nClick the ⚙️ Settings button in the top right to configure.",
+    "pleaseConfigSteamcmd": "Please configure SteamCMD paths first!\n\n1. SteamCMD Executable Path: Location of steamcmd.exe\n2. SteamCMD Download Path: steamcmd_root\\steamapps\\workshop\\content\\294100\n\nClick the Settings button in the top right to configure.",
     "steamcmdWarning": "Warning: The selected file is not steamcmd.exe, please confirm the path is correct!",
     "versionDetected": "Detected RimWorld version",
     "versionDetectFailed": "Failed to detect version",

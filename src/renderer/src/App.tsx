@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import './App.css'
-import { WebviewContainer, type WebviewContainerRef, type CurrentPageInfo } from './components/WebviewContainer'
+import {
+  WebviewContainer,
+  type WebviewContainerRef,
+  type CurrentPageInfo
+} from './components/WebviewContainer'
 import { Toolbar } from './components/Toolbar'
 import { DownloadQueue } from './components/DownloadQueue'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -11,25 +15,30 @@ import { PendingQueueDialog } from './components/PendingQueueDialog'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
 import { UpdateDialog } from './components/UpdateDialog'
 import { WelcomeWizard } from './components/WelcomeWizard'
+import { useConfigStore } from './stores/configStore'
+import { useDownloadStore } from './stores/downloadStore'
+import { evaluateVersionGate, type DownloadIntent } from './utils/downloadFlow'
 import type {
   AppConfig,
   AppUpdateProgress,
   AppUpdateStatus,
   BatchDownloadInfo,
   Dependency,
-  DownloadItem,
   DownloadProgress,
   ModMetadata,
   PendingDownloadItem
 } from '../../shared/types'
 
 interface PendingDependencyState {
+  intent: DownloadIntent
   id: string
   name: string
+  isCollection: boolean
   dependencies: Dependency[]
 }
 
 interface PendingVersionCheckState {
+  intent: DownloadIntent
   id: string
   name: string
   isCollection: boolean
@@ -37,52 +46,38 @@ interface PendingVersionCheckState {
 }
 
 function App() {
-  const { t, i18n } = useTranslation()
-  const [downloads, setDownloads] = useState<DownloadItem[]>([])
-  const [batchInfo, setBatchInfo] = useState<BatchDownloadInfo | undefined>()
-  const [config, setConfig] = useState<AppConfig | null>(null)
+  const { t } = useTranslation()
+  const downloads = useDownloadStore((state) => state.downloads)
+  const setDownloads = useDownloadStore((state) => state.setDownloads)
+  const batchInfo = useDownloadStore((state) => state.batchInfo)
+  const setBatchInfo = useDownloadStore((state) => state.setBatchInfo)
+  const pendingQueue = useDownloadStore((state) => state.pendingQueue)
+  const setPendingQueue = useDownloadStore((state) => state.setPendingQueue)
+  const selectedForDelete = useDownloadStore((state) => state.selectedForDelete)
+  const setSelectedForDelete = useDownloadStore((state) => state.setSelectedForDelete)
+  const config = useConfigStore((state) => state.config)
+  const gameVersion = useConfigStore((state) => state.gameVersion)
+  const setConfig = useConfigStore((state) => state.setConfig)
+  const loadConfig = useConfigStore((state) => state.loadConfig)
+  const saveConfigValue = useConfigStore((state) => state.saveConfigValue)
+  const refreshGameVersionFromStore = useConfigStore((state) => state.refreshGameVersion)
   const [showSettings, setShowSettings] = useState(false)
   const [showDependencyDialog, setShowDependencyDialog] = useState(false)
   const [showVersionMismatchDialog, setShowVersionMismatchDialog] = useState(false)
   const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo | null>(null)
-  const [pendingDependencies, setPendingDependencies] = useState<PendingDependencyState | null>(null)
-  const [pendingVersionCheck, setPendingVersionCheck] = useState<PendingVersionCheckState | null>(null)
-  const [pendingAddVersionCheck, setPendingAddVersionCheck] = useState<PendingVersionCheckState | null>(null)
-  const [gameVersion, setGameVersion] = useState<string>('')
+  const [pendingDependencies, setPendingDependencies] = useState<PendingDependencyState | null>(
+    null
+  )
+  const [pendingVersionCheck, setPendingVersionCheck] = useState<PendingVersionCheckState | null>(
+    null
+  )
   const webviewRef = useRef<WebviewContainerRef>(null)
 
-  // 待下载队列相关 state
-  const [pendingQueue, setPendingQueue] = useState<PendingDownloadItem[]>([])
   const [showPendingQueueDialog, setShowPendingQueueDialog] = useState(false)
-  const [selectedForDelete, setSelectedForDelete] = useState<string[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  // 使用 ref 避免循环依赖
-  const pendingQueueRef = useRef<PendingDownloadItem[]>([])
-  const currentPageInfoRef = useRef<CurrentPageInfo | null>(null)
-
-  // 同步 pendingQueue 到 ref
-  useEffect(() => {
-    pendingQueueRef.current = pendingQueue
-  }, [pendingQueue])
-
-  // 同步 currentPageInfo 到 ref
-  useEffect(() => {
-    currentPageInfoRef.current = currentPageInfo
-  }, [currentPageInfo])
-
-  // 欢迎向导状态
   const [showWelcome, setShowWelcome] = useState(false)
 
-  // Update state
-  const [updateStatus, setUpdateStatus] = useState<{
-    available: boolean
-    downloading: boolean
-    downloaded: boolean
-    version: string
-    releaseNotes: string
-    downloadProgress: number
-  }>({
+  const [updateStatus, setUpdateStatus] = useState({
     available: false,
     downloading: false,
     downloaded: false,
@@ -91,13 +86,12 @@ function App() {
     downloadProgress: 0
   })
 
-  // Listen for update status
   useEffect(() => {
     if (!window.api) return
 
     const unsubscribeStatus = window.api.onUpdateStatus((status: AppUpdateStatus) => {
       console.log('[App] Update status:', status)
-      setUpdateStatus(prev => ({
+      setUpdateStatus((prev) => ({
         ...prev,
         available: status.available,
         downloading: status.downloading,
@@ -108,7 +102,7 @@ function App() {
     })
 
     const unsubscribeProgress = window.api.onUpdateProgress((progress: AppUpdateProgress) => {
-      setUpdateStatus(prev => ({
+      setUpdateStatus((prev) => ({
         ...prev,
         downloadProgress: progress.percent
       }))
@@ -122,121 +116,116 @@ function App() {
 
   const handleDownloadUpdate = useCallback(() => {
     if (window.api) {
-      window.api.downloadUpdate()
+      void window.api.downloadUpdate()
     }
   }, [])
 
   const handleInstallUpdate = useCallback(() => {
     if (window.api) {
-      window.api.installUpdate()
+      void window.api.installUpdate()
     }
   }, [])
 
-  // Load config on mount
   useEffect(() => {
-    if (window.api) {
-      window.api.getConfig().then((cfg) => {
-        console.log('Config loaded:', cfg)
-        setConfig(cfg)
+    if (!window.api) return
 
-        // 注意：语言初始化已在 main.tsx 中通过 initLanguage() 完成
-        // 此处不需要再调用 i18n.changeLanguage()
+    loadConfig().then((cfg) => {
+      if (!cfg) return
+      console.log('Config loaded:', cfg)
 
-        // 检查是否首次启动（没有配置 SteamCMD 路径或标记为首次运行）
-        const hasNoSteamCmd = !cfg.steamcmd?.executablePath || !cfg.steamcmd?.downloadPath
-        const hasNoModsPaths = !cfg.rimworld?.modsPaths || cfg.rimworld.modsPaths.length === 0
-        const firstRunNotCompleted = cfg.firstRunCompleted !== true
+      const hasNoSteamCmd = !cfg.steamcmd?.executablePath || !cfg.steamcmd?.downloadPath
+      const hasNoModsPaths = !cfg.rimworld?.modsPaths || cfg.rimworld.modsPaths.length === 0
+      const firstRunNotCompleted = cfg.firstRunCompleted !== true
 
-        if ((hasNoSteamCmd && hasNoModsPaths) || firstRunNotCompleted) {
-          console.log('[App] First run detected, showing welcome wizard')
-          setShowWelcome(true)
-        }
-      })
+      if ((hasNoSteamCmd && hasNoModsPaths) || firstRunNotCompleted) {
+        console.log('[App] First run detected, showing welcome wizard')
+        setShowWelcome(true)
+      }
+    })
 
-      // Also load game version
-      window.api.detectGameVersion().then((version) => {
-        setGameVersion(version)
-      }).catch(() => {
-        setGameVersion('')
-      })
-    }
-  }, [i18n])
+    void refreshGameVersionFromStore()
+  }, [loadConfig, refreshGameVersionFromStore])
 
-  // Listen for config reset event
   useEffect(() => {
     if (!window.api) return
 
     const unsubscribe = window.api.onConfigReset(() => {
       console.log('[App] Config reset received, reloading...')
-      window.api.getConfig().then((cfg) => {
-        setConfig(cfg)
-      })
-      window.api.detectGameVersion().then((version) => {
-        setGameVersion(version)
-      }).catch(() => {
-        setGameVersion('')
-      })
+      void loadConfig()
+      void refreshGameVersionFromStore()
     })
 
     return unsubscribe
-  }, [])
+  }, [loadConfig, refreshGameVersionFromStore])
 
-  // Set up download progress listeners
   useEffect(() => {
     if (!window.api) return
 
-    // Listen for progress updates
     const unsubscribeProgress = window.api.onDownloadProgress((data: DownloadProgress) => {
       console.log(`[App] Download progress for ${data.id}: ${data.progress}%`)
 
-      setDownloads(prev => {
-        const existing = prev.find(d => d.id === data.id)
+      setDownloads((prev) => {
+        const existing = prev.find((download) => download.id === data.id)
         if (existing) {
-          // Update existing
-          return prev.map(d => d.id === data.id ? {
-            ...d,
-            progress: data.progress,
-            status: data.status,
-            message: data.message
-          } : d)
-        } else {
-          // Add new
-          return [...prev, {
+          return prev.map((download) =>
+            download.id === data.id
+              ? {
+                  ...download,
+                  progress: data.progress,
+                  status: data.status,
+                  message: data.message
+                }
+              : download
+          )
+        }
+
+        return [
+          ...prev,
+          {
             id: data.id,
             name: `Mod ${data.id}`,
             progress: data.progress,
             status: data.status,
             message: data.message
-          }]
-        }
+          }
+        ]
       })
     })
 
-    // Listen for completion
     const unsubscribeComplete = window.api.onDownloadComplete((data: ModMetadata) => {
       console.log(`[App] Download completed for ${data.id}`)
 
-      setDownloads(prev => prev.map(d => d.id === data.id ? {
-        ...d,
-        progress: 100,
-        status: 'completed',
-        message: 'Download completed'
-      } : d))
+      setDownloads((prev) =>
+        prev.map((download) =>
+          download.id === data.id
+            ? {
+                ...download,
+                progress: 100,
+                status: 'completed',
+                message: 'Download completed'
+              }
+            : download
+        )
+      )
     })
 
-    // Listen for errors
     const unsubscribeError = window.api.onDownloadError((data) => {
       console.error(`[App] Download error for ${data.id}:`, data.error)
 
-      setDownloads(prev => prev.map(d => d.id === data.id ? {
-        ...d,
-        status: 'error',
-        error: data.error,
-        message: data.error
-      } : d))
+      setDownloads((prev) =>
+        prev.map((download) =>
+          download.id === data.id
+            ? {
+                ...download,
+                status: 'error',
+                error: data.error,
+                message: data.error
+              }
+            : download
+        )
+      )
     })
 
-    // Listen for batch progress
     const unsubscribeBatchProgress = window.api.onBatchProgress((data: BatchDownloadInfo) => {
       console.log(`[App] Batch progress: ${data.current}/${data.total} - ${data.currentName}`)
 
@@ -249,38 +238,32 @@ function App() {
       })
     })
 
-    // Cleanup
     return () => {
       unsubscribeProgress()
       unsubscribeComplete()
       unsubscribeError()
       unsubscribeBatchProgress()
     }
-  }, [])
+  }, [setBatchInfo, setDownloads])
 
-  // Handle page change from WebviewContainer
   const handlePageChanged = useCallback((info: CurrentPageInfo) => {
     console.log('[App] Page changed:', info)
     setCurrentPageInfo(info)
   }, [])
 
-  // Check if mod version is compatible
-  const isVersionCompatible = useCallback((modVersions: string[]): boolean => {
-    if (!gameVersion || modVersions.length === 0) return true
-    return modVersions.includes(gameVersion)
-  }, [gameVersion])
-
-  // Start single download
   const startSingleDownload = async (modId: string, isCollection: boolean, name?: string) => {
-    setDownloads(prev => {
-      if (prev.find(d => d.id === modId)) return prev
-      return [...prev, {
-        id: modId,
-        name: name || (isCollection ? `Collection ${modId}` : `Mod ${modId}`),
-        progress: 0,
-        status: 'downloading',
-        message: 'Starting download...'
-      }]
+    setDownloads((prev) => {
+      if (prev.find((download) => download.id === modId)) return prev
+      return [
+        ...prev,
+        {
+          id: modId,
+          name: name || (isCollection ? `Collection ${modId}` : `Mod ${modId}`),
+          progress: 0,
+          status: 'downloading',
+          message: 'Starting download...'
+        }
+      ]
     })
 
     try {
@@ -293,28 +276,37 @@ function App() {
     }
   }
 
-  // Start batch download with dependencies
-  const startBatchDownload = async (modId: string, isCollection: boolean, modName: string, dependencies: Dependency[]) => {
+  const startBatchDownload = async (
+    modId: string,
+    isCollection: boolean,
+    modName: string,
+    dependencies: Dependency[]
+  ) => {
     const allItems = [
       { id: modId, name: modName, isCollection },
-      ...dependencies.map((dep) => ({ id: dep.id, name: dep.name || `Mod ${dep.id}`, isCollection: false }))
+      ...dependencies.map((dependency) => ({
+        id: dependency.id,
+        name: dependency.name || `Mod ${dependency.id}`,
+        isCollection: false
+      }))
     ]
 
-    // Add all to queue
-    allItems.forEach(item => {
-      setDownloads(prev => {
-        if (prev.find(d => d.id === item.id)) return prev
-        return [...prev, {
-          id: item.id,
-          name: item.name,
-          progress: 0,
-          status: 'pending',
-          message: 'Pending...'
-        }]
+    allItems.forEach((item) => {
+      setDownloads((prev) => {
+        if (prev.find((download) => download.id === item.id)) return prev
+        return [
+          ...prev,
+          {
+            id: item.id,
+            name: item.name,
+            progress: 0,
+            status: 'pending',
+            message: 'Pending...'
+          }
+        ]
       })
     })
 
-    // Start batch download
     setBatchInfo({
       isBatch: true,
       current: 1,
@@ -335,333 +327,320 @@ function App() {
     }
   }
 
-  // Handle download after version check passes
-  const proceedWithDownload = useCallback(async (modId: string, isCollection: boolean, modName: string) => {
-    if (!window.api) return
+  const addMainModToQueue = useCallback(
+    (modId: string, isCollection: boolean, modName: string) => {
+      setPendingQueue((prev) => {
+        if (prev.some((item) => item.id === modId)) return prev
+        return [...prev, { id: modId, name: modName, isCollection, modName }]
+      })
+    },
+    [setPendingQueue]
+  )
 
-    const dependencyMode = config?.download?.dependencyMode || 'ask'
-    const autoDownloadDependencies = config?.download?.autoDownloadDependencies || false
+  const proceedWithDownload = useCallback(
+    async (modId: string, isCollection: boolean, modName: string) => {
+      if (!window.api) return
 
-    try {
-      const dependencies = await window.api.checkDependencies(modId)
-      console.log(`Found ${dependencies.length} dependencies`)
+      const dependencyMode = config?.download?.dependencyMode || 'ask'
+      const autoDownloadDependencies = config?.download?.autoDownloadDependencies || false
 
-      if (dependencies.length > 0) {
-        if (dependencyMode === 'ignore') {
-          startSingleDownload(modId, isCollection, modName)
-        } else if (dependencyMode === 'auto' || autoDownloadDependencies) {
-          startBatchDownload(modId, isCollection, modName, dependencies)
-        } else {
-          setPendingDependencies({ id: modId, name: modName, dependencies })
-          setShowDependencyDialog(true)
-        }
-      } else {
-        startSingleDownload(modId, isCollection, modName)
-      }
-    } catch (error) {
-      console.error('Error checking dependencies:', error)
-      startSingleDownload(modId, isCollection, modName)
-    }
-  }, [config])
+      try {
+        const dependencies = await window.api.checkDependencies(modId)
+        console.log(`Found ${dependencies.length} dependencies`)
 
-  // Handle download request from Toolbar
-  const handleDownloadClick = useCallback(async (modId: string, isCollection: boolean) => {
-    console.log('Download clicked:', { modId, isCollection })
-
-    if (!window.api) return
-
-    // Check SteamCMD configuration before downloading
-    const cfg = await window.api.getConfig()
-    const steamcmdPath = cfg.steamcmd?.executablePath
-    const downloadPath = cfg.steamcmd?.downloadPath
-    
-    if (!steamcmdPath || !downloadPath) {
-      alert(t('alerts.pleaseConfigSteamcmd'))
-      setShowSettings(true)
-      return
-    }
-
-    // 如果待下载队列不为空，显示确认弹窗
-    if (pendingQueueRef.current.length > 0) {
-      setShowPendingQueueDialog(true)
-      return
-    }
-
-    const onMismatch = config?.version?.onMismatch || 'ask'
-    const skipVersionCheck = config?.download?.skipVersionCheck || false
-
-    try {
-      // Step 1: Check version compatibility first (unless skipped)
-      let modVersions: string[] = []
-      let modName = currentPageInfo?.modName || `Mod ${modId}`
-
-      if (!skipVersionCheck) {
-        try {
-          const versionInfo = await window.api.checkModVersion(modId)
-          modVersions = versionInfo.supportedVersions || []
-          modName = versionInfo.modName || modName
-
-          // Check version mismatch
-          if (!isVersionCompatible(modVersions)) {
-            if (onMismatch === 'skip') {
-              console.log('[App] Skipping download due to version mismatch')
-              return
-            } else if (onMismatch === 'ask') {
-              // Show version mismatch dialog
-              setPendingVersionCheck({ id: modId, name: modName, isCollection, modVersions })
-              setShowVersionMismatchDialog(true)
-              return
-            }
-            // onMismatch === 'force' - continue without asking
+        if (dependencies.length > 0) {
+          if (dependencyMode === 'ignore') {
+            await startSingleDownload(modId, isCollection, modName)
+          } else if (dependencyMode === 'auto' || autoDownloadDependencies) {
+            await startBatchDownload(modId, isCollection, modName, dependencies)
+          } else {
+            setPendingDependencies({
+              intent: 'download',
+              id: modId,
+              name: modName,
+              isCollection,
+              dependencies
+            })
+            setShowDependencyDialog(true)
           }
-        } catch (error) {
-          console.error('[App] Failed to check mod version, continuing anyway:', error)
+        } else {
+          await startSingleDownload(modId, isCollection, modName)
+        }
+      } catch (error) {
+        console.error('Error checking dependencies:', error)
+        await startSingleDownload(modId, isCollection, modName)
+      }
+    },
+    [config]
+  )
+
+  const proceedWithAddToQueue = useCallback(
+    async (modId: string, isCollection: boolean, modName: string) => {
+      if (!window.api) return
+
+      const dependencyMode = config?.download?.dependencyMode || 'ask'
+      const autoDownloadDependencies = config?.download?.autoDownloadDependencies || false
+
+      try {
+        const currentQueue = useDownloadStore.getState().pendingQueue
+        if (currentQueue.some((item) => item.id === modId)) {
+          console.log('[App] Mod already in queue')
+          return
+        }
+
+        const dependencies = await window.api.checkDependencies(modId)
+        console.log(`[App] Found ${dependencies.length} dependencies for queue`)
+
+        const itemsToAdd: PendingDownloadItem[] = [
+          { id: modId, name: modName, isCollection, modName }
+        ]
+
+        if (dependencies.length > 0) {
+          if (dependencyMode === 'auto' || autoDownloadDependencies) {
+            for (const dependency of dependencies) {
+              const alreadyQueued =
+                currentQueue.some((item) => item.id === dependency.id) ||
+                itemsToAdd.some((item) => item.id === dependency.id)
+              if (!alreadyQueued) {
+                itemsToAdd.push({
+                  id: dependency.id,
+                  name: dependency.name || `Mod ${dependency.id}`,
+                  isCollection: false,
+                  modName: dependency.name
+                })
+              }
+            }
+            console.log(`[App] Auto-added ${dependencies.length} dependencies to queue`)
+          } else if (dependencyMode !== 'ignore') {
+            setPendingDependencies({
+              intent: 'queue',
+              id: modId,
+              name: modName,
+              isCollection,
+              dependencies
+            })
+            setPendingQueue((prev) => {
+              if (prev.some((item) => item.id === modId)) return prev
+              return [...prev, ...itemsToAdd]
+            })
+            setShowDependencyDialog(true)
+            return
+          }
+        }
+
+        setPendingQueue((prev) => {
+          const nextQueue = [...prev]
+          for (const item of itemsToAdd) {
+            if (!nextQueue.some((queuedItem) => queuedItem.id === item.id)) {
+              nextQueue.push(item)
+            }
+          }
+          return nextQueue
+        })
+        console.log(`[App] Added ${itemsToAdd.length} items to queue`)
+      } catch (error) {
+        console.error('[App] Error adding to queue:', error)
+        addMainModToQueue(modId, isCollection, modName)
+      }
+    },
+    [addMainModToQueue, config, setPendingQueue]
+  )
+
+  const resolveAndDispatchDownload = useCallback(
+    async (modId: string, isCollection: boolean, intent: DownloadIntent) => {
+      if (!window.api) return
+
+      console.log('[App] Download action requested:', { modId, isCollection, intent })
+
+      try {
+        const fallbackName = currentPageInfo?.modName || `Mod ${modId}`
+        let modVersions: string[] = []
+        let resolvedName: string | undefined
+
+        if (!config?.download?.skipVersionCheck) {
+          try {
+            const versionInfo = await window.api.checkModVersion(modId)
+            modVersions = versionInfo.supportedVersions || []
+            resolvedName = versionInfo.modName
+          } catch (error) {
+            console.error('[App] Failed to check mod version, continuing anyway:', error)
+          }
+        }
+
+        const decision = evaluateVersionGate({
+          intent,
+          modId,
+          isCollection,
+          fallbackName,
+          gameVersion,
+          supportedVersions: modVersions,
+          resolvedName,
+          config
+        })
+
+        if (decision.status === 'skip') {
+          console.log(`[App] Skipping ${intent} due to version mismatch`)
+          return
+        }
+
+        if (decision.status === 'ask') {
+          setPendingVersionCheck(decision)
+          setShowVersionMismatchDialog(true)
+          return
+        }
+
+        if (intent === 'queue') {
+          await proceedWithAddToQueue(modId, isCollection, decision.modName)
+        } else {
+          await proceedWithDownload(modId, isCollection, decision.modName)
+        }
+      } catch (error) {
+        console.error(`[App] Error in ${intent} flow:`, error)
+        const modName = currentPageInfo?.modName || `Mod ${modId}`
+        if (intent === 'queue') {
+          addMainModToQueue(modId, isCollection, modName)
+        } else {
+          await startSingleDownload(modId, isCollection, modName)
         }
       }
+    },
+    [
+      addMainModToQueue,
+      config,
+      currentPageInfo?.modName,
+      gameVersion,
+      proceedWithAddToQueue,
+      proceedWithDownload
+    ]
+  )
 
-      // Proceed with dependency check and download
-      await proceedWithDownload(modId, isCollection, modName)
-    } catch (error) {
-      console.error('Error in download flow:', error)
-      // Fallback to direct download if anything fails
-      startSingleDownload(modId, isCollection)
+  const assertSteamCmdConfigured = useCallback(async (): Promise<boolean> => {
+    if (!window.api) return false
+
+    const cfg = await window.api.getConfig()
+    if (cfg.steamcmd?.executablePath && cfg.steamcmd?.downloadPath) {
+      return true
     }
-  }, [config, currentPageInfo?.modName, gameVersion, proceedWithDownload, isVersionCompatible])
 
-  // 在添加后继续处理依赖和队列
-  const proceedWithAddToQueue = useCallback(async (modId: string, isCollection: boolean, modName: string) => {
-    if (!window.api) return
+    alert(t('alerts.pleaseConfigSteamcmd'))
+    setShowSettings(true)
+    return false
+  }, [t])
 
-    const dependencyMode = config?.download?.dependencyMode || 'ask'
-    const autoDownloadDependencies = config?.download?.autoDownloadDependencies || false
+  const handleDownloadClick = useCallback(
+    async (modId: string, isCollection: boolean) => {
+      if (!(await assertSteamCmdConfigured())) return
 
-    try {
-      // 检查是否已经在队列中
-      const alreadyInQueue = pendingQueueRef.current.some(item => item.id === modId)
-      if (alreadyInQueue) {
-        console.log('[App] Mod already in queue')
+      if (useDownloadStore.getState().pendingQueue.length > 0) {
+        setShowPendingQueueDialog(true)
         return
       }
 
-      // 检查依赖
-      const dependencies = await window.api.checkDependencies(modId)
-      console.log(`[App] Found ${dependencies.length} dependencies for queue`)
+      await resolveAndDispatchDownload(modId, isCollection, 'download')
+    },
+    [assertSteamCmdConfigured, resolveAndDispatchDownload]
+  )
 
-      // 添加主 mod 到队列
-      const itemsToAdd: PendingDownloadItem[] = [
-        { id: modId, name: modName, isCollection, modName }
-      ]
+  const handleAddToQueue = useCallback(
+    async (modId: string, isCollection: boolean) => {
+      if (!(await assertSteamCmdConfigured())) return
+      await resolveAndDispatchDownload(modId, isCollection, 'queue')
+    },
+    [assertSteamCmdConfigured, resolveAndDispatchDownload]
+  )
 
-      // 处理依赖
-      if (dependencies.length > 0) {
-        if (dependencyMode === 'ignore') {
-          // 仅添加主 mod
-        } else if (dependencyMode === 'auto' || autoDownloadDependencies) {
-          // 自动添加所有依赖
-          for (const dep of dependencies) {
-            const depAlreadyInQueue = pendingQueueRef.current.some(item => item.id === dep.id) || itemsToAdd.some(item => item.id === dep.id)
-            if (!depAlreadyInQueue) {
-              itemsToAdd.push({
-                id: dep.id,
-                name: dep.name || `Mod ${dep.id}`,
-                isCollection: false,
-                modName: dep.name
-              })
-            }
-          }
-          console.log(`[App] Auto-added ${dependencies.length} dependencies to queue`)
-        } else {
-          // 询问用户
-          setPendingDependencies({ id: modId, name: modName, dependencies })
-          // 先添加主 mod，等用户确认后再添加依赖
-          setPendingQueue(prev => {
-            if (prev.some(item => item.id === modId)) return prev
-            return [...prev, ...itemsToAdd]
-          })
-          setShowDependencyDialog(true)
-          return
+  const handleToggleSelectForDelete = useCallback(
+    (modId: string) => {
+      setSelectedForDelete((prev) => {
+        if (prev.includes(modId)) {
+          return prev.filter((id) => id !== modId)
         }
-      }
-
-      // 添加到队列
-      setPendingQueue(prev => [...prev, ...itemsToAdd])
-      console.log(`[App] Added ${itemsToAdd.length} items to queue`)
-
-    } catch (error) {
-      console.error('[App] Error adding to queue:', error)
-      // 至少添加主 mod
-      setPendingQueue(prev => {
-        if (prev.some(item => item.id === modId)) return prev
-        return [...prev, { id: modId, name: modName, isCollection, modName }]
-      })
-    }
-  }, [config])
-
-  // 添加到待下载队列 - 与 Download 保持一致的版本匹配逻辑
-  const handleAddToQueue = useCallback(async (modId: string, isCollection: boolean) => {
-    if (!window.api) return
-
-    console.log('[App] Adding to queue:', { modId, isCollection })
-
-    const onMismatch = config?.version?.onMismatch || 'ask'
-    const skipVersionCheck = config?.download?.skipVersionCheck || false
-
-    try {
-      // Step 1: Check version compatibility first (unless skipped)
-      let modVersions: string[] = []
-      let modName = currentPageInfo?.modName || `Mod ${modId}`
-
-      if (!skipVersionCheck) {
-        try {
-          const versionInfo = await window.api.checkModVersion(modId)
-          modVersions = versionInfo.supportedVersions || []
-          modName = versionInfo.modName || modName
-
-          // Check version mismatch
-          if (!isVersionCompatible(modVersions)) {
-            if (onMismatch === 'skip') {
-              console.log('[App] Skipping add to queue due to version mismatch')
-              return
-            } else if (onMismatch === 'ask') {
-              // Show version mismatch dialog for Add
-              setPendingAddVersionCheck({ id: modId, name: modName, isCollection, modVersions })
-              setShowVersionMismatchDialog(true)
-              return
-            }
-            // onMismatch === 'force' - continue without asking
-          }
-        } catch (error) {
-          console.error('[App] Failed to check mod version for add, continuing anyway:', error)
-        }
-      }
-
-      // Proceed with adding to queue
-      await proceedWithAddToQueue(modId, isCollection, modName)
-    } catch (error) {
-      console.error('Error in add to queue flow:', error)
-      // Fallback: at least try to add the main mod
-      const modName = currentPageInfo?.modName || `Mod ${modId}`
-      setPendingQueue(prev => {
-        if (prev.some(item => item.id === modId)) return prev
-        return [...prev, { id: modId, name: modName, isCollection, modName }]
-      })
-    }
-  }, [config, currentPageInfo?.modName, gameVersion, proceedWithAddToQueue, isVersionCompatible])
-
-  // 切换删除选择
-  const handleToggleSelectForDelete = useCallback((modId: string) => {
-    setSelectedForDelete(prev => {
-      if (prev.includes(modId)) {
-        return prev.filter(id => id !== modId)
-      } else {
         return [...prev, modId]
-      }
-    })
-  }, [])
+      })
+    },
+    [setSelectedForDelete]
+  )
 
-  // 全选/取消全选
   const handleSelectAllForDelete = useCallback(() => {
     if (selectedForDelete.length === pendingQueue.length) {
       setSelectedForDelete([])
     } else {
-      setSelectedForDelete(pendingQueue.map(item => item.id))
+      setSelectedForDelete(pendingQueue.map((item) => item.id))
     }
-  }, [pendingQueue, selectedForDelete])
+  }, [pendingQueue, selectedForDelete, setSelectedForDelete])
 
-  // 请求删除（显示确认弹窗）
-  const handleRequestDelete = useCallback((modId?: string) => {
-    if (modId) {
-      // 单独删除
-      setSelectedForDelete([modId])
-    }
-    setShowDeleteConfirm(true)
-  }, [])
+  const handleRequestDelete = useCallback(
+    (modId?: string) => {
+      if (modId) {
+        setSelectedForDelete([modId])
+      }
+      setShowDeleteConfirm(true)
+    },
+    [setSelectedForDelete]
+  )
 
-  // 确认删除
   const handleConfirmDelete = useCallback(() => {
-    setPendingQueue(prev => prev.filter(item => !selectedForDelete.includes(item.id)))
+    setPendingQueue((prev) => prev.filter((item) => !selectedForDelete.includes(item.id)))
     setSelectedForDelete([])
     setShowDeleteConfirm(false)
-  }, [selectedForDelete])
+  }, [selectedForDelete, setPendingQueue, setSelectedForDelete])
 
-  // 取消删除
   const handleCancelDelete = useCallback(() => {
     setShowDeleteConfirm(false)
     setSelectedForDelete([])
-  }, [])
+  }, [setSelectedForDelete])
 
-  // 设置保存后的回调
-  const handleConfigSaved = useCallback((newConfig: AppConfig) => {
-    setConfig(newConfig)
-  }, [])
+  const handleConfigSaved = useCallback(
+    (newConfig: AppConfig) => {
+      setConfig(newConfig)
+    },
+    [setConfig]
+  )
 
-  // 清除已完成的下载
   const handleClearCompleted = useCallback(() => {
-    setDownloads(prev => prev.filter(d => d.status !== 'completed'))
-  }, [])
+    setDownloads((prev) => prev.filter((download) => download.status !== 'completed'))
+  }, [setDownloads])
 
-  // 清除所有下载
   const handleClearAll = useCallback(() => {
     setDownloads([])
-  }, [])
+  }, [setDownloads])
 
-  // 刷新游戏版本（供子组件调用）
   const refreshGameVersion = useCallback(async (): Promise<string> => {
-    if (!window.api) return ''
-    try {
-      const version = await window.api.detectGameVersion()
-      setGameVersion(version)
-      return version
-    } catch {
-      const fallbackVersion = ''
-      setGameVersion(fallbackVersion)
-      return fallbackVersion
-    }
-  }, [])
+    return refreshGameVersionFromStore()
+  }, [refreshGameVersionFromStore])
 
-  // 开始队列下载
   const handleStartQueueDownload = useCallback(async () => {
     if (pendingQueue.length === 0) return
 
-    // Check SteamCMD configuration before batch downloading
-    if (window.api) {
-      const cfg = await window.api.getConfig()
-      const steamcmdPath = cfg.steamcmd?.executablePath
-      const downloadPath = cfg.steamcmd?.downloadPath
-      
-      if (!steamcmdPath || !downloadPath) {
-        alert(t('alerts.pleaseConfigSteamcmd'))
-        setShowSettings(true)
-        setShowPendingQueueDialog(false)
-        return
-      }
+    if (!(await assertSteamCmdConfigured())) {
+      setShowPendingQueueDialog(false)
+      return
     }
 
     console.log('[App] Starting queue download:', pendingQueue)
 
-    // 清空队列
     const queueToDownload = [...pendingQueue]
     setPendingQueue([])
     setShowPendingQueueDialog(false)
 
-    // 使用批量下载
     try {
       if (window.api) {
-        // 添加所有到下载队列
-        queueToDownload.forEach(item => {
-          setDownloads(prev => {
-            if (prev.find(d => d.id === item.id)) return prev
-            return [...prev, {
-              id: item.id,
-              name: item.modName || item.name,
-              progress: 0,
-              status: 'pending',
-              message: 'Pending...'
-            }]
+        queueToDownload.forEach((item) => {
+          setDownloads((prev) => {
+            if (prev.find((download) => download.id === item.id)) return prev
+            return [
+              ...prev,
+              {
+                id: item.id,
+                name: item.modName || item.name,
+                progress: 0,
+                status: 'pending',
+                message: 'Pending...'
+              }
+            ]
           })
         })
 
-        // 设置批量信息
         setBatchInfo({
           isBatch: true,
           current: 1,
@@ -670,12 +649,13 @@ function App() {
           id: queueToDownload[0].id
         })
 
-        // 开始批量下载
-        const results = await window.api.downloadBatch(queueToDownload.map(item => ({
-          id: item.id,
-          name: item.modName || item.name,
-          isCollection: item.isCollection
-        })))
+        const results = await window.api.downloadBatch(
+          queueToDownload.map((item) => ({
+            id: item.id,
+            name: item.modName || item.name,
+            isCollection: item.isCollection
+          }))
+        )
         console.log('[App] Queue download complete:', results)
         setBatchInfo(undefined)
       }
@@ -683,104 +663,92 @@ function App() {
       console.error('[App] Queue download failed:', error)
       setBatchInfo(undefined)
     }
-  }, [pendingQueue])
+  }, [assertSteamCmdConfigured, pendingQueue, setBatchInfo, setDownloads, setPendingQueue])
 
-  // Handle version mismatch dialog confirm
-  const handleVersionMismatchConfirm = useCallback(async (rememberChoice: boolean, action: 'force' | 'skip') => {
-    // 确定是哪个操作触发的版本不匹配
-    const isAddAction = pendingAddVersionCheck !== null
-    const pendingCheck = pendingAddVersionCheck || pendingVersionCheck
+  const handleVersionMismatchConfirm = useCallback(
+    async (rememberChoice: boolean, action: 'force' | 'skip') => {
+      if (!pendingVersionCheck) return
 
-    if (!pendingCheck) return
-
-    setShowVersionMismatchDialog(false)
-    const { id, name, isCollection } = pendingCheck
-
-    if (isAddAction) {
-      setPendingAddVersionCheck(null)
-    } else {
+      setShowVersionMismatchDialog(false)
       setPendingVersionCheck(null)
-    }
 
-    // 如果记住选择，保存到配置
-    if (rememberChoice && window.api) {
-      try {
-        const currentConfig = await window.api.getConfig()
-        const newOnMismatch = action === 'force' ? 'force' : 'skip'
-        await window.api.setConfig('version', {
-          ...currentConfig.version,
-          onMismatch: newOnMismatch
-        })
-        // 更新本地 config state
-        setConfig(prev => prev ? {
-          ...prev,
-          version: {
-            ...prev.version,
+      const { id, name, isCollection, intent } = pendingVersionCheck
+
+      if (rememberChoice && window.api) {
+        try {
+          const currentConfig = config ?? (await loadConfig())
+          if (!currentConfig) return
+
+          const newOnMismatch = action === 'force' ? 'force' : 'skip'
+          await saveConfigValue('version', {
+            ...currentConfig.version,
             onMismatch: newOnMismatch
-          }
-        } : null)
-        console.log(`[App] Saved version mismatch behavior: ${newOnMismatch}`)
-      } catch (error) {
-        console.error('[App] Failed to save config:', error)
+          })
+          console.log(`[App] Saved version mismatch behavior: ${newOnMismatch}`)
+        } catch (error) {
+          console.error('[App] Failed to save config:', error)
+        }
       }
-    }
 
-    // 根据选择的动作执行
-    if (action === 'force') {
-      if (isAddAction) {
-        // 添加到队列
+      if (action !== 'force') return
+
+      if (intent === 'queue') {
         await proceedWithAddToQueue(id, isCollection, name)
       } else {
-        // 直接下载
         await proceedWithDownload(id, isCollection, name)
       }
-    }
-    // action === 'skip' 时什么都不做
-  }, [pendingVersionCheck, pendingAddVersionCheck, proceedWithDownload, proceedWithAddToQueue])
+    },
+    [
+      config,
+      loadConfig,
+      pendingVersionCheck,
+      proceedWithAddToQueue,
+      proceedWithDownload,
+      saveConfigValue
+    ]
+  )
 
-  // Handle dependency dialog confirm
-  const handleDependencyConfirm = useCallback(async (selectedIds: string[]) => {
-    if (!pendingDependencies) return
+  const handleDependencyConfirm = useCallback(
+    (selectedIds: string[]) => {
+      if (!pendingDependencies) return
 
-    setShowDependencyDialog(false)
+      setShowDependencyDialog(false)
 
-    // 判断是直接下载还是添加到队列：如果主 mod 已在队列中，则是添加到队列场景
-    const isQueueScenario = pendingQueueRef.current.some(item => item.id === pendingDependencies!.id)
-
-    if (isQueueScenario) {
-      // 添加到队列场景
-      const selectedDeps = pendingDependencies.dependencies.filter((dependency) => selectedIds.includes(dependency.id))
-      const itemsToAdd: PendingDownloadItem[] = selectedDeps.map(dep => ({
-        id: dep.id,
-        name: dep.name || `Mod ${dep.id}`,
-        isCollection: false,
-        modName: dep.name
-      }))
-
-      setPendingQueue(prev => {
-        const newQueue = [...prev]
-        itemsToAdd.forEach(item => {
-          if (!newQueue.some(q => q.id === item.id)) {
-            newQueue.push(item)
-          }
-        })
-        return newQueue
-      })
-    } else {
-      // 直接下载场景
-      const selectedDeps = pendingDependencies.dependencies.filter((dependency) => selectedIds.includes(dependency.id))
-      startBatchDownload(
-        pendingDependencies.id,
-        currentPageInfoRef.current?.isCollection || false,
-        pendingDependencies.name,
-        selectedDeps
+      const selectedDependencies = pendingDependencies.dependencies.filter((dependency) =>
+        selectedIds.includes(dependency.id)
       )
-    }
 
-    setPendingDependencies(null)
-  }, [pendingDependencies])
+      if (pendingDependencies.intent === 'queue') {
+        const itemsToAdd: PendingDownloadItem[] = selectedDependencies.map((dependency) => ({
+          id: dependency.id,
+          name: dependency.name || `Mod ${dependency.id}`,
+          isCollection: false,
+          modName: dependency.name
+        }))
 
-  // Handle dependency dialog cancel
+        setPendingQueue((prev) => {
+          const nextQueue = [...prev]
+          itemsToAdd.forEach((item) => {
+            if (!nextQueue.some((queuedItem) => queuedItem.id === item.id)) {
+              nextQueue.push(item)
+            }
+          })
+          return nextQueue
+        })
+      } else {
+        void startBatchDownload(
+          pendingDependencies.id,
+          pendingDependencies.isCollection,
+          pendingDependencies.name,
+          selectedDependencies
+        )
+      }
+
+      setPendingDependencies(null)
+    },
+    [pendingDependencies, setPendingQueue]
+  )
+
   const handleDependencyCancel = useCallback(() => {
     setShowDependencyDialog(false)
     setPendingDependencies(null)
@@ -792,26 +760,17 @@ function App() {
       data-testid="app-shell"
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1b2838' }}
     >
-      {/* 首次启动欢迎向导 */}
-      <WelcomeWizard 
-        isOpen={showWelcome} 
+      <WelcomeWizard
+        isOpen={showWelcome}
         onComplete={() => {
           setShowWelcome(false)
-          // 刷新配置
           if (window.api) {
-            window.api.getConfig().then((cfg) => {
-              setConfig(cfg)
-            })
-            window.api.detectGameVersion().then((version) => {
-              setGameVersion(version)
-            }).catch(() => {
-              setGameVersion('')
-            })
+            void loadConfig()
+            void refreshGameVersionFromStore()
           }
-        }} 
+        }}
       />
-      
-      {/* Header / Toolbar with Download Button */}
+
       <Toolbar
         onSettingsClick={() => setShowSettings(!showSettings)}
         onDownloadClick={handleDownloadClick}
@@ -823,9 +782,7 @@ function App() {
         onConfigSaved={handleConfigSaved}
       />
 
-      {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {/* Webview - Steam Workshop */}
         <div style={{ flex: 1, display: 'flex', height: '100%' }}>
           <WebviewContainer
             ref={webviewRef}
@@ -834,7 +791,6 @@ function App() {
           />
         </div>
 
-        {/* Settings Panel */}
         <SettingsPanel
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
@@ -844,19 +800,17 @@ function App() {
         />
       </div>
 
-      {/* Version Mismatch Dialog */}
-      {(pendingVersionCheck || pendingAddVersionCheck) && (
+      {pendingVersionCheck && (
         <VersionMismatchDialog
           isOpen={showVersionMismatchDialog}
-          modName={(pendingVersionCheck || pendingAddVersionCheck)!.name}
-          modVersions={(pendingVersionCheck || pendingAddVersionCheck)!.modVersions}
+          modName={pendingVersionCheck.name}
+          modVersions={pendingVersionCheck.modVersions}
           gameVersion={gameVersion}
           onConfirm={handleVersionMismatchConfirm}
-          actionType={pendingAddVersionCheck ? 'add' : 'download'}
+          actionType={pendingVersionCheck.intent === 'queue' ? 'add' : 'download'}
         />
       )}
 
-      {/* Dependency Dialog */}
       {pendingDependencies && (
         <DependencyDialog
           isOpen={showDependencyDialog}
@@ -867,7 +821,6 @@ function App() {
         />
       )}
 
-      {/* Bottom Status Bar - Download Queue */}
       <DownloadQueue
         downloads={downloads}
         batchInfo={batchInfo}
@@ -880,7 +833,6 @@ function App() {
         onClearAll={handleClearAll}
       />
 
-      {/* Pending Queue Confirmation Dialog */}
       <PendingQueueDialog
         isOpen={showPendingQueueDialog}
         queue={pendingQueue}
@@ -888,7 +840,6 @@ function App() {
         onCancel={() => setShowPendingQueueDialog(false)}
       />
 
-      {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm}
         selectedCount={selectedForDelete.length}
@@ -896,7 +847,6 @@ function App() {
         onCancel={handleCancelDelete}
       />
 
-      {/* Update Dialog */}
       <UpdateDialog
         isOpen={updateStatus.available}
         newVersion={updateStatus.version}
@@ -906,7 +856,7 @@ function App() {
         downloadProgress={updateStatus.downloadProgress}
         onDownload={handleDownloadUpdate}
         onInstall={handleInstallUpdate}
-        onClose={() => setUpdateStatus(prev => ({ ...prev, available: false }))}
+        onClose={() => setUpdateStatus((prev) => ({ ...prev, available: false }))}
       />
     </div>
   )

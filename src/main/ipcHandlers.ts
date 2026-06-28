@@ -4,12 +4,19 @@ import logger from './utils/logger'
 import { steamCMD, DownloadProgress } from './services/SteamCMD'
 import { modProcessor } from './services/ModProcessor'
 import { workshopScraper } from './services/WorkshopScraper'
-import type { AppConfig, ModMetadata, Dependency } from '../shared/types'
-import type { ModVersionInfo } from './services/WorkshopScraper'
+import type { AppConfig, ModMetadata, Dependency, ModVersionInfo } from '../shared/types'
 import { validateConfigValue } from '../shared/configSchema'
 
 const MOD_ID_PATTERN = /^\d+$/
-const CONFIG_KEYS: Array<keyof AppConfig> = ['firstRunCompleted', 'app', 'steamcmd', 'rimworld', 'download', 'version', 'git']
+const CONFIG_KEYS: Array<keyof AppConfig> = [
+  'firstRunCompleted',
+  'app',
+  'steamcmd',
+  'rimworld',
+  'download',
+  'version',
+  'git'
+]
 
 export function assertValidModId(modId: string): void {
   if (!MOD_ID_PATTERN.test(modId)) {
@@ -23,6 +30,33 @@ export function assertValidConfigKey(key: string): asserts key is keyof AppConfi
   }
 }
 
+function sanitizeRendererConfigValue<K extends keyof AppConfig>(
+  key: K,
+  value: AppConfig[K]
+): AppConfig[K] {
+  if (key !== 'git') {
+    return value
+  }
+
+  const incomingGitConfig = value as AppConfig['git']
+  const currentGitConfig = configManager.get('git')
+  const {
+    hasToken: _hasToken,
+    tokenPreview: _tokenPreview,
+    ...persistableGitConfig
+  } = incomingGitConfig
+
+  if (
+    !persistableGitConfig.githubToken &&
+    incomingGitConfig.hasToken !== false &&
+    currentGitConfig.githubToken
+  ) {
+    persistableGitConfig.githubToken = currentGitConfig.githubToken
+  }
+
+  return persistableGitConfig as AppConfig[K]
+}
+
 /**
  * IPC Handler Setup
  * Registers all IPC handlers for main-renderer communication
@@ -33,14 +67,16 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('config:get', (_, key?: string) => {
     try {
       if (key === undefined) {
-        return configManager.get()
+        return configManager.getForRenderer()
       }
 
       assertValidConfigKey(key)
-      return configManager.get(key)
+      return configManager.getForRenderer(key)
     } catch (error) {
       logger.error('[IPC] Failed to get config:', error)
-      throw new Error(`Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to get config: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   })
 
@@ -49,26 +85,36 @@ export function setupIpcHandlers(): void {
       assertValidConfigKey(key)
       // SECURITY: validate value structure before persisting
       // Prevents renderer (or a compromised webview) from writing arbitrary paths
-      validateConfigValue(key, value)
-      configManager.set(key, value)
+      const valueToPersist = sanitizeRendererConfigValue(key, value)
+      validateConfigValue(key, valueToPersist)
+      configManager.set(key, valueToPersist)
     } catch (error) {
       logger.error('[IPC] Failed to set config:', error)
-      throw new Error(`Failed to set config: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to set config: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   })
 
   ipcMain.handle('config:reset', async (event) => {
-    const sender = event.sender
-    const mainWindow = BrowserWindow.fromWebContents(sender)
+    try {
+      const sender = event.sender
+      const mainWindow = BrowserWindow.fromWebContents(sender)
 
-    await configManager.reset()
+      await configManager.reset()
 
-    // Notify renderer to refresh config
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('config:reset')
+      // Notify renderer to refresh config
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('config:reset')
+      }
+
+      return true
+    } catch (error) {
+      logger.error('[IPC] Failed to reset config:', error)
+      throw new Error(
+        `Failed to reset config: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
-
-    return true
   })
 
   // ===== Version Detection Handler =====
@@ -78,7 +124,9 @@ export function setupIpcHandlers(): void {
       return await configManager.detectGameVersion()
     } catch (error) {
       logger.error('[IPC] Failed to detect game version:', error)
-      throw new Error(`Failed to detect game version: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to detect game version: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   })
 
@@ -113,7 +161,9 @@ export function setupIpcHandlers(): void {
       return await workshopScraper.scrapeModVersion(modId)
     } catch (error) {
       logger.error(`[IPC] Failed to check version for mod ${modId}:`, error)
-      throw new Error(`Failed to check mod version: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to check mod version: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   })
 
@@ -124,16 +174,12 @@ export function setupIpcHandlers(): void {
     try {
       assertValidModId(modId)
       const versionInfo = await workshopScraper.scrapeModVersion(modId)
-      // Convert WorkshopScraper.Dependency to shared.Dependency
-      return versionInfo.dependencies.map(dep => ({
-        id: dep.modId,
-        name: dep.name,
-        isOptional: !dep.required,
-        willDownload: true
-      }))
+      return versionInfo.dependencies
     } catch (error) {
       logger.error(`[IPC] Failed to check dependencies for mod ${modId}:`, error)
-      throw new Error(`Failed to check mod dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to check mod dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   })
 
@@ -147,20 +193,21 @@ export function setupIpcHandlers(): void {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
-      assertValidModId(item.id)
-
-      // Send batch progress update
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('batch:progress', {
-          isBatch: true,
-          current: i + 1,
-          total: items.length,
-          currentName: item.name || `Mod ${item.id}`,
-          id: item.id
-        })
-      }
 
       try {
+        assertValidModId(item.id)
+
+        // Send batch progress update
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('batch:progress', {
+            isBatch: true,
+            current: i + 1,
+            total: items.length,
+            currentName: item.name || `Mod ${item.id}`,
+            id: item.id
+          })
+        }
+
         const metadata = await runDownloadPipeline(item.id, item.isCollection || false, mainWindow)
         results.push(metadata)
       } catch (error) {
@@ -173,7 +220,7 @@ export function setupIpcHandlers(): void {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('download:error', { id: item.id, error: errorMessage })
         }
-        // Continue to next item — partial success beats aborting the batch.
+        // Continue to next item; partial success beats aborting the batch.
       }
     }
 
@@ -181,7 +228,11 @@ export function setupIpcHandlers(): void {
   })
 
   // Shared download pipeline used by both single and batch download handlers.
-  async function runDownloadPipeline(id: string, isCollection: boolean, mainWindow: BrowserWindow | null): Promise<ModMetadata> {
+  async function runDownloadPipeline(
+    id: string,
+    isCollection: boolean,
+    mainWindow: BrowserWindow | null
+  ): Promise<ModMetadata> {
     assertValidModId(id)
 
     // Step 1: Download using SteamCMD
@@ -238,7 +289,9 @@ export function setupIpcHandlers(): void {
       id,
       name: validation.details?.modName || (isCollection ? `Collection ${id}` : `Mod ${id}`),
       author: 'Unknown',
-      description: validation.valid ? 'Mod downloaded successfully' : (validation.error || 'Validation failed'),
+      description: validation.valid
+        ? 'Mod downloaded successfully'
+        : validation.error || 'Validation failed',
       supportedVersions: validation.details?.supportedVersions || [],
       dependencies: [],
       isCollection: isCollection,
@@ -278,21 +331,27 @@ export function setupIpcHandlers(): void {
     return result.canceled ? null : result.filePaths[0]
   })
 
-  ipcMain.handle('dialog:selectFile', async (_, options?: {
-    title?: string
-    defaultPath?: string
-    filters?: { name: string, extensions: string[] }[]
-    properties?: ('openFile' | 'multiSelections')[]
-  }) => {
-    const { dialog } = await import('electron')
-    const result = await dialog.showOpenDialog({
-      title: options?.title || 'Select File',
-      defaultPath: options?.defaultPath,
-      filters: options?.filters || [{ name: 'All Files', extensions: ['*'] }],
-      properties: options?.properties || ['openFile']
-    })
-    return result.canceled ? null : result.filePaths[0]
-  })
+  ipcMain.handle(
+    'dialog:selectFile',
+    async (
+      _,
+      options?: {
+        title?: string
+        defaultPath?: string
+        filters?: { name: string; extensions: string[] }[]
+        properties?: ('openFile' | 'multiSelections')[]
+      }
+    ) => {
+      const { dialog } = await import('electron')
+      const result = await dialog.showOpenDialog({
+        title: options?.title || 'Select File',
+        defaultPath: options?.defaultPath,
+        filters: options?.filters || [{ name: 'All Files', extensions: ['*'] }],
+        properties: options?.properties || ['openFile']
+      })
+      return result.canceled ? null : result.filePaths[0]
+    }
+  )
 
   // ===== Window Control Handlers =====
   ipcMain.handle('window:minimize', () => {

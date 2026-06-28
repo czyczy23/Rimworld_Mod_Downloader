@@ -2,28 +2,39 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { changeLanguage } from '../i18n'
 import { ModsPathManagerDialog } from './ModsPathManagerDialog'
+import { validateConfig } from '../../../shared/configSchema'
+import { useConfigStore } from '../stores/configStore'
 import type { ModsPath } from '../utils/modsPathUtils'
 import type { AppConfig, AppLanguage } from '../../../shared/types'
+import { AppIcon } from './AppIcon'
 
 interface SettingsPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  gameVersion?: string;
-  onRefreshGameVersion?: () => Promise<string>;
-  onConfigSaved?: (newConfig: AppConfig) => void;
+  isOpen: boolean
+  onClose: () => void
+  gameVersion?: string
+  onRefreshGameVersion?: () => Promise<string>
+  onConfigSaved?: (newConfig: AppConfig) => void
 }
 
-export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, onRefreshGameVersion, onConfigSaved }: SettingsPanelProps) {
+export function SettingsPanel({
+  isOpen,
+  onClose,
+  gameVersion: propGameVersion,
+  onRefreshGameVersion,
+  onConfigSaved
+}: SettingsPanelProps) {
   const { t } = useTranslation()
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [tempConfig, setTempConfig] = useState<AppConfig | null>(null)
+  const loadConfig = useConfigStore((state) => state.loadConfig)
+  const setGlobalConfig = useConfigStore((state) => state.setConfig)
   const [localDetectedVersion, setLocalDetectedVersion] = useState<string>('1.6')
   const [showResetWarning, setShowResetWarning] = useState(false)
-  
+
   const [showModsManager, setShowModsManager] = useState(false)
 
   const updateTempConfig = (updater: (current: AppConfig) => AppConfig) => {
-    setTempConfig(prev => (prev ? updater(prev) : prev))
+    setTempConfig((prev) => (prev ? updater(prev) : prev))
   }
 
   const detectedVersion = propGameVersion !== undefined ? propGameVersion : localDetectedVersion
@@ -31,7 +42,8 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Load config on mount and when panel opens
   useEffect(() => {
     if (window.api && isOpen) {
-      window.api.getConfig().then((cfg) => {
+      loadConfig().then((cfg) => {
+        if (!cfg) return
         // Ensure default values are set
         const mergedConfig = {
           ...cfg,
@@ -68,13 +80,16 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
         // Also call detectGameVersion to get the real version if not provided
         if (propGameVersion === undefined) {
-          window.api.detectGameVersion().then((version) => {
-            setLocalDetectedVersion(version)
-          }).catch(console.error)
+          window.api
+            .detectGameVersion()
+            .then((version) => {
+              setLocalDetectedVersion(version)
+            })
+            .catch(console.error)
         }
       })
     }
-  }, [propGameVersion, isOpen])
+  }, [loadConfig, propGameVersion, isOpen])
 
   // Handle save
   const handleSave = async () => {
@@ -88,21 +103,32 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
       }
     }
 
-    // Save all config changes
-    for (const [key, value] of Object.entries(tempConfig) as [keyof AppConfig, AppConfig[keyof AppConfig]][]) {
-      await window.api.setConfig(key, value)
-    }
+    try {
+      validateConfig(tempConfig)
 
-    // Save language to main process
-    if (tempConfig.app.language) {
-      await window.api.setLanguage(tempConfig.app.language)
-    }
+      // Save all config changes only after the full draft is valid.
+      for (const [key, value] of Object.entries(tempConfig) as [
+        keyof AppConfig,
+        AppConfig[keyof AppConfig]
+      ][]) {
+        await window.api.setConfig(key, value)
+      }
 
-    setConfig(tempConfig)
-    if (onConfigSaved) {
-      onConfigSaved(tempConfig)
+      // Save language to main process
+      if (tempConfig.app.language) {
+        await window.api.setLanguage(tempConfig.app.language)
+      }
+
+      setConfig(tempConfig)
+      setGlobalConfig(tempConfig)
+      if (onConfigSaved) {
+        onConfigSaved(tempConfig)
+      }
+      onClose()
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+      alert(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-    onClose()
   }
 
   // Handle cancel
@@ -128,7 +154,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         }
       }
 
-      updateTempConfig(prev => ({
+      updateTempConfig((prev) => ({
         ...prev,
         version: {
           ...prev.version,
@@ -150,7 +176,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Handle manual version change
   const handleManualVersionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVersion = e.target.value
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       version: {
         ...prev.version,
@@ -166,7 +192,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle version mismatch behavior change
   const handleVersionMismatchChange = (value: 'ask' | 'force' | 'skip') => {
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       version: {
         ...prev.version,
@@ -177,7 +203,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle dependency mode change
   const handleDependencyModeChange = (value: 'ask' | 'auto' | 'ignore') => {
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       download: {
         ...prev.download,
@@ -188,7 +214,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
 
   // Handle language change
   const handleLanguageChange = async (value: AppLanguage) => {
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       app: {
         ...prev.app,
@@ -203,7 +229,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   // Handle auto detect toggle
   const handleAutoDetectToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const autoDetect = e.target.checked
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       version: {
         ...prev.version,
@@ -228,7 +254,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
         properties: ['openFile']
       })
       if (filePath) {
-        updateTempConfig(prev => ({
+        updateTempConfig((prev) => ({
           ...prev,
           steamcmd: {
             ...prev.steamcmd,
@@ -244,7 +270,7 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     if (window.api) {
       const folderPath = await window.api.selectFolder()
       if (folderPath) {
-        updateTempConfig(prev => ({
+        updateTempConfig((prev) => ({
           ...prev,
           steamcmd: {
             ...prev.steamcmd,
@@ -255,13 +281,12 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
     }
   }
 
-  
   const getModsPaths = (): ModsPath[] => {
     return tempConfig?.rimworld?.modsPaths || []
   }
 
   const handleModsManagerSave = (paths: ModsPath[]) => {
-    updateTempConfig(prev => ({
+    updateTempConfig((prev) => ({
       ...prev,
       rimworld: {
         ...prev.rimworld,
@@ -275,449 +300,502 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
   }
 
   return (
-    <div data-testid="settings-panel" style={{
-      position: 'fixed',
-      top: 0,
-      right: isOpen ? '0' : '-400px',
-      width: '380px',
-      height: '100vh',
-      background: '#1b2838',
-      borderLeft: '1px solid #2a475e',
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'right 0.3s ease',
-      zIndex: 1000
-    }}>
-      <div style={{
-        flex: 1,
-        overflow: 'auto',
-        padding: '24px',
-        paddingBottom: '16px'
-      }}>
-      {/* Header */}
-      <div style={{
+    <div
+      data-testid="settings-panel"
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: isOpen ? '0' : '-400px',
+        width: '380px',
+        height: '100vh',
+        background: '#1b2838',
+        borderLeft: '1px solid #2a475e',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <h3 style={{ color: '#c6d4df', marginTop: 0, fontSize: '18px' }}>
-          ⚙️ {t('settings.title')}
-        </h3>
-        <button
-          onClick={onClose}
+        flexDirection: 'column',
+        transition: 'right 0.3s ease',
+        zIndex: 1000
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: '24px',
+          paddingBottom: '16px'
+        }}
+      >
+        {/* Header */}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#8f98a0',
-            fontSize: '20px',
-            cursor: 'pointer',
-            padding: '0',
-            width: '24px',
-            height: '24px',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#c6d4df')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#8f98a0')}
-        >
-          ×
-        </button>
-      </div>
-
-      {/* Language Selection */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          🌐 {t('settings.language')}
-        </h4>
-        <select
-          value={tempConfig.app?.language || 'system'}
-          onChange={(e) => handleLanguageChange(e.target.value as 'en' | 'zh-TW' | 'zh-CN' | 'system')}
-          style={{
-            width: '100%',
-            background: '#2a475e',
-            color: '#c6d4df',
-            border: '1px solid #3d6c8d',
-            padding: '8px 12px',
-            borderRadius: '3px',
-            fontSize: '13px',
-            cursor: 'pointer'
+            marginBottom: '24px'
           }}
         >
-          <option value="system">{t('settings.followSystem')}</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="zh-TW">繁體中文</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-
-      {/* SteamCMD Settings */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          {t('settings.steamcmdSettings')}
-        </h4>
-
-        {/* SteamCMD Executable Path */}
-        <div style={{ marginBottom: '12px' }}>
-          <label style={{
-            color: '#c6d4df',
-            fontSize: '13px',
-            display: 'block',
-            marginBottom: '8px'
-          }}>
-            {t('settings.steamcmdExePath')}:
-          </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={tempConfig.steamcmd?.executablePath || ''}
-              readOnly
-              placeholder={t('settings.selectSteamcmdExe')}
-              style={{
-                flex: 1,
-                background: '#2a475e',
-                color: tempConfig.steamcmd?.executablePath ? '#c6d4df' : '#8f98a0',
-                border: '1px solid #3d6c8d',
-                padding: '6px',
-                borderRadius: '3px',
-                fontSize: '12px',
-                cursor: 'not-allowed'
-              }}
-            />
-            <button
-              onClick={handleSelectSteamCMDExe}
-              style={{
-                background: '#3d6c8d',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                transition: 'background 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
-            >
-              {t('toolbar.browse')}
-            </button>
-          </div>
-        </div>
-
-        {/* SteamCMD Download Path */}
-        <div style={{ marginBottom: '12px' }}>
-          <label style={{
-            color: '#c6d4df',
-            fontSize: '13px',
-            display: 'block',
-            marginBottom: '8px'
-          }}>
-            {t('settings.steamcmdDownloadPath')}:
-          </label>
-          <div style={{
-            color: '#8f98a0',
-            fontSize: '11px',
-            marginBottom: '8px',
-            lineHeight: '1.5'
-          }}>
-            {t('settings.downloadPathHint')}<br/>
-            {t('settings.downloadPathHint2')}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={tempConfig.steamcmd?.downloadPath || ''}
-              readOnly
-              placeholder={t('settings.selectDownloadPath')}
-              style={{
-                flex: 1,
-                background: '#2a475e',
-                color: tempConfig.steamcmd?.downloadPath ? '#c6d4df' : '#8f98a0',
-                border: '1px solid #3d6c8d',
-                padding: '6px',
-                borderRadius: '3px',
-                fontSize: '12px',
-                cursor: 'not-allowed'
-              }}
-            />
-            <button
-              onClick={handleSelectSteamCMDDownloadPath}
-              style={{
-                background: '#3d6c8d',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                transition: 'background 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
-            >
-              {t('toolbar.browse')}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Game Version Settings */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          {t('settings.gameVersionSettings')}
-        </h4>
-
-        {/* Auto Detect */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          marginBottom: '12px',
-          gap: '8px'
-        }}>
-          <input
-            type="checkbox"
-            id="autoDetect"
-            checked={tempConfig.version?.autoDetect}
-            onChange={handleAutoDetectToggle}
-            style={{
-              width: '16px',
-              height: '16px',
-              cursor: 'pointer'
-            }}
-          />
-          <label
-            htmlFor="autoDetect"
+          <h3
             style={{
               color: '#c6d4df',
-              fontSize: '13px',
-              cursor: 'pointer'
+              marginTop: 0,
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}
           >
-            {t('settings.autoDetectVersion')}
-          </label>
-        </div>
-
-        {/* Detected Version */}
-        <div style={{
-          marginLeft: '24px',
-          marginBottom: '12px',
-          fontSize: '13px'
-        }}>
-          <span style={{ color: '#8f98a0' }}>{t('settings.detectedVersion')}: </span>
-          <span style={{ color: '#66c0f4', fontWeight: 500 }}>
-            {detectedVersion}
-          </span>
-        </div>
-
-        {/* Re-detect Button */}
-        <div style={{ marginLeft: '24px', marginBottom: '16px' }}>
+            <AppIcon name="settings" size={20} color="#66c0f4" />
+            {t('settings.title')}
+          </h3>
           <button
-            onClick={handleDetectVersion}
+            onClick={onClose}
             style={{
-              background: '#3d6c8d',
-              color: 'white',
+              background: 'none',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: '3px',
+              color: '#8f98a0',
+              fontSize: '20px',
               cursor: 'pointer',
-              fontSize: '13px',
-              transition: 'background 0.2s'
+              padding: '0',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#c6d4df')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#8f98a0')}
           >
-            {t('settings.reDetectVersion')}
+            <AppIcon name="close" size={18} />
           </button>
         </div>
 
-        {/* Manual Version */}
-        <div style={{ marginLeft: '24px' }}>
-          <label
-            htmlFor="manualVersion"
+        {/* Language Selection */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4
             style={{
-              color: '#c6d4df',
-              fontSize: '13px',
-              display: 'block',
-              marginBottom: '8px'
+              color: '#66c0f4',
+              fontSize: '14px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}
           >
-            {t('settings.manualVersion')}:
-          </label>
-          <input
-            type="text"
-            id="manualVersion"
-            value={tempConfig.version?.manualVersion}
-            onChange={handleManualVersionChange}
-            placeholder="1.6"
-            disabled={tempConfig.version?.autoDetect}
+            <AppIcon name="language" size={17} />
+            {t('settings.language')}
+          </h4>
+          <select
+            value={tempConfig.app?.language || 'system'}
+            onChange={(e) =>
+              handleLanguageChange(e.target.value as 'en' | 'zh-TW' | 'zh-CN' | 'system')
+            }
             style={{
-              width: '100px',
+              width: '100%',
               background: '#2a475e',
               color: '#c6d4df',
               border: '1px solid #3d6c8d',
-              padding: '6px',
+              padding: '8px 12px',
               borderRadius: '3px',
               fontSize: '13px',
-              cursor: tempConfig.version?.autoDetect ? 'not-allowed' : 'text'
+              cursor: 'pointer'
             }}
-          />
+          >
+            <option value="system">{t('settings.followSystem')}</option>
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+          </select>
         </div>
-      </div>
 
-      {/* Version Mismatch Behavior */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          {t('settings.versionMismatchBehavior')}
-        </h4>
+        {/* SteamCMD Settings */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+            {t('settings.steamcmdSettings')}
+          </h4>
 
-        <div style={{ marginLeft: '8px' }}>
-          {[
-            { value: 'ask', label: t('settings.ask') },
-            { value: 'force', label: t('settings.forceDownload') },
-            { value: 'skip', label: t('settings.skipDownload') }
-          ].map((option) => (
-            <div key={option.value} style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '8px',
-              gap: '8px'
-            }}>
+          {/* SteamCMD Executable Path */}
+          <div style={{ marginBottom: '12px' }}>
+            <label
+              style={{
+                color: '#c6d4df',
+                fontSize: '13px',
+                display: 'block',
+                marginBottom: '8px'
+              }}
+            >
+              {t('settings.steamcmdExePath')}:
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <input
-                type="radio"
-                id={`versionBehavior${option.value}`}
-                name="versionBehavior"
-                value={option.value}
-                checked={tempConfig.version?.onMismatch === option.value}
-                onChange={(e) => handleVersionMismatchChange(e.target.value as 'ask' | 'force' | 'skip')}
+                type="text"
+                value={tempConfig.steamcmd?.executablePath || ''}
+                readOnly
+                placeholder={t('settings.selectSteamcmdExe')}
                 style={{
-                  width: '16px',
-                  height: '16px',
-                  cursor: 'pointer'
+                  flex: 1,
+                  background: '#2a475e',
+                  color: tempConfig.steamcmd?.executablePath ? '#c6d4df' : '#8f98a0',
+                  border: '1px solid #3d6c8d',
+                  padding: '6px',
+                  borderRadius: '3px',
+                  fontSize: '12px',
+                  cursor: 'not-allowed'
                 }}
               />
-              <label
-                htmlFor={`versionBehavior${option.value}`}
+              <button
+                onClick={handleSelectSteamCMDExe}
                 style={{
-                  color: '#c6d4df',
+                  background: '#3d6c8d',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
                   fontSize: '13px',
-                  cursor: 'pointer'
+                  transition: 'background 0.2s',
+                  whiteSpace: 'nowrap'
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
               >
-                {option.label}
-              </label>
+                {t('toolbar.browse')}
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Mods 路径管理 */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          {t('settings.modsFolderManagement')}
-        </h4>
-
-        <p style={{
-          fontSize: '12px',
-          color: '#8f98a0',
-          marginBottom: '12px',
-          lineHeight: '1.5'
-        }}>
-          {t('settings.configuredPaths')}: {getModsPaths().length}, {t('settings.currentDefault')}:
-          <span style={{ color: '#66c0f4' }}>
-            {getModsPaths().find(p => p.isActive)?.name || t('settings.notSet')}
-          </span>
-        </p>
-
-        <button
-          onClick={() => setShowModsManager(true)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: '#3d6c8d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          <span>⚙️</span> {t('settings.manageModsFolders')}
-        </button>
-      </div>
-
-      {/* Mods 路径管理弹窗 */}
-      <ModsPathManagerDialog
-        isOpen={showModsManager}
-        onClose={() => setShowModsManager(false)}
-        modsPaths={getModsPaths()}
-        onSave={handleModsManagerSave}
-      />
-
-      {/* Dependency Handling */}
-      <div style={{ marginBottom: '24px' }}>
-        <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
-          {t('settings.dependencyHandling')}
-        </h4>
-
-        <div style={{ marginLeft: '8px' }}>
-          {[
-            { value: 'ask', label: t('settings.askDependencies') },
-            { value: 'auto', label: t('settings.autoDownload') },
-            { value: 'ignore', label: t('settings.ignoreDependencies') }
-          ].map((option) => (
-            <div key={option.value} style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '8px',
-              gap: '8px'
-            }}>
+          {/* SteamCMD Download Path */}
+          <div style={{ marginBottom: '12px' }}>
+            <label
+              style={{
+                color: '#c6d4df',
+                fontSize: '13px',
+                display: 'block',
+                marginBottom: '8px'
+              }}
+            >
+              {t('settings.steamcmdDownloadPath')}:
+            </label>
+            <div
+              style={{
+                color: '#8f98a0',
+                fontSize: '11px',
+                marginBottom: '8px',
+                lineHeight: '1.5'
+              }}
+            >
+              {t('settings.downloadPathHint')}
+              <br />
+              {t('settings.downloadPathHint2')}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <input
-                type="radio"
-                id={`dependencyMode${option.value}`}
-                name="dependencyMode"
-                value={option.value}
-                checked={tempConfig.download?.dependencyMode === option.value}
-                onChange={(e) => handleDependencyModeChange(e.target.value as 'ask' | 'auto' | 'ignore')}
+                type="text"
+                value={tempConfig.steamcmd?.downloadPath || ''}
+                readOnly
+                placeholder={t('settings.selectDownloadPath')}
                 style={{
-                  width: '16px',
-                  height: '16px',
-                  cursor: 'pointer'
+                  flex: 1,
+                  background: '#2a475e',
+                  color: tempConfig.steamcmd?.downloadPath ? '#c6d4df' : '#8f98a0',
+                  border: '1px solid #3d6c8d',
+                  padding: '6px',
+                  borderRadius: '3px',
+                  fontSize: '12px',
+                  cursor: 'not-allowed'
                 }}
               />
-              <label
-                htmlFor={`dependencyMode${option.value}`}
+              <button
+                onClick={handleSelectSteamCMDDownloadPath}
                 style={{
-                  color: '#c6d4df',
+                  background: '#3d6c8d',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
                   fontSize: '13px',
-                  cursor: 'pointer'
+                  transition: 'background 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+              >
+                {t('toolbar.browse')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Game Version Settings */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+            {t('settings.gameVersionSettings')}
+          </h4>
+
+          {/* Auto Detect */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '12px',
+              gap: '8px'
+            }}
+          >
+            <input
+              type="checkbox"
+              id="autoDetect"
+              checked={tempConfig.version?.autoDetect}
+              onChange={handleAutoDetectToggle}
+              style={{
+                width: '16px',
+                height: '16px',
+                cursor: 'pointer'
+              }}
+            />
+            <label
+              htmlFor="autoDetect"
+              style={{
+                color: '#c6d4df',
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              {t('settings.autoDetectVersion')}
+            </label>
+          </div>
+
+          {/* Detected Version */}
+          <div
+            style={{
+              marginLeft: '24px',
+              marginBottom: '12px',
+              fontSize: '13px'
+            }}
+          >
+            <span style={{ color: '#8f98a0' }}>{t('settings.detectedVersion')}: </span>
+            <span style={{ color: '#66c0f4', fontWeight: 500 }}>{detectedVersion}</span>
+          </div>
+
+          {/* Re-detect Button */}
+          <div style={{ marginLeft: '24px', marginBottom: '16px' }}>
+            <button
+              onClick={handleDetectVersion}
+              style={{
+                background: '#3d6c8d',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
+            >
+              {t('settings.reDetectVersion')}
+            </button>
+          </div>
+
+          {/* Manual Version */}
+          <div style={{ marginLeft: '24px' }}>
+            <label
+              htmlFor="manualVersion"
+              style={{
+                color: '#c6d4df',
+                fontSize: '13px',
+                display: 'block',
+                marginBottom: '8px'
+              }}
+            >
+              {t('settings.manualVersion')}:
+            </label>
+            <input
+              type="text"
+              id="manualVersion"
+              value={tempConfig.version?.manualVersion}
+              onChange={handleManualVersionChange}
+              placeholder="1.6"
+              disabled={tempConfig.version?.autoDetect}
+              style={{
+                width: '100px',
+                background: '#2a475e',
+                color: '#c6d4df',
+                border: '1px solid #3d6c8d',
+                padding: '6px',
+                borderRadius: '3px',
+                fontSize: '13px',
+                cursor: tempConfig.version?.autoDetect ? 'not-allowed' : 'text'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Version Mismatch Behavior */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+            {t('settings.versionMismatchBehavior')}
+          </h4>
+
+          <div style={{ marginLeft: '8px' }}>
+            {[
+              { value: 'ask', label: t('settings.ask') },
+              { value: 'force', label: t('settings.forceDownload') },
+              { value: 'skip', label: t('settings.skipDownload') }
+            ].map((option) => (
+              <div
+                key={option.value}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  gap: '8px'
                 }}
               >
-                {option.label}
-              </label>
-            </div>
-          ))}
+                <input
+                  type="radio"
+                  id={`versionBehavior${option.value}`}
+                  name="versionBehavior"
+                  value={option.value}
+                  checked={tempConfig.version?.onMismatch === option.value}
+                  onChange={(e) =>
+                    handleVersionMismatchChange(e.target.value as 'ask' | 'force' | 'skip')
+                  }
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <label
+                  htmlFor={`versionBehavior${option.value}`}
+                  style={{
+                    color: '#c6d4df',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {option.label}
+                </label>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
+        {/* Mods 路径管理 */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+            {t('settings.modsFolderManagement')}
+          </h4>
+
+          <p
+            style={{
+              fontSize: '12px',
+              color: '#8f98a0',
+              marginBottom: '12px',
+              lineHeight: '1.5'
+            }}
+          >
+            {t('settings.configuredPaths')}: {getModsPaths().length}, {t('settings.currentDefault')}
+            :
+            <span style={{ color: '#66c0f4' }}>
+              {getModsPaths().find((p) => p.isActive)?.name || t('settings.notSet')}
+            </span>
+          </p>
+
+          <button
+            onClick={() => setShowModsManager(true)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: '#3d6c8d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <AppIcon name="folder" size={18} />
+            {t('settings.manageModsFolders')}
+          </button>
+        </div>
+
+        {/* Mods 路径管理弹窗 */}
+        <ModsPathManagerDialog
+          isOpen={showModsManager}
+          onClose={() => setShowModsManager(false)}
+          modsPaths={getModsPaths()}
+          onSave={handleModsManagerSave}
+        />
+
+        {/* Dependency Handling */}
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ color: '#66c0f4', fontSize: '14px', marginBottom: '12px' }}>
+            {t('settings.dependencyHandling')}
+          </h4>
+
+          <div style={{ marginLeft: '8px' }}>
+            {[
+              { value: 'ask', label: t('settings.askDependencies') },
+              { value: 'auto', label: t('settings.autoDownload') },
+              { value: 'ignore', label: t('settings.ignoreDependencies') }
+            ].map((option) => (
+              <div
+                key={option.value}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  gap: '8px'
+                }}
+              >
+                <input
+                  type="radio"
+                  id={`dependencyMode${option.value}`}
+                  name="dependencyMode"
+                  value={option.value}
+                  checked={tempConfig.download?.dependencyMode === option.value}
+                  onChange={(e) =>
+                    handleDependencyModeChange(e.target.value as 'ask' | 'auto' | 'ignore')
+                  }
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                <label
+                  htmlFor={`dependencyMode${option.value}`}
+                  style={{
+                    color: '#c6d4df',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {option.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Buttons */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '16px 24px 24px',
-        borderTop: '1px solid #2a475e',
-        background: '#1b2838',
-        flexShrink: 0
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px 24px',
+          borderTop: '1px solid #2a475e',
+          background: '#1b2838',
+          flexShrink: 0
+        }}
+      >
         <button
           onClick={() => setShowResetWarning(true)}
           style={{
@@ -742,111 +820,127 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
           {t('settings.resetAllSettings')}
         </button>
 
-        <div style={{
-          display: 'flex',
-          gap: '8px'
-        }}>
-        <button
-          onClick={handleCancel}
+        <div
           style={{
-            background: '#2a475e',
-            color: '#c6d4df',
-            border: '1px solid #3d6c8d',
-            padding: '8px 16px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#3d6c8d'
-            e.currentTarget.style.color = 'white'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#2a475e'
-            e.currentTarget.style.color = '#c6d4df'
+            display: 'flex',
+            gap: '8px'
           }}
         >
-          {t('settings.cancel')}
-        </button>
+          <button
+            onClick={handleCancel}
+            style={{
+              background: '#2a475e',
+              color: '#c6d4df',
+              border: '1px solid #3d6c8d',
+              padding: '8px 16px',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#3d6c8d'
+              e.currentTarget.style.color = 'white'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#2a475e'
+              e.currentTarget.style.color = '#c6d4df'
+            }}
+          >
+            {t('settings.cancel')}
+          </button>
 
-        <button
-          onClick={handleSave}
-          style={{
-            background: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#45a049')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#4CAF50')}
-        >
-          {t('settings.saveSettings')}
-        </button>
+          <button
+            onClick={handleSave}
+            style={{
+              background: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#45a049')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#4CAF50')}
+          >
+            {t('settings.saveSettings')}
+          </button>
         </div>
       </div>
 
       {/* Reset Confirmation Dialog - Red Warning */}
       {showResetWarning && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: '#243447',
-            border: '2px solid #f44336',
-            borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 4px 20px rgba(244, 67, 54, 0.3)'
-          }}>
-            <h3 style={{
-              color: '#f44336',
-              margin: '0 0 16px 0',
-              fontSize: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              ⚠️ {t('settings.dangerOperationConfirm')}
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#243447',
+              border: '2px solid #f44336',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 4px 20px rgba(244, 67, 54, 0.3)'
+            }}
+          >
+            <h3
+              style={{
+                color: '#f44336',
+                margin: '0 0 16px 0',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <AppIcon name="warning" size={22} />
+              {t('settings.dangerOperationConfirm')}
             </h3>
-            <p style={{
-              color: '#c6d4df',
-              margin: '0 0 20px 0',
-              lineHeight: 1.5
-            }}>
-              {t('settings.resetWarning')}<br/>
+            <p
+              style={{
+                color: '#c6d4df',
+                margin: '0 0 20px 0',
+                lineHeight: 1.5
+              }}
+            >
+              {t('settings.resetWarning')}
+              <br />
               {t('settings.resetWillReset')}:
             </p>
-            <ul style={{
-              color: '#8f98a0',
-              margin: '0 0 20px 0',
-              paddingLeft: '20px',
-              lineHeight: 1.8
-            }}>
+            <ul
+              style={{
+                color: '#8f98a0',
+                margin: '0 0 20px 0',
+                paddingLeft: '20px',
+                lineHeight: 1.8
+              }}
+            >
               <li>{t('settings.steamcmdPaths')}</li>
               <li>{t('settings.rimworldPaths')}</li>
               <li>{t('settings.downloadSettings')}</li>
               <li>{t('settings.versionCheckSettings')}</li>
             </ul>
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end'
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}
+            >
               <button
                 onClick={() => setShowResetWarning(false)}
                 style={{
@@ -873,14 +967,25 @@ export function SettingsPanel({ isOpen, onClose, gameVersion: propGameVersion, o
               <button
                 onClick={async () => {
                   if (window.api) {
-                    await window.api.resetConfig()
-                    // Reload config after reset
-                    const newConfig = await window.api.getConfig()
-                    setConfig(newConfig)
-                    setTempConfig({ ...newConfig })
-                    // Notify parent component
-                    if (onConfigSaved) {
-                      onConfigSaved(newConfig)
+                    try {
+                      await window.api.resetConfig()
+                      // Reload config after reset
+                      const newConfig = await loadConfig()
+                      if (newConfig) {
+                        setConfig(newConfig)
+                        setTempConfig({ ...newConfig })
+                        setGlobalConfig(newConfig)
+                        // Notify parent component
+                        if (onConfigSaved) {
+                          onConfigSaved(newConfig)
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Failed to reset settings:', error)
+                      alert(
+                        `Failed to reset settings: ${error instanceof Error ? error.message : 'Unknown error'}`
+                      )
+                      return
                     }
                   }
                   setShowResetWarning(false)

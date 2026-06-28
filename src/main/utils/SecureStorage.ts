@@ -23,8 +23,7 @@ export class SecureStorageError extends Error {
 export function encryptSecret(plaintext: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new SecureStorageError(
-      'OS-level encryption is not available. ' +
-        'Cannot securely store credentials on this system.'
+      'OS-level encryption is not available. ' + 'Cannot securely store credentials on this system.'
     )
   }
   const encrypted = safeStorage.encryptString(plaintext)
@@ -54,7 +53,7 @@ export function decryptSecret(encryptedValue: string): string | null {
 
 /**
  * Check if a string was encrypted by our SecureStorage.
- * Reliable prefix check — no heuristics.
+ * Reliable prefix check; no heuristics.
  */
 export function isEncryptedBlob(value: string): boolean {
   return value.startsWith(ENCRYPTED_PREFIX)

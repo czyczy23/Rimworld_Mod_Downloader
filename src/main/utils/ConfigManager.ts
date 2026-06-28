@@ -115,7 +115,10 @@ class ConfigManager {
       try {
         unlinkSync(configPath)
       } catch (error) {
-        logger.warn('[ConfigManager] Could not remove old config file (clearInvalidConfig will handle):', error)
+        logger.warn(
+          '[ConfigManager] Could not remove old config file (clearInvalidConfig will handle):',
+          error
+        )
       }
 
       // Write decrypted values to the new store (no encryption key)
@@ -131,14 +134,17 @@ class ConfigManager {
             githubToken: encryptSecret(gitConfig.githubToken)
           })
         } catch (error) {
-          // safeStorage unavailable — keep token as-is rather than losing it
-          logger.warn('[ConfigManager] safeStorage unavailable, GitHub token stored unencrypted:', error)
+          // safeStorage unavailable; keep token as-is rather than losing it
+          logger.warn(
+            '[ConfigManager] safeStorage unavailable, GitHub token stored unencrypted:',
+            error
+          )
         }
       }
 
       logger.info('[ConfigManager] Migrated config from legacy encrypted format')
     } catch {
-      // Migration failed — the backup file still exists for manual recovery
+      // Migration failed; the backup file still exists for manual recovery
       logger.warn('[ConfigManager] Legacy config migration failed. Backup at:', backupPath)
       return
     }
@@ -156,19 +162,31 @@ class ConfigManager {
   get<K extends keyof AppConfig>(key: K): AppConfig[K]
   get<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
     if (key === undefined) {
-      const config = this.store.store
-      return { ...config, git: this.decryptGitToken(config.git) }
+      return this.store.store
+    }
+
+    return this.store.get(key)
+  }
+
+  getForRenderer(): AppConfig
+  getForRenderer<K extends keyof AppConfig>(key: K): AppConfig[K]
+  getForRenderer<K extends keyof AppConfig>(key?: K): AppConfig | AppConfig[K] {
+    if (key === undefined) {
+      return this.redactGitToken(this.store.store)
     }
 
     const value = this.store.get(key)
-    // Transparently decrypt sensitive fields
     if (key === 'git') {
-      return this.decryptGitToken(value as AppConfig['git']) as AppConfig[K]
+      return this.redactGitToken(value as AppConfig['git']) as AppConfig[K]
     }
     return value
   }
 
-  // Set config value — encrypts sensitive fields before persisting
+  getDecryptedGitConfig(): AppConfig['git'] {
+    return this.decryptGitToken(this.store.get('git'))
+  }
+
+  // Set config value; encrypts sensitive fields before persisting
   set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
     if (key === 'git') {
       const gitVal = value as AppConfig['git']
@@ -185,21 +203,60 @@ class ConfigManager {
       if (decrypted !== null) {
         return { ...gitConfig, githubToken: decrypted }
       }
-      // Decryption failed — warn and return as-is rather than losing the reference
-      logger.warn('[ConfigManager] Failed to decrypt githubToken — returning encrypted blob as-is')
+      // Decryption failed; warn and return as-is rather than losing the reference
+      logger.warn('[ConfigManager] Failed to decrypt githubToken; returning encrypted blob as-is')
     }
     return gitConfig
   }
 
+  private redactGitToken(config: AppConfig): AppConfig
+  private redactGitToken(gitConfig: AppConfig['git']): AppConfig['git']
+  private redactGitToken(configOrGit: AppConfig | AppConfig['git']): AppConfig | AppConfig['git'] {
+    if ('git' in configOrGit) {
+      return {
+        ...configOrGit,
+        git: this.redactGitToken(configOrGit.git)
+      }
+    }
+
+    const { githubToken, ...gitConfig } = configOrGit
+    if (!githubToken) {
+      return {
+        ...gitConfig,
+        hasToken: false,
+        tokenPreview: undefined
+      }
+    }
+
+    const token = isEncryptedBlob(githubToken) ? decryptSecret(githubToken) : githubToken
+    return {
+      ...gitConfig,
+      hasToken: true,
+      tokenPreview: token ? this.maskToken(token) : 'stored token'
+    }
+  }
+
+  private maskToken(token: string): string {
+    if (token.length <= 8) {
+      return '****'
+    }
+
+    return `${token.slice(0, 4)}****${token.slice(-4)}`
+  }
+
   private encryptGitToken(gitConfig: AppConfig['git']): AppConfig['git'] {
-    if (!gitConfig?.githubToken) return gitConfig
+    const { hasToken: _hasToken, tokenPreview: _tokenPreview, ...persistableGitConfig } = gitConfig
+    if (!persistableGitConfig.githubToken) return persistableGitConfig
     // Don't re-encrypt if already encrypted
-    if (isEncryptedBlob(gitConfig.githubToken)) return gitConfig
+    if (isEncryptedBlob(persistableGitConfig.githubToken)) return persistableGitConfig
     try {
-      return { ...gitConfig, githubToken: encryptSecret(gitConfig.githubToken) }
+      return {
+        ...persistableGitConfig,
+        githubToken: encryptSecret(persistableGitConfig.githubToken)
+      }
     } catch {
-      // safeStorage unavailable — store as-is
-      return gitConfig
+      // safeStorage unavailable; store as-is
+      return persistableGitConfig
     }
   }
 

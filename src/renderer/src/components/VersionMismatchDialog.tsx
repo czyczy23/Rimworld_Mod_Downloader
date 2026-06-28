@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AppIcon } from './AppIcon'
 
 interface VersionMismatchDialogProps {
   isOpen: boolean
@@ -32,134 +33,174 @@ export function VersionMismatchDialog({
     onConfirm(dontAskAgain, 'force')
   }
 
-  const forceButtonText = actionType === 'download' ? t('versionMismatchDialog.forceDownload') : t('versionMismatchDialog.forceAdd')
-  const skipButtonText = actionType === 'download' ? t('versionMismatchDialog.skip') : t('versionMismatchDialog.cancel')
-  const warningText = actionType === 'download'
-    ? t('versionMismatchDialog.forceDownloadWarning')
-    : t('versionMismatchDialog.forceAddWarning')
-  const rememberForceText = actionType === 'download'
-    ? t('versionMismatchDialog.alwaysForceDownload')
-    : t('versionMismatchDialog.alwaysForceAdd')
-  const rememberSkipText = actionType === 'download'
-    ? t('versionMismatchDialog.alwaysSkipDownload')
-    : t('versionMismatchDialog.alwaysCancelAdd')
+  const forceButtonText =
+    actionType === 'download'
+      ? t('versionMismatchDialog.forceDownload')
+      : t('versionMismatchDialog.forceAdd')
+  const skipButtonText =
+    actionType === 'download' ? t('versionMismatchDialog.skip') : t('versionMismatchDialog.cancel')
+  const warningText =
+    actionType === 'download'
+      ? t('versionMismatchDialog.forceDownloadWarning')
+      : t('versionMismatchDialog.forceAddWarning')
+  const rememberForceText =
+    actionType === 'download'
+      ? t('versionMismatchDialog.alwaysForceDownload')
+      : t('versionMismatchDialog.alwaysForceAdd')
+  const rememberSkipText =
+    actionType === 'download'
+      ? t('versionMismatchDialog.alwaysSkipDownload')
+      : t('versionMismatchDialog.alwaysCancelAdd')
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }}>
-      <div style={{
-        background: '#1b2838',
-        borderRadius: '6px',
-        border: '1px solid #2a475e',
-        width: '100%',
-        maxWidth: '450px',
-        overflow: 'hidden',
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
         display: 'flex',
-        flexDirection: 'column'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid #2a475e',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}
+    >
+      <div
+        style={{
+          background: '#1b2838',
+          borderRadius: '6px',
+          border: '1px solid #2a475e',
+          width: '100%',
+          maxWidth: '450px',
+          overflow: 'hidden',
           display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '24px' }}>⚠️</span>
-          <h3 style={{
-            color: '#c6d4df',
-            margin: 0,
-            fontSize: '16px',
-            fontWeight: 500
-          }}>
+          flexDirection: 'column'
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid #2a475e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}
+        >
+          <AppIcon name="warning" size={24} color="#e6b800" />
+          <h3
+            style={{
+              color: '#c6d4df',
+              margin: 0,
+              fontSize: '16px',
+              fontWeight: 500
+            }}
+          >
             {t('versionMismatchDialog.title')}
           </h3>
         </div>
 
         {/* Body */}
         <div style={{ padding: '20px' }}>
-          <p style={{
-            color: '#c6d4df',
-            fontSize: '14px',
-            marginBottom: '16px',
-            lineHeight: 1.5
-          }}>
-            {t('versionMismatchDialog.mayNotBeCompatible')} <strong style={{ color: '#66c0f4' }}>{modName}</strong>
+          <p
+            style={{
+              color: '#c6d4df',
+              fontSize: '14px',
+              marginBottom: '16px',
+              lineHeight: 1.5
+            }}
+          >
+            {t('versionMismatchDialog.mayNotBeCompatible')}{' '}
+            <strong style={{ color: '#66c0f4' }}>{modName}</strong>
           </p>
 
           {/* Version Comparison */}
-          <div style={{
-            background: '#171a21',
-            borderRadius: '4px',
-            border: '1px solid #2a475e',
-            padding: '16px',
-            marginBottom: '16px'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginBottom: '8px'
-            }}>
-              <span style={{ color: '#8f98a0', fontSize: '13px' }}>{t('versionMismatchDialog.yourGameVersion')}:</span>
-              <span style={{ color: '#e6b800', fontSize: '13px', fontWeight: 500 }}>{gameVersion}</span>
+          <div
+            style={{
+              background: '#171a21',
+              borderRadius: '4px',
+              border: '1px solid #2a475e',
+              padding: '16px',
+              marginBottom: '16px'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '8px'
+              }}
+            >
+              <span style={{ color: '#8f98a0', fontSize: '13px' }}>
+                {t('versionMismatchDialog.yourGameVersion')}:
+              </span>
+              <span style={{ color: '#e6b800', fontSize: '13px', fontWeight: 500 }}>
+                {gameVersion}
+              </span>
             </div>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between'
-            }}>
-              <span style={{ color: '#8f98a0', fontSize: '13px' }}>{t('versionMismatchDialog.modSupportedVersions')}:</span>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}
+            >
+              <span style={{ color: '#8f98a0', fontSize: '13px' }}>
+                {t('versionMismatchDialog.modSupportedVersions')}:
+              </span>
               <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
-                {modVersions.length > 0 ? modVersions.join(', ') : t('versionMismatchDialog.notSpecified')}
+                {modVersions.length > 0
+                  ? modVersions.join(', ')
+                  : t('versionMismatchDialog.notSpecified')}
               </span>
             </div>
           </div>
 
           {/* Warning Message */}
-          <div style={{
-            background: 'rgba(230, 184, 0, 0.1)',
-            border: '1px solid rgba(230, 184, 0, 0.3)',
-            borderRadius: '4px',
-            padding: '12px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            marginBottom: '16px'
-          }}>
-            <span>💡</span>
-            <p style={{
-              color: '#e6b800',
-              fontSize: '12px',
-              margin: 0,
-              lineHeight: 1.4
-            }}>
+          <div
+            style={{
+              background: 'rgba(230, 184, 0, 0.1)',
+              border: '1px solid rgba(230, 184, 0, 0.3)',
+              borderRadius: '4px',
+              padding: '12px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              marginBottom: '16px'
+            }}
+          >
+            <AppIcon name="hint" size={18} color="#e6b800" />
+            <p
+              style={{
+                color: '#e6b800',
+                fontSize: '12px',
+                margin: 0,
+                lineHeight: 1.4
+              }}
+            >
               {warningText}
             </p>
           </div>
 
           {/* Remember choice options */}
-          <div style={{
-            background: '#243447',
-            borderRadius: '4px',
-            padding: '12px',
-            marginBottom: '8px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '12px'
-            }}>
+          <div
+            style={{
+              background: '#243447',
+              borderRadius: '4px',
+              padding: '12px',
+              marginBottom: '8px'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px'
+              }}
+            >
               <input
                 type="checkbox"
                 id="dontAskAgain"
@@ -185,12 +226,14 @@ export function VersionMismatchDialog({
             </div>
 
             {dontAskAgain && (
-              <div style={{
-                marginLeft: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}>
+              <div
+                style={{
+                  marginLeft: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="radio"
@@ -249,13 +292,15 @@ export function VersionMismatchDialog({
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '16px 20px',
-          borderTop: '1px solid #2a475e',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '12px'
-        }}>
+        <div
+          style={{
+            padding: '16px 20px',
+            borderTop: '1px solid #2a475e',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px'
+          }}
+        >
           <button
             onClick={handleSkip}
             style={{

@@ -4,7 +4,12 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import { configManager } from '../utils/ConfigManager'
 import logger from '../utils/logger'
-import { RIMWORLD_APP_ID, STEAM_LOGIN, STEAMCMD_TIMEOUT_MS, STEAMCMD_GRACE_MS } from '../../shared/constants'
+import {
+  RIMWORLD_APP_ID,
+  STEAM_LOGIN,
+  STEAMCMD_TIMEOUT_MS,
+  STEAMCMD_GRACE_MS
+} from '../../shared/constants'
 
 const MOD_ID_PATTERN = /^\d+$/
 const PROGRESS_REGEX = /Downloading update \((\d+) of (\d+)\)/
@@ -36,17 +41,13 @@ export class SteamCMDError extends Error {
   }
 }
 
-// ─── Pure helper functions (easily testable without mocking) ───────────────
+// Pure helper functions (easily testable without mocking)
 
 /**
  * Build SteamCMD command-line arguments for downloading a workshop item.
  */
 export function buildArgs(modId: string): string[] {
-  return [
-    '+login', STEAM_LOGIN,
-    '+workshop_download_item', RIMWORLD_APP_ID, modId,
-    '+quit'
-  ]
+  return ['+login', STEAM_LOGIN, '+workshop_download_item', RIMWORLD_APP_ID, modId, '+quit']
 }
 
 export interface ParsedLine {
@@ -58,7 +59,7 @@ export interface ParsedLine {
 
 /**
  * Parse a single line of SteamCMD stdout for progress or success indicators.
- * Pure function — no side effects, no I/O.
+ * Pure function; no side effects, no I/O.
  */
 export function parseProgressLine(line: string): ParsedLine {
   const trimmed = line.trim()
@@ -66,8 +67,10 @@ export function parseProgressLine(line: string): ParsedLine {
 
   // Check success indicators BEFORE progress regex
   // (0 of 0) would match progress regex but actually means "already up to date"
-  if (trimmed.includes('Success. Downloaded item') ||
-      trimmed.includes('Downloading update (0 of 0)')) {
+  if (
+    trimmed.includes('Success. Downloaded item') ||
+    trimmed.includes('Downloading update (0 of 0)')
+  ) {
     return { type: 'success' }
   }
 
@@ -93,16 +96,15 @@ export interface DetermineResultInput {
 /**
  * Determine whether a SteamCMD download succeeded.
  * Primary check: exit code 0 + file exists on disk.
- * Pure function (except existsSync call) — easy to test with real dirs.
+ * Pure function (except existsSync call); easy to test with real dirs.
  */
 export function determineResult(input: DetermineResultInput): SteamCMDResult {
   const { exitCode, stdout, stderr, modId, downloadPath } = input
   const modPath = join(downloadPath, modId)
   const fileExists = existsSync(modPath)
 
-  const hasErrorIndicator = stdout.includes('ERROR') ||
-                             stdout.includes('Failure') ||
-                             stderr.includes('ERROR')
+  const hasErrorIndicator =
+    stdout.includes('ERROR') || stdout.includes('Failure') || stderr.includes('ERROR')
 
   if (exitCode === 0 && fileExists && !hasErrorIndicator) {
     return { success: true, modId, downloadPath: modPath }
@@ -122,7 +124,7 @@ export function determineResult(input: DetermineResultInput): SteamCMDResult {
   return { success: false, modId, error: errorMessage }
 }
 
-// ─── SteamCMD class ───────────────────────────────────────────────────────
+// SteamCMD class
 
 export class SteamCMD extends EventEmitter {
   private timeout: number = STEAMCMD_TIMEOUT_MS
@@ -165,14 +167,17 @@ export class SteamCMD extends EventEmitter {
     }
 
     this.emit('progress', {
-      modId, stage: 'connecting', percent: 0, message: 'Connecting to Steam...'
+      modId,
+      stage: 'connecting',
+      percent: 0,
+      message: 'Connecting to Steam...'
     } as DownloadProgress)
 
     return new Promise((resolve) => {
       const args = buildArgs(modId)
       logger.info(`[SteamCMD] Starting download for mod ${modId}`)
 
-      // Remove spawn's built-in timeout — we handle it ourselves
+      // Remove spawn's built-in timeout; we handle it ourselves
       const proc = spawn(executablePath, args, { windowsHide: true })
 
       let stdout = ''
@@ -185,7 +190,8 @@ export class SteamCMD extends EventEmitter {
           const parsed = parseProgressLine(line)
           if (parsed.type === 'progress' && parsed.percent != null) {
             this.emit('progress', {
-              modId, stage: 'downloading',
+              modId,
+              stage: 'downloading',
               percent: parsed.percent,
               current: parsed.current,
               total: parsed.total,
@@ -201,7 +207,13 @@ export class SteamCMD extends EventEmitter {
 
       const onDone = () => {
         clearTimeout(timeoutId)
-        const result = determineResult({ exitCode: proc.exitCode, stdout, stderr, modId, downloadPath })
+        const result = determineResult({
+          exitCode: proc.exitCode,
+          stdout,
+          stderr,
+          modId,
+          downloadPath
+        })
 
         this.emit('progress', {
           modId,
@@ -218,7 +230,12 @@ export class SteamCMD extends EventEmitter {
       proc.on('error', (error: Error) => {
         clearTimeout(timeoutId)
         const msg = `Failed to start SteamCMD: ${error.message}`
-        this.emit('progress', { modId, stage: 'error', percent: 0, message: msg } as DownloadProgress)
+        this.emit('progress', {
+          modId,
+          stage: 'error',
+          percent: 0,
+          message: msg
+        } as DownloadProgress)
         resolve({ success: false, modId, error: msg })
       })
 
@@ -228,7 +245,12 @@ export class SteamCMD extends EventEmitter {
         gracefulKill(proc)
 
         const msg = 'Download timeout after 5 minutes'
-        this.emit('progress', { modId, stage: 'error', percent: 0, message: msg } as DownloadProgress)
+        this.emit('progress', {
+          modId,
+          stage: 'error',
+          percent: 0,
+          message: msg
+        } as DownloadProgress)
         resolve({ success: false, modId, error: msg })
       }, this.timeout)
     })
@@ -240,13 +262,23 @@ export class SteamCMD extends EventEmitter {
  */
 function gracefulKill(proc: ChildProcess): void {
   let exited = false
-  proc.once('exit', () => { exited = true })
+  proc.once('exit', () => {
+    exited = true
+  })
 
-  try { proc.kill('SIGTERM') } catch {}
+  try {
+    proc.kill('SIGTERM')
+  } catch {
+    // Process may already have exited.
+  }
 
   setTimeout(() => {
     if (!exited && !proc.killed) {
-      try { proc.kill('SIGKILL') } catch {}
+      try {
+        proc.kill('SIGKILL')
+      } catch {
+        // Process may have exited during the grace period.
+      }
     }
   }, STEAMCMD_GRACE_MS)
 }

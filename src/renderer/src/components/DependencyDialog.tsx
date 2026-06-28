@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dependency } from '../../../shared/types'
+import { AppIcon } from './AppIcon'
 
 interface DependencyDialogProps {
   isOpen: boolean
@@ -10,76 +11,90 @@ interface DependencyDialogProps {
   onCancel: () => void
 }
 
-export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onCancel }: DependencyDialogProps) {
+export function DependencyDialog({
+  isOpen,
+  modName,
+  dependencies,
+  onConfirm,
+  onCancel
+}: DependencyDialogProps) {
   const { t } = useTranslation()
   const [selectedDeps, setSelectedDeps] = useState<Dependency[]>(
-    dependencies.map(dep => ({ ...dep, willDownload: true }))
+    dependencies.map((dep) => ({ ...dep, willDownload: true }))
   )
 
   // Handle checkbox toggle
   const handleToggle = (depId: string) => {
-    setSelectedDeps(prev => prev.map(dep =>
-      dep.id === depId ? { ...dep, willDownload: !dep.willDownload } : dep
-    ))
+    setSelectedDeps((prev) =>
+      prev.map((dep) => (dep.id === depId ? { ...dep, willDownload: !dep.willDownload } : dep))
+    )
   }
 
   // Select all
   const handleSelectAll = () => {
-    setSelectedDeps(prev => prev.map(dep => ({ ...dep, willDownload: true })))
+    setSelectedDeps((prev) => prev.map((dep) => ({ ...dep, willDownload: true })))
   }
 
   // Select none
   const handleSelectNone = () => {
-    setSelectedDeps(prev => prev.map(dep => ({ ...dep, willDownload: false })))
+    setSelectedDeps((prev) => prev.map((dep) => ({ ...dep, willDownload: false })))
   }
 
   // Handle confirm
   const handleConfirm = () => {
-    const selectedIds = selectedDeps.filter(dep => dep.willDownload).map(dep => dep.id)
+    const selectedIds = selectedDeps.filter((dep) => dep.willDownload).map((dep) => dep.id)
     onConfirm(selectedIds)
   }
 
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }}>
-      <div style={{
-        background: '#1b2838',
-        borderRadius: '6px',
-        border: '1px solid #2a475e',
-        width: '100%',
-        maxWidth: '500px',
-        maxHeight: '80vh',
-        overflow: 'hidden',
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
         display: 'flex',
-        flexDirection: 'column'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid #2a475e',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}
+    >
+      <div
+        style={{
+          background: '#1b2838',
+          borderRadius: '6px',
+          border: '1px solid #2a475e',
+          width: '100%',
+          maxWidth: '500px',
+          maxHeight: '80vh',
+          overflow: 'hidden',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h3 style={{
-            color: '#c6d4df',
-            margin: 0,
-            fontSize: '16px',
-            fontWeight: 500
-          }}>
+          flexDirection: 'column'
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid #2a475e',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h3
+            style={{
+              color: '#c6d4df',
+              margin: 0,
+              fontSize: '16px',
+              fontWeight: 500
+            }}
+          >
             {t('dependencyDialog.title')}
           </h3>
           <button
@@ -96,46 +111,59 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
-            }}>
-            ×
+            }}
+          >
+            <AppIcon name="close" size={18} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{
-          padding: '20px',
-          overflowY: 'auto',
-          flex: 1
-        }}>
-          <p style={{
-            color: '#8f98a0',
-            fontSize: '14px',
-            marginBottom: '16px'
-          }}>
-            {t('dependencyDialog.requiresDependencies')} <strong style={{ color: '#66c0f4' }}>{modName}</strong>
+        <div
+          style={{
+            padding: '20px',
+            overflowY: 'auto',
+            flex: 1
+          }}
+        >
+          <p
+            style={{
+              color: '#8f98a0',
+              fontSize: '14px',
+              marginBottom: '16px'
+            }}
+          >
+            {t('dependencyDialog.requiresDependencies')}{' '}
+            <strong style={{ color: '#66c0f4' }}>{modName}</strong>
           </p>
 
           {/* Dependencies list */}
-          <div style={{
-            background: '#171a21',
-            borderRadius: '4px',
-            border: '1px solid #2a475e',
-            padding: '12px',
-            marginBottom: '16px'
-          }}>
+          <div
+            style={{
+              background: '#171a21',
+              borderRadius: '4px',
+              border: '1px solid #2a475e',
+              padding: '12px',
+              marginBottom: '16px'
+            }}
+          >
             {selectedDeps.length === 0 ? (
-              <p style={{ color: '#8f98a0', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
+              <p
+                style={{ color: '#8f98a0', fontSize: '14px', textAlign: 'center', padding: '20px' }}
+              >
                 {t('dependencyDialog.noDependencies')}
               </p>
             ) : (
-              selectedDeps.map(dep => (
-                <div key={dep.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '8px 0',
-                  borderBottom: '1px solid #2a475e'
-                }}>
+              selectedDeps.map((dep) => (
+                <div
+                  key={dep.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #2a475e'
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={dep.willDownload}
@@ -147,11 +175,13 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                       accentColor: '#4CAF50'
                     }}
                   />
-                  <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
                     <span style={{ color: '#c6d4df', fontSize: '14px', fontWeight: 500 }}>
                       {dep.name}
                     </span>
@@ -160,13 +190,15 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                     </span>
                   </div>
                   {dep.isOptional && (
-                    <span style={{
-                      background: '#3d6c8d',
-                      color: 'white',
-                      fontSize: '11px',
-                      padding: '2px 6px',
-                      borderRadius: '3px'
-                    }}>
+                    <span
+                      style={{
+                        background: '#3d6c8d',
+                        color: 'white',
+                        fontSize: '11px',
+                        padding: '2px 6px',
+                        borderRadius: '3px'
+                      }}
+                    >
                       {t('dependencyDialog.optional')}
                     </span>
                   )}
@@ -176,11 +208,13 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
           </div>
 
           {/* Action buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            justifyContent: 'flex-end'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              justifyContent: 'flex-end'
+            }}
+          >
             <button
               onClick={handleSelectNone}
               style={{
@@ -191,7 +225,8 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                 borderRadius: '3px',
                 cursor: 'pointer',
                 fontSize: '12px'
-              }}>
+              }}
+            >
               {t('dependencyDialog.cancelAll')}
             </button>
             <button
@@ -204,20 +239,23 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
                 borderRadius: '3px',
                 cursor: 'pointer',
                 fontSize: '12px'
-              }}>
+              }}
+            >
               {t('dependencyDialog.selectAll')}
             </button>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '16px 20px',
-          borderTop: '1px solid #2a475e',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '12px'
-        }}>
+        <div
+          style={{
+            padding: '16px 20px',
+            borderTop: '1px solid #2a475e',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px'
+          }}
+        >
           <button
             onClick={onCancel}
             style={{
@@ -228,7 +266,8 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
               borderRadius: '3px',
               cursor: 'pointer',
               fontSize: '13px'
-            }}>
+            }}
+          >
             {t('dependencyDialog.cancel')}
           </button>
           <button
@@ -242,7 +281,8 @@ export function DependencyDialog({ isOpen, modName, dependencies, onConfirm, onC
               cursor: 'pointer',
               fontSize: '13px',
               fontWeight: 500
-            }}>
+            }}
+          >
             {t('dependencyDialog.downloadSelected')}
           </button>
         </div>

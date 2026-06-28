@@ -1,17 +1,67 @@
 import { describe, it, expect } from 'vitest'
-import { validateConfigValue } from '../configSchema'
+import { validateConfig, validateConfigValue } from '../configSchema'
 import { resolve } from 'path'
+import type { AppConfig } from '../types'
 
 // Platform-appropriate absolute paths (resolve() produces Windows or Linux paths).
 const VALID_EXE = resolve('steamcmd', 'steamcmd.exe')
-const VALID_DL  = resolve('steamcmd', 'steamapps')
+const VALID_DL = resolve('steamcmd', 'steamapps')
 
-// Build a path that is absolute AND contains '..' — use string concat because
+// Build a path that is absolute AND contains '..'; use string concat because
 // path.join() would resolve the '..' away and the assertion would never match.
 const SEP = process.platform === 'win32' ? '\\' : '/'
 const TRAVERSAL = resolve('safe') + SEP + '..' + SEP + '..' + SEP + 'evil'
 
+const VALID_CONFIG: AppConfig = {
+  firstRunCompleted: true,
+  app: {
+    language: 'system'
+  },
+  steamcmd: {
+    executablePath: VALID_EXE,
+    downloadPath: VALID_DL
+  },
+  rimworld: {
+    currentVersion: '1.5',
+    modsPaths: [],
+    autoCheckUpdates: true
+  },
+  download: {
+    autoDownloadDependencies: false,
+    skipVersionCheck: false,
+    extractCollectionToSubfolder: true,
+    dependencyMode: 'ask'
+  },
+  version: {
+    autoDetect: true,
+    manualVersion: '',
+    onMismatch: 'ask'
+  },
+  git: {
+    enabled: false,
+    autoCommit: false
+  }
+}
+
 describe('configSchema', () => {
+  describe('full config validation', () => {
+    it('should accept a valid full config', () => {
+      expect(() => validateConfig(VALID_CONFIG)).not.toThrow()
+    })
+
+    it('should reject invalid nested sections before persistence begins', () => {
+      expect(() =>
+        validateConfig({
+          ...VALID_CONFIG,
+          version: {
+            ...VALID_CONFIG.version,
+            onMismatch: 'invalid' as AppConfig['version']['onMismatch']
+          }
+        })
+      ).toThrow('version.onMismatch')
+    })
+  })
+
   describe('steamcmd validation', () => {
     it('should accept valid steamcmd config', () => {
       expect(() =>
@@ -77,10 +127,30 @@ describe('configSchema', () => {
       ).not.toThrow()
     })
 
-    it('should reject non-boolean enabled', () => {
+    it('should accept renderer-safe git token metadata', () => {
       expect(() =>
-        validateConfigValue('git', { enabled: 'yes', autoCommit: true })
-      ).toThrow()
+        validateConfigValue('git', {
+          enabled: true,
+          autoCommit: false,
+          hasToken: true,
+          tokenPreview: 'ghp_****c123',
+          remoteUrl: 'https://github.com/example/repo.git'
+        })
+      ).not.toThrow()
+    })
+
+    it('should reject non-boolean enabled', () => {
+      expect(() => validateConfigValue('git', { enabled: 'yes', autoCommit: true })).toThrow()
+    })
+
+    it('should reject malformed renderer-safe git token metadata', () => {
+      expect(() =>
+        validateConfigValue('git', {
+          enabled: true,
+          autoCommit: false,
+          hasToken: 'yes'
+        })
+      ).toThrow('git.hasToken')
     })
   })
 

@@ -13,22 +13,22 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: 'coverage/unit',
       reporter: ['text', 'json-summary', 'html', 'lcov'],
-      // Only measure coverage for files we actually test. Renderer
-      // components, the main entry, preload, and AutoUpdater have no
-      // unit tests yet — including them tanks the aggregate to ~22%,
-      // which is not a meaningful signal. Narrow the scope so the
-      // threshold reflects real test coverage of tested modules.
-      include: [
-        'src/main/services/**/*.ts',
-        'src/main/utils/**/*.ts',
-        'src/shared/**/*.ts',
-        'src/renderer/src/utils/**/*.ts',
-        'src/renderer/src/i18n/**/*.ts'
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'node_modules/',
+        '**/__tests__/**',
+        '**/*.d.ts',
+        'src/renderer/src/i18n/locales/',
+        'src/renderer/src/main.tsx',
+        'src/main/index.ts',
+        'src/preload/index.ts',
+        'src/main/utils/AutoUpdater.ts'
       ],
-      exclude: ['node_modules/', 'src/renderer/src/i18n/locales/', '**/__tests__/**'],
       thresholds: {
-        lines: 50,
-        functions: 50
+        statements: 25,
+        branches: 20,
+        lines: 27,
+        functions: 15
       }
     }
   },

@@ -39,25 +39,23 @@ export class ModProcessorError extends Error {
 export class ModProcessor {
   private resolveConfiguredRoot(rootPath: string, modId: string, code: string): string {
     if (!rootPath.trim()) {
-      throw new ModProcessorError(
-        'Required root path is not configured',
-        code,
-        modId
-      )
+      throw new ModProcessorError('Required root path is not configured', code, modId)
     }
 
     return resolve(rootPath)
   }
 
-  private assertPathWithinRoot(rootPath: string, candidatePath: string, modId: string, code: string): string {
+  private assertPathWithinRoot(
+    rootPath: string,
+    candidatePath: string,
+    modId: string,
+    code: string
+  ): string {
     const resolvedRoot = this.resolveConfiguredRoot(rootPath, modId, code)
     const resolvedCandidate = resolve(candidatePath)
     const relativePath = relative(resolvedRoot, resolvedCandidate)
 
-    if (
-      relativePath.startsWith('..') ||
-      isAbsolute(relativePath)
-    ) {
+    if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
       throw new ModProcessorError(
         `Resolved path escaped the expected root: ${resolvedCandidate}`,
         code,
@@ -70,17 +68,17 @@ export class ModProcessor {
 
   private getDownloadRoot(modId: string): string {
     const config = configManager.get()
-    return this.resolveConfiguredRoot(config.steamcmd.downloadPath, modId, 'E_INVALID_DOWNLOAD_ROOT')
+    return this.resolveConfiguredRoot(
+      config.steamcmd.downloadPath,
+      modId,
+      'E_INVALID_DOWNLOAD_ROOT'
+    )
   }
 
   private getActiveModsRoot(modId: string): string {
     const activePath = configManager.getActiveModsPath()
     if (!activePath) {
-      throw new ModProcessorError(
-        'No active mods path configured',
-        'E_NO_MODS_PATH',
-        modId
-      )
+      throw new ModProcessorError('No active mods path configured', 'E_NO_MODS_PATH', modId)
     }
 
     return this.resolveConfiguredRoot(activePath.path, modId, 'E_INVALID_MODS_ROOT')
@@ -162,9 +160,7 @@ export class ModProcessor {
           // Extract supported versions
           const versionMatches = content.match(/<li>([\d.]+)<\/li>/g)
           if (versionMatches) {
-            supportedVersions = versionMatches.map(v =>
-              v.replace(/<\/?li>/g, '')
-            )
+            supportedVersions = versionMatches.map((v) => v.replace(/<\/?li>/g, ''))
           }
         } catch (e) {
           logger.warn(`[ModProcessor] Failed to parse About.xml for ${modId}:`, e)
@@ -188,9 +184,8 @@ export class ModProcessor {
         modId,
         details: { hasAboutXml, modName, supportedVersions }
       }
-
     } catch (error) {
-      // IO/permission errors are NOT tolerable — caller should abort
+      // IO/permission errors are NOT tolerable; caller should abort
       return {
         valid: false,
         modId,
@@ -225,7 +220,7 @@ export class ModProcessor {
       // Validate the mod before moving
       const validation = await this.validateMod(modId, sourcePath)
       if (!validation.valid) {
-        // IO errors should abort the pipeline — the mod is unreadable
+        // IO errors should abort the pipeline; the mod is unreadable
         if (validation.errorCode === 'E_IO_ERROR') {
           throw new ModProcessorError(
             validation.error || 'Mod validation failed with IO error',
@@ -261,7 +256,10 @@ export class ModProcessor {
       try {
         await fs.rename(tempPath, targetPath)
       } catch (renameError: unknown) {
-        if (renameError instanceof Error && (renameError as NodeJS.ErrnoException).code === 'EXDEV') {
+        if (
+          renameError instanceof Error &&
+          (renameError as NodeJS.ErrnoException).code === 'EXDEV'
+        ) {
           // Cross-volume: copy from temp to target, then delete temp
           logger.info(`[ModProcessor] Cross-volume rename, falling back to copy`)
           await this.copyDirectory(tempPath, targetPath)
@@ -295,7 +293,6 @@ export class ModProcessor {
         targetPath,
         bytes
       }
-
     } catch (error) {
       // Clean up temp directory AND target half-written files
       for (const cleanupPath of [tempPath, targetPath]) {

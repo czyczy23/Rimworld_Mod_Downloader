@@ -57,6 +57,7 @@ config.local.json
 ehthumbs.db
 Thumbs.db
 desktop.ini
+nul
 
 # Electron specific
 app-update.yml
@@ -68,6 +69,8 @@ dev-app-update.yml
 .cache/
 .electron-vite/
 node_modules/.cache/
+.npm-cache/
+.tmp-lockgen-*/
 .eslintcache
 .stylelintcache
 
@@ -82,6 +85,7 @@ tmp/
 coverage/
 .nyc_output/
 playwright-report/
+playwright-report-electron/
 test-results/
 
 # TypeScript cache
