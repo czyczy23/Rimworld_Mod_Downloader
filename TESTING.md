@@ -17,7 +17,8 @@ This repository now uses a layered test flow so local runs and CI follow the sam
   Runs Vitest in watch mode for local development.
 
 - `npm run test:coverage`
-  Runs unit tests with coverage output in `coverage/unit/`.
+  Runs unit tests with coverage output in `coverage/unit/`. Coverage includes
+  untested `src` files so the aggregate stays honest.
 
 - `npm run test:e2e`
   Runs Playwright smoke tests.
@@ -59,8 +60,8 @@ GitHub Actions now runs two workflows:
    Runs `npm run verify:ci` and uploads unit coverage artifacts.
 
 2. `e2e`
-   Installs the Chromium browser and runs Playwright smoke tests.
-   The HTML report and raw Playwright results are uploaded as artifacts.
+   Installs the Chromium browser and runs browser plus native Electron Playwright smoke tests.
+   The browser report, Electron report, and raw Playwright results are uploaded as artifacts.
 
 3. `package-windows`
    Builds the Electron app bundle, then packages Windows installers.
@@ -73,7 +74,8 @@ GitHub Actions now runs two workflows:
 ## Artifact Directories
 
 - Unit coverage: `coverage/unit/`
-- Playwright report: `playwright-report/`
+- Browser Playwright report: `playwright-report/`
+- Native Electron Playwright report: `playwright-report-electron/`
 - Playwright raw results: `test-results/`
 - Windows installers: `release/<version>/`
 
@@ -82,11 +84,12 @@ These directories are generated artifacts and should not be committed.
 ## Scope
 
 - Unit tests cover renderer and shared logic with Vitest.
-- End-to-end tests are currently smoke tests for the rendered app shell and key UI surfaces.
-- Full native Electron integration is still a separate concern from the browser-based Playwright flow.
+- End-to-end tests include browser smoke coverage for the rendered app shell and native Electron smoke coverage for app startup plus core UI surfaces.
+- Deeper Electron integration scenarios, such as real SteamCMD downloads, updater behavior, and webview navigation against live Steam pages, remain manual or future automated coverage.
 
-> **Current status (as of v1.1.1):** Unit test coverage is effectively 0%. Existing tests
-> re-declare functions inline instead of importing source code, so they pass but do not
-> exercise any real implementation. Core main-process logic (SteamCMD, ModProcessor,
-> WorkshopScraper, ConfigManager) has no test coverage at all. Improving this is tracked
-> as an active work item.
+> **Current status:** Unit tests now import real implementation code across shared
+> validation, i18n helpers, renderer URL utilities, and core main-process services
+> such as SteamCMD, ModProcessor, WorkshopScraper, SecureStorage, and ConfigManager.
+> The current full-`src` unit coverage baseline is approximately 25.8% statements,
+> 20.6% branches, 15.6% functions, and 27.4% lines. Component-level renderer
+> coverage remains the largest active gap and should be ratcheted upward over time.

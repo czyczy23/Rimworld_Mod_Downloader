@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import i18n from '../i18n'
-import { isAllowedSteamUrl } from '../utils/urlGuard'
+import { isAllowedSteamUrl } from '../../../shared/urlGuard'
 import { getSteamLangParam } from '../utils/language'
 import { updateUrlLanguageParam, isModDetailPage, extractModId } from '../utils/url'
 
@@ -60,7 +60,8 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
   ({ onPageChanged }, ref) => {
     const webviewRef = useRef<SteamWebviewElement>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [currentUrl, setCurrentUrl] = useState(getSteamWorkshopUrl())
+    const [inputUrl, setInputUrl] = useState(getSteamWorkshopUrl())
+    const [committedUrl, setCommittedUrl] = useState(getSteamWorkshopUrl())
     const [currentPageInfo, setCurrentPageInfo] = useState<CurrentPageInfo>({
       url: getSteamWorkshopUrl(),
       isModDetailPage: false
@@ -69,12 +70,18 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
     // Ref to hold latest URL for use in event handlers with [] dependency
     // (avoids stale closure problem)
     const currentPageUrlRef = useRef(currentPageInfo.url)
-    useEffect(() => { currentPageUrlRef.current = currentPageInfo.url }, [currentPageInfo.url])
+    useEffect(() => {
+      currentPageUrlRef.current = currentPageInfo.url
+    }, [currentPageInfo.url])
 
     // Expose getCurrentPageInfo to parent via ref
-    useImperativeHandle(ref, () => ({
-      getCurrentPageInfo: () => currentPageInfo
-    }), [currentPageInfo])
+    useImperativeHandle(
+      ref,
+      () => ({
+        getCurrentPageInfo: () => currentPageInfo
+      }),
+      [currentPageInfo]
+    )
 
     // Inject navigation interceptor script into webview
     // SECURITY: language code is passed as a function argument to avoid
@@ -145,8 +152,9 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           const currentPageUrl = currentPageInfo.url
           const newUrl = updateUrlLanguageParam(currentPageUrl, i18n.language)
           console.log('[WebviewContainer] Language changed -> reloading with URL:', newUrl)
-          setCurrentUrl(newUrl)
-          setCurrentPageInfo(prev => ({ ...prev, url: newUrl }))
+          setInputUrl(newUrl)
+          setCommittedUrl(newUrl)
+          setCurrentPageInfo((prev) => ({ ...prev, url: newUrl }))
           void webview.loadURL(newUrl).catch((e) => {
             console.warn('[WebviewContainer] Failed to load URL on language change:', e)
           })
@@ -181,7 +189,8 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
     const updatePageInfo = (url: string) => {
       const info = parsePageInfo(url)
       setCurrentPageInfo(info)
-      setCurrentUrl(url)
+      setInputUrl(url)
+      setCommittedUrl(url)
 
       // Notify parent component via callback
       if (onPageChanged) {
@@ -257,7 +266,10 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
         webview.removeEventListener('dom-ready', handleDomReady)
         webview.removeEventListener('load-start', handleLoadStart)
         webview.removeEventListener('did-navigate', handleDidNavigate as EventListener)
-        webview.removeEventListener('did-navigate-in-page', handleDidNavigateInPage as EventListener)
+        webview.removeEventListener(
+          'did-navigate-in-page',
+          handleDidNavigateInPage as EventListener
+        )
         webview.removeEventListener('will-navigate', handleWillNavigate as EventListener)
         webview.removeEventListener('console-message', handleConsoleMessage as EventListener)
       }
@@ -297,29 +309,44 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
             console.warn('[WebviewContainer] Blocked navigation to non-Steam URL:', url)
             return
           }
-          webview.src = url
+          setInputUrl(url)
+          setCommittedUrl(url)
         }
       }
     }
 
     return (
-      <div className="webview-container" data-testid="webview-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
-        <div className="webview-toolbar" data-testid="webview-toolbar" style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '8px 12px',
-          gap: '8px',
-          background: '#171a21',
-          borderBottom: '1px solid #2a475e'
-        }}>
-          <button onClick={handleGoBack} title="Back">&#9664;</button>
-          <button onClick={handleGoForward} title="Forward">&#9654;</button>
-          <button onClick={handleReload} title="Reload">&#8635;</button>
+      <div
+        className="webview-container"
+        data-testid="webview-container"
+        style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}
+      >
+        <div
+          className="webview-toolbar"
+          data-testid="webview-toolbar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            gap: '8px',
+            background: '#171a21',
+            borderBottom: '1px solid #2a475e'
+          }}
+        >
+          <button onClick={handleGoBack} title="Back">
+            &#9664;
+          </button>
+          <button onClick={handleGoForward} title="Forward">
+            &#9654;
+          </button>
+          <button onClick={handleReload} title="Reload">
+            &#8635;
+          </button>
 
           <input
             type="text"
-            value={currentUrl}
-            onChange={(e) => setCurrentUrl(e.target.value)}
+            value={inputUrl}
+            onChange={(e) => setInputUrl(e.target.value)}
             onKeyDown={handleNavigate}
             placeholder="Enter URL..."
             style={{
@@ -333,16 +360,14 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
             }}
           />
 
-          {isLoading && (
-            <span style={{ color: '#8f98a0', fontSize: '12px' }}>Loading...</span>
-          )}
+          {isLoading && <span style={{ color: '#8f98a0', fontSize: '12px' }}>Loading...</span>}
         </div>
 
         <div style={{ flex: 1, position: 'relative' }}>
           <webview
             ref={webviewRef}
             data-testid="steam-webview"
-            src={currentUrl}
+            src={committedUrl}
             partition="persist:steam"
             style={{
               width: '100%',
@@ -352,35 +377,37 @@ export const WebviewContainer = forwardRef<WebviewContainerRef, WebviewContainer
           />
 
           {isLoading && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: '#16202d',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                border: '3px solid #2a475e',
-                borderTopColor: '#66c0f4',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: '#16202d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: '16px'
+              }}
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  border: '3px solid #2a475e',
+                  borderTopColor: '#66c0f4',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}
+              />
               <style>{`
                 @keyframes spin {
                   to { transform: rotate(360deg); }
                 }
               `}</style>
-              <span style={{ color: '#8f98a0', fontSize: '14px' }}>
-                Loading Steam Workshop...
-              </span>
+              <span style={{ color: '#8f98a0', fontSize: '14px' }}>Loading Steam Workshop...</span>
             </div>
           )}
         </div>

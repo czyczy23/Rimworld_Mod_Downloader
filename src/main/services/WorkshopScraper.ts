@@ -2,18 +2,9 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 import logger from '../utils/logger'
 import type { AnyNode } from 'domhandler'
+import type { Dependency, ModVersionInfo } from '../../shared/types'
 
-export interface ModVersionInfo {
-  supportedVersions: string[]
-  modName: string
-  dependencies: Dependency[]
-}
-
-export interface Dependency {
-  modId: string
-  name: string
-  required: boolean
-}
+const MOD_ID_PATTERN = /^\d+$/
 
 export class WorkshopScraperError extends Error {
   constructor(
@@ -36,19 +27,25 @@ export class WorkshopScraper {
    * @throws WorkshopScraperError when scraping fails
    */
   async scrapeModVersion(modId: string): Promise<ModVersionInfo> {
+    if (!MOD_ID_PATTERN.test(modId)) {
+      throw new WorkshopScraperError(`Invalid mod ID: ${modId}`, modId)
+    }
+
     try {
       const url = `${this.baseUrl}?id=${modId}`
       logger.info(`[WorkshopScraper] Fetching: ${url}`)
 
       const response = await axios.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
+          Connection: 'keep-alive',
           'Upgrade-Insecure-Requests': '1'
         },
+        maxRedirects: 0,
         timeout: 10000
       })
 
@@ -109,7 +106,7 @@ export class WorkshopScraper {
   /**
    * Extract supported versions using multiple strategies
    */
-  private extractSupportedVersions($: cheerio.CheerioAPI, html: string): string[] {
+  private extractSupportedVersions($: cheerio.CheerioAPI, _html: string): string[] {
     const versions: Set<string> = new Set()
 
     // Strategy 1: Look in right details block
@@ -123,13 +120,13 @@ export class WorkshopScraper {
     for (const selector of rightBlockSelectors) {
       const text = $(selector).text()
       const extracted = this.parseVersionsFromText(text)
-      extracted.forEach(v => versions.add(v))
+      extracted.forEach((v) => versions.add(v))
     }
 
     // Strategy 2: Look in description
     const description = $('.workshopItemDescription').text()
     const descVersions = this.parseVersionsFromText(description)
-    descVersions.forEach(v => versions.add(v))
+    descVersions.forEach((v) => versions.add(v))
 
     // Strategy 3 (narrowed): only scan text content nodes, not full HTML
     // Full HTML scanning produces false positives from scripts/CSS/IDs
@@ -137,7 +134,7 @@ export class WorkshopScraper {
     if (versions.size === 0) {
       const bodyText = $('body').text()
       const bodyVersions = this.parseVersionsFromText(bodyText)
-      bodyVersions.forEach(v => versions.add(v))
+      bodyVersions.forEach((v) => versions.add(v))
     }
 
     return Array.from(versions).sort()
@@ -208,7 +205,9 @@ export class WorkshopScraper {
 
         const $elem = $(elem)
         // Look for parent container
-        const $parent = $elem.closest('.panel, .workshopItem, [class*="required"], [class*="dependency"]')
+        const $parent = $elem.closest(
+          '.panel, .workshopItem, [class*="required"], [class*="dependency"]'
+        )
         if ($parent.length > 0) {
           this.extractLinksFromSection($parent, dependencies, seenIds, $)
         }
@@ -237,9 +236,10 @@ export class WorkshopScraper {
             seenIds.add(depId)
             const linkText = $(element).text().trim()
             dependencies.push({
-              modId: depId,
+              id: depId,
               name: linkText || `Mod ${depId}`,
-              required: true
+              isOptional: false,
+              willDownload: true
             })
           }
         }

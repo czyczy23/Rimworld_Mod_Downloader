@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CurrentPageInfo } from './WebviewContainer'
+import { useConfigStore } from '../stores/configStore'
 import type { ModsPath } from '../utils/modsPathUtils'
 import type { AppConfig, ModVersionInfo } from '../../../shared/types'
+import { AppIcon } from './AppIcon'
 
 interface ToolbarProps {
   onSettingsClick: () => void
@@ -15,7 +17,16 @@ interface ToolbarProps {
   onConfigSaved?: (newConfig: AppConfig) => void
 }
 
-export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, currentPageInfo, gameVersion: propGameVersion, onRefreshGameVersion, modsPaths: propModsPaths, onConfigSaved }: ToolbarProps) {
+export function Toolbar({
+  onSettingsClick,
+  onDownloadClick,
+  onAddToQueue,
+  currentPageInfo,
+  gameVersion: propGameVersion,
+  onRefreshGameVersion,
+  modsPaths: propModsPaths,
+  onConfigSaved
+}: ToolbarProps) {
   const { t } = useTranslation()
   const [modsPaths, setModsPaths] = useState<ModsPath[]>(propModsPaths || [])
   const [activePath, setActivePath] = useState<string>('')
@@ -24,12 +35,12 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
   const [versionInfo, setVersionInfo] = useState<ModVersionInfo | null>(null)
   const [isCheckingVersion, setIsCheckingVersion] = useState(false)
   const [versionMismatch, setVersionMismatch] = useState(false)
-
-  // 使用传入的 gameVersion，如果没有则使用本地状态
+  const config = useConfigStore((state) => state.config)
+  const loadConfig = useConfigStore((state) => state.loadConfig)
+  const saveConfigValue = useConfigStore((state) => state.saveConfigValue)
   const [localGameVersion, setLocalGameVersion] = useState<string>(t('toolbar.detecting'))
   const gameVersion = propGameVersion !== undefined ? propGameVersion : localGameVersion
 
-  // Check mod version when page info changes
   useEffect(() => {
     const checkVersion = async () => {
       if (currentPageInfo?.isModDetailPage && currentPageInfo.modId && window.api) {
@@ -43,10 +54,19 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
           console.log('[Toolbar] Game version:', gameVersion)
           setVersionInfo(info)
 
-          // Check compatibility - 使用与 App.tsx 相同的逻辑
-          if (gameVersion && gameVersion !== t('toolbar.detecting') && gameVersion !== t('toolbar.unknownVersion') && info.supportedVersions.length > 0) {
+          if (
+            gameVersion &&
+            gameVersion !== t('toolbar.detecting') &&
+            gameVersion !== t('toolbar.unknownVersion') &&
+            info.supportedVersions.length > 0
+          ) {
             const isCompatible = info.supportedVersions.includes(gameVersion)
-            console.log('[Toolbar] Is compatible:', isCompatible, 'Supported versions:', info.supportedVersions)
+            console.log(
+              '[Toolbar] Is compatible:',
+              isCompatible,
+              'Supported versions:',
+              info.supportedVersions
+            )
             setVersionMismatch(!isCompatible)
           }
         } catch (error) {
@@ -60,160 +80,140 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
       }
     }
 
-    checkVersion()
-  }, [currentPageInfo?.modId, currentPageInfo?.isModDetailPage, gameVersion])
+    void checkVersion()
+  }, [currentPageInfo?.modId, currentPageInfo?.isModDetailPage, gameVersion, t])
 
-  // Load config on mount
   useEffect(() => {
-    // If propModsPaths is provided and has data, use it directly
     if (propModsPaths && propModsPaths.length > 0) {
       setModsPaths(propModsPaths)
-      const active = propModsPaths.find((p) => p.isActive)
+      const active = propModsPaths.find((path) => path.isActive)
       if (active) {
         setActivePath(active.path)
       }
       return
     }
 
-    // Only load from config if propModsPaths is explicitly null/undefined (initial load)
-    // Don't reload if propModsPaths is an empty array - that means user cleared paths
     if (window.api && (propModsPaths === null || propModsPaths === undefined)) {
-      window.api.getConfig().then((cfg) => {
+      loadConfig().then((cfg) => {
+        if (!cfg) return
         const paths = cfg.rimworld?.modsPaths || []
         setModsPaths(paths)
 
-        const active = paths.find((p: ModsPath) => p.isActive)
+        const active = paths.find((path: ModsPath) => path.isActive)
         if (active) {
           setActivePath(active.path)
         }
       })
 
-      // 如果没有传入 gameVersion，则本地检测
       if (propGameVersion === undefined) {
-        window.api.detectGameVersion().then((version) => {
-          setLocalGameVersion(version)
-        }).catch(() => {
-          setLocalGameVersion(t('toolbar.unknownVersion'))
-        })
+        window.api
+          .detectGameVersion()
+          .then((version) => {
+            setLocalGameVersion(version)
+          })
+          .catch(() => {
+            setLocalGameVersion(t('toolbar.unknownVersion'))
+          })
       }
     }
-  }, [propGameVersion, propModsPaths])
+  }, [loadConfig, propGameVersion, propModsPaths, t])
 
-  // Handle path selection change
+  const saveRimworldPaths = async (updatedPaths: ModsPath[]): Promise<void> => {
+    const currentConfig = config ?? (await loadConfig())
+    if (!currentConfig) return
+
+    const nextConfig = await saveConfigValue('rimworld', {
+      ...currentConfig.rimworld,
+      modsPaths: updatedPaths
+    })
+
+    if (nextConfig && onConfigSaved) {
+      onConfigSaved(nextConfig)
+    }
+  }
+
+  const refreshDetectedVersion = async () => {
+    if (onRefreshGameVersion) {
+      await onRefreshGameVersion()
+      return
+    }
+
+    if (propGameVersion === undefined && window.api) {
+      setLocalGameVersion(t('toolbar.detecting'))
+      try {
+        const version = await window.api.detectGameVersion()
+        setLocalGameVersion(version)
+      } catch {
+        setLocalGameVersion(t('toolbar.unknownVersion'))
+      }
+    }
+  }
+
   const handlePathChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedPath = e.target.value
     setActivePath(selectedPath)
 
-    // Update config to mark this path as active
-    const updatedPaths = modsPaths.map((p) => ({
-      ...p,
-      isActive: p.path === selectedPath
+    const updatedPaths = modsPaths.map((path) => ({
+      ...path,
+      isActive: path.path === selectedPath
     }))
     setModsPaths(updatedPaths)
 
     if (window.api) {
-      // Set the entire rimworld object since we can't set nested properties directly
-      const currentRimworld = await window.api.getConfig('rimworld')
-      const newRimworld = {
-        ...currentRimworld,
-        modsPaths: updatedPaths
-      }
-      await window.api.setConfig('rimworld', newRimworld)
-
-      // Notify parent to update config state
-      if (onConfigSaved) {
-        const fullConfig = await window.api.getConfig()
-        onConfigSaved(fullConfig)
-      }
-
-      // Re-detect game version after path change
-      if (onRefreshGameVersion) {
-        await onRefreshGameVersion()
-      } else if (propGameVersion === undefined) {
-        setLocalGameVersion(t('toolbar.detecting'))
-        try {
-          const version = await window.api.detectGameVersion()
-          setLocalGameVersion(version)
-        } catch {
-          setLocalGameVersion(t('toolbar.unknownVersion'))
-        }
-      }
+      await saveRimworldPaths(updatedPaths)
+      await refreshDetectedVersion()
     }
   }
 
-  // Handle browse for new path
   const handleBrowse = async () => {
     if (!window.api) return
 
     const selectedPath = await window.api.selectFolder()
-    if (selectedPath) {
-      // Add new path to config
-      const newPath: ModsPath = {
-        id: crypto.randomUUID(),
-        name: 'Custom Path',
-        path: selectedPath,
-        isActive: true
-      }
+    if (!selectedPath) return
 
-      const updatedPaths = modsPaths.map((path) => ({
-        ...path,
-        isActive: false
-      }))
-      updatedPaths.push(newPath)
-      setModsPaths(updatedPaths)
-      setActivePath(selectedPath)
-
-      // Set the entire rimworld object since we can't set nested properties directly
-      const currentRimworld = await window.api.getConfig('rimworld')
-      const newRimworld = {
-        ...currentRimworld,
-        modsPaths: updatedPaths
-      }
-      await window.api.setConfig('rimworld', newRimworld)
-
-      // Notify parent to update config state
-      if (onConfigSaved) {
-        const fullConfig = await window.api.getConfig()
-        onConfigSaved(fullConfig)
-      }
-
-      // Re-detect game version after adding new path
-      if (onRefreshGameVersion) {
-        await onRefreshGameVersion()
-      } else if (propGameVersion === undefined) {
-        setLocalGameVersion(t('toolbar.detecting'))
-        try {
-          const version = await window.api.detectGameVersion()
-          setLocalGameVersion(version)
-        } catch {
-          setLocalGameVersion(t('toolbar.unknownVersion'))
-        }
-      }
+    const newPath: ModsPath = {
+      id: crypto.randomUUID(),
+      name: 'Custom Path',
+      path: selectedPath,
+      isActive: true
     }
+
+    const updatedPaths = modsPaths.map((path) => ({
+      ...path,
+      isActive: false
+    }))
+    updatedPaths.push(newPath)
+    setModsPaths(updatedPaths)
+    setActivePath(selectedPath)
+
+    await saveRimworldPaths(updatedPaths)
+    await refreshDetectedVersion()
   }
 
-  // Handle download button click
+  const hasSteamCmdConfig = async (): Promise<boolean> => {
+    if (!window.api) return false
+
+    const currentConfig = await window.api.getConfig()
+    const steamcmdPath = currentConfig.steamcmd?.executablePath
+    const downloadPath = currentConfig.steamcmd?.downloadPath
+
+    if (!steamcmdPath || !downloadPath) {
+      alert(t('alerts.pleaseConfigSteamcmd'))
+      return false
+    }
+
+    return true
+  }
+
   const handleDownload = async () => {
     if (!currentPageInfo?.isModDetailPage || !currentPageInfo.modId || isDownloading) return
-
-    // Check SteamCMD configuration before downloading
-    if (window.api) {
-      const config = await window.api.getConfig()
-      const steamcmdPath = config.steamcmd?.executablePath
-      const downloadPath = config.steamcmd?.downloadPath
-      
-      if (!steamcmdPath || !downloadPath) {
-        alert(t('alerts.pleaseConfigSteamcmd'))
-        return
-      }
-    }
+    if (!(await hasSteamCmdConfig())) return
 
     setIsDownloading(true)
     try {
       if (onDownloadClick) {
         await onDownloadClick(currentPageInfo.modId, currentPageInfo.isCollection || false)
       } else if (window.api) {
-        // Direct download via API
         await window.api.downloadMod(currentPageInfo.modId, currentPageInfo.isCollection || false)
       }
     } catch (error) {
@@ -223,21 +223,9 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
     }
   }
 
-  // Handle add to queue button click
   const handleAdd = async () => {
     if (!currentPageInfo?.isModDetailPage || !currentPageInfo.modId || isAddingToQueue) return
-
-    // Check SteamCMD configuration before adding to queue
-    if (window.api) {
-      const config = await window.api.getConfig()
-      const steamcmdPath = config.steamcmd?.executablePath
-      const downloadPath = config.steamcmd?.downloadPath
-      
-      if (!steamcmdPath || !downloadPath) {
-        alert(t('alerts.pleaseConfigSteamcmd'))
-        return
-      }
-    }
+    if (!(await hasSteamCmdConfig())) return
 
     setIsAddingToQueue(true)
     try {
@@ -251,7 +239,6 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
     }
   }
 
-  // Check if download button should be enabled
   const canDownload = currentPageInfo?.isModDetailPage && !isDownloading
   const canAdd = currentPageInfo?.isModDetailPage && !isAddingToQueue
 
@@ -266,7 +253,6 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         flexDirection: 'column'
       }}
     >
-      {/* Main Toolbar Row */}
       <div
         style={{
           display: 'flex',
@@ -276,14 +262,22 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
           height: '50px'
         }}
       >
-        {/* Left: App Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '18px', color: '#c6d4df', fontWeight: 500 }}>
-            📦 RimWorld Mod Downloader
+          <span
+            style={{
+              fontSize: '18px',
+              color: '#c6d4df',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <AppIcon name="app" size={20} color="#66c0f4" />
+            {t('app.title')}
           </span>
         </div>
 
-        {/* Center: Path Selector */}
         <div
           style={{
             display: 'flex',
@@ -293,7 +287,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
             justifyContent: 'center'
           }}
         >
-          <span style={{ color: '#8f98a0', fontSize: '13px' }}>Mods Path:</span>
+          <span style={{ color: '#8f98a0', fontSize: '13px' }}>{t('toolbar.modsPath')}:</span>
 
           <select
             value={activePath}
@@ -311,7 +305,7 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
             }}
           >
             {modsPaths.length === 0 ? (
-              <option value="">Select or browse for path...</option>
+              <option value="">{t('toolbar.selectOrBrowse')}</option>
             ) : (
               modsPaths.map((path) => (
                 <option key={path.id} value={path.path}>
@@ -336,29 +330,28 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
             onMouseEnter={(e) => (e.currentTarget.style.background = '#4a7ba3')}
             onMouseLeave={(e) => (e.currentTarget.style.background = '#3d6c8d')}
           >
-            Browse
+            {t('toolbar.browse')}
           </button>
         </div>
 
-        {/* Right: Game Version, Download & Settings Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Game Version Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 12px',
-            background: '#2a475e',
-            borderRadius: '3px',
-            border: '1px solid #3d6c8d'
-          }}>
-            <span style={{ color: '#8f98a0', fontSize: '12px' }}>Game:</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 12px',
+              background: '#2a475e',
+              borderRadius: '3px',
+              border: '1px solid #3d6c8d'
+            }}
+          >
+            <span style={{ color: '#8f98a0', fontSize: '12px' }}>{t('toolbar.game')}:</span>
             <span style={{ color: '#66c0f4', fontSize: '13px', fontWeight: 500 }}>
               {gameVersion}
             </span>
           </div>
 
-          {/* Add to Queue Button */}
           <button
             onClick={handleAdd}
             disabled={!canAdd}
@@ -389,26 +382,29 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
           >
             {isAddingToQueue ? (
               <>
-                <span className="spinner" style={{
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite'
-                }} />
+                <span
+                  className="spinner"
+                  style={{
+                    display: 'inline-block',
+                    width: '14px',
+                    height: '14px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }}
+                />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                Adding...
+                {t('toolbar.adding')}
               </>
             ) : (
               <>
-                ➕ Add
+                <AppIcon name="add" size={16} />
+                {t('toolbar.add')}
               </>
             )}
           </button>
 
-          {/* Download Button */}
           <button
             onClick={handleDownload}
             disabled={!canDownload}
@@ -439,26 +435,29 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
           >
             {isDownloading ? (
               <>
-                <span className="spinner" style={{
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite'
-                }} />
+                <span
+                  className="spinner"
+                  style={{
+                    display: 'inline-block',
+                    width: '14px',
+                    height: '14px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }}
+                />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                Downloading...
+                {t('toolbar.downloading')}
               </>
             ) : (
               <>
-                📥 Download
+                <AppIcon name="download" size={16} />
+                {t('toolbar.download')}
               </>
             )}
           </button>
 
-          {/* Settings Button */}
           <button
             data-testid="toolbar-settings-button"
             onClick={onSettingsClick}
@@ -484,12 +483,12 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
               e.currentTarget.style.color = '#c6d4df'
             }}
           >
-            ⚙️ Settings
+            <AppIcon name="settings" size={16} />
+            {t('toolbar.settings')}
           </button>
         </div>
       </div>
 
-      {/* Mod Info Panel - Shows when on a mod detail page */}
       {currentPageInfo?.isModDetailPage && (
         <div
           style={{
@@ -503,96 +502,132 @@ export function Toolbar({ onSettingsClick, onDownloadClick, onAddToQueue, curren
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ color: '#66c0f4', fontSize: '12px', fontWeight: 500 }}>
-              CURRENT:
+              {t('toolbar.current').toUpperCase()}:
             </span>
-            <span style={{ color: '#c6d4df', fontSize: '13px' }}>
-              {currentPageInfo.isCollection ? '📁 Collection' : '📦 Mod'}
+            <span
+              style={{
+                color: '#c6d4df',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <AppIcon
+                name={currentPageInfo.isCollection ? 'folder' : 'app'}
+                size={15}
+                color="#66c0f4"
+              />
+              {currentPageInfo.isCollection ? t('toolbar.collection') : t('toolbar.mod')}
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#8f98a0', fontSize: '12px' }}>ID:</span>
-            <code style={{
-              background: '#2a475e',
-              color: '#66c0f4',
-              padding: '2px 6px',
-              borderRadius: '3px',
-              fontSize: '12px',
-              fontFamily: 'monospace'
-            }}>
+            <span style={{ color: '#8f98a0', fontSize: '12px' }}>{t('toolbar.id')}:</span>
+            <code
+              style={{
+                background: '#2a475e',
+                color: '#66c0f4',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontSize: '12px',
+                fontFamily: 'monospace'
+              }}
+            >
               {currentPageInfo.modId}
             </code>
           </div>
 
           {currentPageInfo.modName && (
-            <div style={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              <span style={{ color: '#8f98a0', fontSize: '12px' }}>Name: </span>
-              <span style={{ color: '#c6d4df', fontSize: '13px' }}>
-                {currentPageInfo.modName}
-              </span>
+            <div
+              style={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span style={{ color: '#8f98a0', fontSize: '12px' }}>{t('toolbar.name')}: </span>
+              <span style={{ color: '#c6d4df', fontSize: '13px' }}>{currentPageInfo.modName}</span>
             </div>
           )}
 
-          {/* Version Check Status */}
           {isCheckingVersion && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <span style={{
-                display: 'inline-block',
-                width: '14px',
-                height: '14px',
-                border: '2px solid rgba(102, 192, 244, 0.3)',
-                borderTopColor: '#66c0f4',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite'
-              }} />
-              <span style={{ color: '#66c0f4', fontSize: '12px' }}>{t('toolbar.checkingVersion')}</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid rgba(102, 192, 244, 0.3)',
+                  borderTopColor: '#66c0f4',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }}
+              />
+              <span style={{ color: '#66c0f4', fontSize: '12px' }}>
+                {t('toolbar.checkingVersion')}
+              </span>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
 
           {versionInfo && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ color: '#8f98a0', fontSize: '12px' }}>支持版本:</span>
-              <span style={{
-                color: versionMismatch ? '#e6b800' : '#66c0f4',
-                fontSize: '13px',
-                fontWeight: 500
-              }}>
-                {versionInfo.supportedVersions.length > 0 ?
-                  versionInfo.supportedVersions.join(', ') : '未指定'}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ color: '#8f98a0', fontSize: '12px' }}>
+                {t('toolbar.supportedVersions')}:
+              </span>
+              <span
+                style={{
+                  color: versionMismatch ? '#e6b800' : '#66c0f4',
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}
+              >
+                {versionInfo.supportedVersions.length > 0
+                  ? versionInfo.supportedVersions.join(', ')
+                  : t('toolbar.notSpecified')}
               </span>
               {versionMismatch && (
-                <span style={{
-                  color: '#e6b800',
-                  fontSize: '14px',
-                  cursor: 'help'
-                }} title={`${t('toolbar.versionMismatch')} ${t('toolbar.game')} ${gameVersion}, ${t('toolbar.supportedVersions')} ${versionInfo?.supportedVersions.join(', ')}`}>⚠️</span>
+                <span
+                  style={{
+                    color: '#e6b800',
+                    fontSize: '14px',
+                    cursor: 'help'
+                  }}
+                  title={`${t('toolbar.versionMismatch')} ${t('toolbar.game')} ${gameVersion}, ${t('toolbar.supportedVersions')} ${versionInfo.supportedVersions.join(', ')}`}
+                >
+                  <AppIcon name="warning" size={16} />
+                </span>
               )}
             </div>
           )}
 
           {versionInfo?.dependencies && versionInfo.dependencies.length > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ color: '#8f98a0', fontSize: '12px' }}>依赖:</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ color: '#8f98a0', fontSize: '12px' }}>
+                {t('toolbar.dependencies')}:
+              </span>
               <span style={{ color: '#66c0f4', fontSize: '13px' }}>
-                {versionInfo.dependencies.length}个
+                {versionInfo.dependencies.length}
               </span>
             </div>
           )}

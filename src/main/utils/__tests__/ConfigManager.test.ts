@@ -19,39 +19,52 @@ vi.mock('electron', () => ({
 
 // Hoisted shared state so vi.mock factory can access it
 const storeState = vi.hoisted(() => {
-  let data: Record<string, any> = {}
-  let defaults: Record<string, any> = {}
+  let data: Record<string, unknown> = {}
+  let defaults: Record<string, unknown> = {}
   return {
-    get data() { return data },
-    set data(v: Record<string, any>) { data = v },
-    get defaults() { return defaults },
-    set defaults(v: Record<string, any>) { defaults = v },
-    reset() { data = {} }
+    get data() {
+      return data
+    },
+    set data(v: Record<string, unknown>) {
+      data = v
+    },
+    get defaults() {
+      return defaults
+    },
+    set defaults(v: Record<string, unknown>) {
+      defaults = v
+    },
+    reset() {
+      data = {}
+    }
   }
 })
 
 vi.mock('electron-store', () => ({
   default: class MockStore {
-    constructor(opts?: any) {
+    constructor(opts?: { defaults?: Record<string, unknown> }) {
       storeState.defaults = opts?.defaults || {}
       for (const [key, value] of Object.entries(storeState.defaults)) {
         if (!(key in storeState.data)) {
-          storeState.data[key] = typeof value === 'object' && value !== null
-            ? JSON.parse(JSON.stringify(value))
-            : value
+          storeState.data[key] =
+            typeof value === 'object' && value !== null ? JSON.parse(JSON.stringify(value)) : value
         }
       }
     }
-    get(key?: any) {
+    get(key?: string) {
       if (key === undefined) return { ...storeState.defaults, ...storeState.data }
       return key in storeState.data ? storeState.data[key] : storeState.defaults[key]
     }
-    set(key: any, value?: any) {
+    set(key: string | Record<string, unknown>, value?: unknown) {
       if (typeof key === 'object') Object.assign(storeState.data, key)
       else storeState.data[key] = value
     }
-    clear() { storeState.data = {} }
-    get store() { return { ...storeState.defaults, ...storeState.data } }
+    clear() {
+      storeState.data = {}
+    }
+    get store() {
+      return { ...storeState.defaults, ...storeState.data }
+    }
   }
 }))
 
@@ -66,6 +79,11 @@ vi.mock('../SecureStorage', () => ({
 }))
 
 import { configManager } from '../ConfigManager'
+import type { AppConfig } from '../../../shared/types'
+
+function storedGitConfig(): AppConfig['git'] {
+  return storeState.data.git as AppConfig['git']
+}
 
 describe('ConfigManager', () => {
   beforeEach(() => {
@@ -102,10 +120,10 @@ describe('ConfigManager', () => {
       })
 
       // The raw store should have the encrypted version
-      expect(storeState.data.git.githubToken).toBe('enc:v1:ghp_real_token_123')
+      expect(storedGitConfig().githubToken).toBe('enc:v1:ghp_real_token_123')
     })
 
-    it('should decrypt githubToken on get', () => {
+    it('should not expose decrypted githubToken in renderer config', () => {
       // Set encrypted value directly in store
       storeState.data.git = {
         enabled: true,
@@ -113,7 +131,20 @@ describe('ConfigManager', () => {
         githubToken: 'enc:v1:ghp_real_token_456'
       }
 
-      const git = configManager.get('git')
+      const git = configManager.getForRenderer('git')
+      expect(git.githubToken).toBeUndefined()
+      expect(git.hasToken).toBe(true)
+      expect(git.tokenPreview).toBe('ghp_****_456')
+    })
+
+    it('should decrypt githubToken only for main-process consumers', () => {
+      storeState.data.git = {
+        enabled: true,
+        autoCommit: true,
+        githubToken: 'enc:v1:ghp_real_token_456'
+      }
+
+      const git = configManager.getDecryptedGitConfig()
       expect(git.githubToken).toBe('ghp_real_token_456')
     })
 
@@ -127,7 +158,7 @@ describe('ConfigManager', () => {
       })
 
       // isEncryptedBlob mock returns true for enc:v1: prefix, so no re-encryption
-      expect(storeState.data.git.githubToken).toBe(token)
+      expect(storedGitConfig().githubToken).toBe(token)
     })
 
     it('should handle missing githubToken gracefully', () => {
@@ -161,9 +192,7 @@ describe('ConfigManager', () => {
     it('should return undefined when no active path', () => {
       storeState.data.rimworld = {
         currentVersion: '1.6',
-        modsPaths: [
-          { id: '1', name: 'Default', path: 'C:\\Mods', isActive: false }
-        ],
+        modsPaths: [{ id: '1', name: 'Default', path: 'C:\\Mods', isActive: false }],
         autoCheckUpdates: false
       }
 

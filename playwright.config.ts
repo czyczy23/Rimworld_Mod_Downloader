@@ -4,20 +4,15 @@ const isCI = !!process.env.CI
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: /electron\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
   outputDir: 'test-results/playwright',
   reporter: isCI
-    ? [
-        ['line'],
-        ['html', { open: 'never', outputFolder: 'playwright-report' }]
-      ]
-    : [
-        ['list'],
-        ['html', { open: 'never', outputFolder: 'playwright-report' }]
-      ],
+    ? [['line'], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
+    : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
@@ -27,8 +22,8 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
+      use: { ...devices['Desktop Chrome'] }
+    }
   ],
   webServer: {
     command: 'npm run dev',

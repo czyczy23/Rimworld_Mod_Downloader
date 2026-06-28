@@ -17,13 +17,23 @@ vi.mock('../../utils/ConfigManager', () => ({
 
 import { ModProcessor } from '../ModProcessor'
 import { configManager } from '../../utils/ConfigManager'
+import type { AppConfig } from '../../../shared/types'
+
+const mockedConfigGet = configManager.get as unknown as ReturnType<typeof vi.fn<() => AppConfig>>
+
+interface ModProcessorPrivate {
+  assertPathWithinRoot(root: string, target: string, modId: string, errorCode: string): string
+  copyDirectory(src: string, dst: string): Promise<number>
+}
 
 describe('ModProcessor', () => {
   let processor: ModProcessor
+  let privateProcessor: ModProcessorPrivate
   let testDir: string
 
   beforeEach(async () => {
     processor = new ModProcessor()
+    privateProcessor = processor as unknown as ModProcessorPrivate
     testDir = join(tmpdir(), `modproc-test-${randomUUID()}`)
     await fs.mkdir(testDir, { recursive: true })
   })
@@ -38,8 +48,7 @@ describe('ModProcessor', () => {
 
   describe('assertPathWithinRoot', () => {
     it('should accept paths within root', () => {
-      // Access private method via any cast for testing
-      const result = (processor as any).assertPathWithinRoot(
+      const result = privateProcessor.assertPathWithinRoot(
         '/safe/root',
         '/safe/root/mods/123',
         '123',
@@ -50,7 +59,7 @@ describe('ModProcessor', () => {
 
     it('should reject path traversal attempts', () => {
       expect(() =>
-        (processor as any).assertPathWithinRoot(
+        privateProcessor.assertPathWithinRoot(
           '/safe/root',
           '/safe/root/../../etc/passwd',
           '123',
@@ -61,7 +70,7 @@ describe('ModProcessor', () => {
 
     it('should reject absolute path escape', () => {
       expect(() =>
-        (processor as any).assertPathWithinRoot(
+        privateProcessor.assertPathWithinRoot(
           '/safe/root',
           '/completely/different/path',
           '123',
@@ -119,18 +128,30 @@ describe('ModProcessor', () => {
       // getSourcePath() uses join(downloadRoot, modId), so source files go there
       const targetDir = join(testDir, 'mods')
 
-      vi.mocked(configManager.get).mockReturnValue({
+      mockedConfigGet.mockReturnValue({
         steamcmd: { executablePath: '', downloadPath: testDir },
-        rimworld: { currentVersion: '1.6', modsPaths: [{ id: '1', name: 'Default', path: targetDir, isActive: true }], autoCheckUpdates: false },
+        rimworld: {
+          currentVersion: '1.6',
+          modsPaths: [{ id: '1', name: 'Default', path: targetDir, isActive: true }],
+          autoCheckUpdates: false
+        },
         firstRunCompleted: true,
         app: { language: 'en' },
-        download: { autoDownloadDependencies: false, skipVersionCheck: false, extractCollectionToSubfolder: true, dependencyMode: 'ask' },
+        download: {
+          autoDownloadDependencies: false,
+          skipVersionCheck: false,
+          extractCollectionToSubfolder: true,
+          dependencyMode: 'ask'
+        },
         version: { autoDetect: true, manualVersion: '1.6', onMismatch: 'ask' },
         git: { enabled: false, autoCommit: true }
-      } as any)
+      } as AppConfig)
 
       vi.mocked(configManager.getActiveModsPath).mockReturnValue({
-        id: '1', name: 'Default', path: targetDir, isActive: true
+        id: '1',
+        name: 'Default',
+        path: targetDir,
+        isActive: true
       })
     })
 
@@ -139,7 +160,10 @@ describe('ModProcessor', () => {
       const sourceModDir = join(testDir, '12345')
       const aboutDir = join(sourceModDir, 'About')
       await fs.mkdir(aboutDir, { recursive: true })
-      await fs.writeFile(join(aboutDir, 'About.xml'), '<ModMetaData><name>Test</name></ModMetaData>')
+      await fs.writeFile(
+        join(aboutDir, 'About.xml'),
+        '<ModMetaData><name>Test</name></ModMetaData>'
+      )
 
       const result = await processor.processMod('12345')
       expect(result.success).toBe(true)
@@ -176,7 +200,10 @@ describe('ModProcessor', () => {
       // Create old target
       const targetDir = join(testDir, 'mods', '111')
       await fs.mkdir(join(targetDir, 'About'), { recursive: true })
-      await fs.writeFile(join(targetDir, 'About', 'About.xml'), '<ModMetaData><name>V1</name></ModMetaData>')
+      await fs.writeFile(
+        join(targetDir, 'About', 'About.xml'),
+        '<ModMetaData><name>V1</name></ModMetaData>'
+      )
 
       const result = await processor.processMod('111')
       expect(result.success).toBe(true)
@@ -195,7 +222,7 @@ describe('ModProcessor', () => {
       await fs.writeFile(join(src, 'a.txt'), 'hello')
       await fs.writeFile(join(src, 'sub', 'b.txt'), 'world')
 
-      const bytes = await (processor as any).copyDirectory(src, dst)
+      const bytes = await privateProcessor.copyDirectory(src, dst)
       expect(bytes).toBe(10) // 'hello' (5) + 'world' (5)
       expect(existsSync(join(dst, 'a.txt'))).toBe(true)
       expect(existsSync(join(dst, 'sub', 'b.txt'))).toBe(true)

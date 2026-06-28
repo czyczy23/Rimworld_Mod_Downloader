@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModsPath } from '../utils/modsPathUtils'
 import { getDefaultModsPath } from '../utils/modsPathUtils'
+import { AppIcon } from './AppIcon'
 
 interface ModsPathManagerDialogProps {
   isOpen: boolean
@@ -10,7 +11,12 @@ interface ModsPathManagerDialogProps {
   onSave: (paths: ModsPath[]) => void
 }
 
-export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: ModsPathManagerDialogProps) {
+export function ModsPathManagerDialog({
+  isOpen,
+  onClose,
+  modsPaths,
+  onSave
+}: ModsPathManagerDialogProps) {
   const { t } = useTranslation()
   const [localPaths, setLocalPaths] = useState<ModsPath[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -58,18 +64,20 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
   }
 
   const handleRemove = (id: string) => {
-    const filtered = localPaths.filter(p => p.id !== id)
-    if (filtered.length > 0 && !filtered.some(p => p.isActive)) {
+    const filtered = localPaths.filter((p) => p.id !== id)
+    if (filtered.length > 0 && !filtered.some((p) => p.isActive)) {
       filtered[0].isActive = true
     }
     setLocalPaths(filtered)
   }
 
   const handleSetActive = (id: string) => {
-    setLocalPaths(localPaths.map(p => ({
-      ...p,
-      isActive: p.id === id
-    })))
+    setLocalPaths(
+      localPaths.map((p) => ({
+        ...p,
+        isActive: p.id === id
+      }))
+    )
   }
 
   const handleStartEdit = (path: ModsPath) => {
@@ -81,9 +89,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
     if (!editingId) return
     const trimmed = editName.trim()
     if (trimmed) {
-      setLocalPaths(localPaths.map(p => 
-        p.id === editingId ? { ...p, name: trimmed } : p
-      ))
+      setLocalPaths(localPaths.map((p) => (p.id === editingId ? { ...p, name: trimmed } : p)))
     }
     setEditingId(null)
     setEditName('')
@@ -102,38 +108,56 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
   if (!isOpen) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000
-    }} onClick={onClose}>
-      <div style={{
-        background: '#1b2838',
-        borderRadius: '8px',
-        border: '1px solid #2a475e',
-        width: '500px',
-        maxWidth: '90vw',
-        maxHeight: '80vh',
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         display: 'flex',
-        flexDirection: 'column'
-      }} onClick={e => e.stopPropagation()}>
-        {/* 标题栏 */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid #2a475e',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#1b2838',
+          borderRadius: '8px',
+          border: '1px solid #2a475e',
+          width: '500px',
+          maxWidth: '90vw',
+          maxHeight: '80vh',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h3 style={{ margin: 0, color: '#c6d4df', fontSize: '18px' }}>
-            📁 {t('modsPathManager.title')}
+          flexDirection: 'column'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 标题栏 */}
+        <div
+          style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #2a475e',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h3
+            style={{
+              margin: 0,
+              color: '#c6d4df',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <AppIcon name="folder" size={20} color="#66c0f4" />
+            {t('modsPathManager.title')}
           </h3>
           <button
             onClick={onClose}
@@ -146,25 +170,31 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               padding: '4px 8px'
             }}
           >
-            ×
+            <AppIcon name="close" size={18} />
           </button>
         </div>
 
         {/* 路径列表 */}
-        <div style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '20px 24px'
-        }}>
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '20px 24px'
+          }}
+        >
           {localPaths.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px 20px',
-              color: '#8f98a0',
-              border: '2px dashed #2a475e',
-              borderRadius: '8px'
-            }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>📂</div>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#8f98a0',
+                border: '2px dashed #2a475e',
+                borderRadius: '8px'
+              }}
+            >
+              <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                <AppIcon name="folderOpen" size={34} color="#8f98a0" stroke={1.5} />
+              </div>
               <div>{t('modsPathManager.noFolders')}</div>
             </div>
           ) : (
@@ -193,9 +223,11 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                     color: path.isActive ? '#66c0f4' : '#5a6875',
                     padding: '2px 4px'
                   }}
-                  title={path.isActive ? t('modsPathManager.default') : t('modsPathManager.setAsDefault')}
+                  title={
+                    path.isActive ? t('modsPathManager.default') : t('modsPathManager.setAsDefault')
+                  }
                 >
-                  {path.isActive ? '★' : '☆'}
+                  <AppIcon name="favorite" size={20} fill={path.isActive ? '#66c0f4' : 'none'} />
                 </button>
 
                 {/* 名称和路径 */}
@@ -238,18 +270,29 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                       }}
                     >
                       {path.name}
-                      {path.isActive && <span style={{ fontSize: '11px', opacity: 0.7 }}>({t('modsPathManager.default')})</span>}
-                      <span style={{ fontSize: '11px', color: '#66c0f4', marginLeft: '4px' }}>✎</span>
+                      {path.isActive && (
+                        <span style={{ fontSize: '11px', opacity: 0.7 }}>
+                          ({t('modsPathManager.default')})
+                        </span>
+                      )}
+                      <AppIcon
+                        name="edit"
+                        size={13}
+                        color="#66c0f4"
+                        style={{ marginLeft: '4px' }}
+                      />
                     </div>
                   )}
-                  <div style={{
-                    fontSize: '11px',
-                    color: '#8f98a0',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontFamily: 'monospace'
-                  }}>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#8f98a0',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontFamily: 'monospace'
+                    }}
+                  >
                     {path.path}
                   </div>
                 </div>
@@ -268,7 +311,7 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
                   }}
                   title={t('modsPathManager.delete')}
                 >
-                  ×
+                  <AppIcon name="close" size={18} />
                 </button>
               </div>
             ))
@@ -276,11 +319,13 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
         </div>
 
         {/* 添加按钮 */}
-        <div style={{
-          padding: '0 24px 16px',
-          display: 'flex',
-          gap: '10px'
-        }}>
+        <div
+          style={{
+            padding: '0 24px 16px',
+            display: 'flex',
+            gap: '10px'
+          }}
+        >
           <button
             onClick={handleAddDefault}
             style={{
@@ -298,7 +343,8 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               gap: '6px'
             }}
           >
-            🏠 {t('modsPathManager.useDefaultPath')}
+            <AppIcon name="home" size={17} />
+            {t('modsPathManager.useDefaultPath')}
           </button>
           <button
             onClick={handleAddCustom}
@@ -317,18 +363,21 @@ export function ModsPathManagerDialog({ isOpen, onClose, modsPaths, onSave }: Mo
               gap: '6px'
             }}
           >
-            📂 {t('modsPathManager.customPath')}
+            <AppIcon name="folderOpen" size={17} />
+            {t('modsPathManager.customPath')}
           </button>
         </div>
 
         {/* 底部按钮 */}
-        <div style={{
-          padding: '16px 24px 20px',
-          borderTop: '1px solid #2a475e',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '10px'
-        }}>
+        <div
+          style={{
+            padding: '16px 24px 20px',
+            borderTop: '1px solid #2a475e',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '10px'
+          }}
+        >
           <button
             onClick={onClose}
             style={{

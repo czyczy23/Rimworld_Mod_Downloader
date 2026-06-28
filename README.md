@@ -2,7 +2,7 @@
 
 # RimWorld Mod Downloader
 
-An Electron desktop app for browsing and downloading RimWorld mods from Steam Workshop — with version checking, dependency resolution, and batch downloads.
+An Electron desktop app for browsing and downloading RimWorld mods from Steam Workshop, with version checks, dependency resolution, and batch downloads.
 
 [![Release](https://img.shields.io/github/v/release/czyczy23/Rimworld_Mod_Downloader?style=flat-square&label=Release)](https://github.com/czyczy23/Rimworld_Mod_Downloader/releases)
 [![License: MIT](https://img.shields.io/github/license/czyczy23/Rimworld_Mod_Downloader?style=flat-square)](./LICENSE)
@@ -10,126 +10,121 @@ An Electron desktop app for browsing and downloading RimWorld mods from Steam Wo
 [![Tests](https://img.shields.io/github/actions/workflow/status/czyczy23/Rimworld_Mod_Downloader/test.yml?branch=main&label=Tests&style=flat-square)](https://github.com/czyczy23/Rimworld_Mod_Downloader/actions/workflows/test.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-blue?style=flat-square)](#installation)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](./CONTRIBUTING.md)
-[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat-square&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/czyczy23/Rimworld_Mod_Downloader)
 
-**English** · [简体中文](./README_zh-CN.md) · [繁體中文](./README_zh-TW.md)
+**English** | [Simplified Chinese](./README_zh-CN.md) | [Traditional Chinese](./README_zh-TW.md)
 
 </div>
 
 ---
 
-> **⚠️ Note**: This project is built entirely using **Vibe Coding** (AI-assisted programming) and may contain unstable bugs. Please report issues on [GitHub Issues](https://github.com/czyczy23/Rimworld_Mod_Downloader/issues).
+> **Note:** This project is built with AI-assisted programming. Please report bugs or security concerns through the project issue and security channels.
 
 ## Features
 
-- 🌐 **Built-in Steam Workshop browser** — browse and download mods without leaving the app
-- 🎮 **Auto game version detection** — reads `Version.txt` from your RimWorld install
-- ✅ **Version compatibility check** — verifies mod supports your game version before download
-- 🔗 **Dependency resolution** — detects mod dependencies and prompts to download them
-- 📋 **Download queue** — queue multiple mods and batch download
-- 📁 **Multiple Mods paths** — manage several mod folders, switch default with one click
-- 📊 **Real-time progress** — live SteamCMD download progress
-- 🔄 **Auto-update** — checks GitHub Releases for new versions on startup
-- 🎨 **Steam-style UI** — visually consistent with the Steam client
+- **Built-in Steam Workshop browser** - browse and download mods without leaving the app.
+- **Automatic game version detection** - reads `Version.txt` from your RimWorld installation.
+- **Version compatibility checks** - verifies whether a mod supports your configured game version.
+- **Dependency resolution** - detects mod dependencies and asks before downloading them.
+- **Download queue** - queue several mods and run a batch download.
+- **Multiple Mods folders** - manage several mod folders and switch the default target.
+- **Real-time progress** - displays SteamCMD progress while downloads run.
+- **Auto-update support** - checks GitHub Releases for new versions.
+- **Steam-style UI** - keeps the browsing experience close to the Steam client.
 
 ## Screenshots
 
-| Main UI | Mod Details |
-|---------|-------------|
+| Main UI                                    | Mod Details                                   |
+| ------------------------------------------ | --------------------------------------------- |
 | <img src="assets/main-ui.png" width="400"> | <img src="assets/mod-detail.png" width="400"> |
 
-| Download Queue | Settings Panel |
-|----------------|---------------|
+| Download Queue                                   | Settings Panel                                    |
+| ------------------------------------------------ | ------------------------------------------------- |
 | <img src="assets/pending-queue.png" width="400"> | <img src="assets/settings-panel.png" width="400"> |
 
 ## Installation
 
 ### Prerequisites
 
-- **Windows 10/11** (64-bit)
-- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) — for downloading Steam Workshop content
-- RimWorld (optional, for auto version detection)
+- Windows 10/11, 64-bit
+- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD), used to download Steam Workshop content
+- RimWorld, optional but recommended for automatic version detection
 
-### Install from Release (recommended)
+### Install From Release
 
-1. Go to the [Releases](https://github.com/czyczy23/Rimworld_Mod_Downloader/releases) page
+1. Open the [Releases](https://github.com/czyczy23/Rimworld_Mod_Downloader/releases) page.
 2. Download the latest installer:
-   - `RimWorld-Mod-Downloader-x.x.x-setup.exe` (NSIS, recommended)
-   - `RimWorld-Mod-Downloader-x.x.x.msi` (MSI)
-3. Run the installer and follow the prompts
+   - `RimWorld-Mod-Downloader-x.x.x-setup.exe` for the NSIS installer.
+   - `RimWorld-Mod-Downloader-x.x.x.msi` for the MSI installer.
+3. Run the installer and follow the prompts.
 
-> **About SmartScreen warnings**: The installer is not code-signed, so Windows shows a SmartScreen warning on first run.
-> Click **"More info"** → **"Run anyway"**.
-> This is a common limitation for open-source projects — see [SECURITY.md](./SECURITY.md#code-signing).
+> **About SmartScreen warnings:** The installer is not code-signed, so Windows can show a SmartScreen warning on first run. Click **More info** and then **Run anyway** if you trust the downloaded release. See [SECURITY.md](./SECURITY.md#code-signing) for details.
 >
-> As of v1.2.0, the installer uses **perUser mode** — no administrator privileges or UAC prompts required.
+> Since v1.2.0, the installer uses per-user installation mode and does not require administrator privileges.
 
 ## Quick Start
 
-1. Install [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) and note the path
-2. Launch RimWorld Mod Downloader — the welcome wizard appears on first run
-3. Configure in the wizard:
-   - **SteamCMD path** — locate `steamcmd.exe`
-   - **Download path** — auto-derived as `steamcmd-root\steamapps\workshop\content\294100`
-   - **Mods folder** — use the default or pick a custom location
-4. Navigate to a Steam Workshop mod page in the built-in browser
-5. Click **Download** for immediate download, or **Add** to queue for batch download
+1. Install [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) and note the path to `steamcmd.exe`.
+2. Launch RimWorld Mod Downloader. The welcome wizard appears on first run.
+3. Configure:
+   - **SteamCMD path** - select `steamcmd.exe`.
+   - **Download path** - usually `steamcmd-root\steamapps\workshop\content\294100`.
+   - **Mods folder** - use the detected folder or choose a custom RimWorld Mods folder.
+4. Open a Steam Workshop mod page in the built-in browser.
+5. Click **Download** for immediate download, or **Add** to queue it for a batch run.
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| Framework | Electron + React + TypeScript |
-| Build | electron-vite, electron-builder |
-| Styling | Tailwind CSS |
-| Testing | Vitest (unit), Playwright (E2E) |
-| Logging | electron-log |
-| Config | electron-store |
-| HTTP / Parsing | axios + cheerio |
-| CI/CD | GitHub Actions |
+| Category         | Technology                      |
+| ---------------- | ------------------------------- |
+| Framework        | Electron, React, TypeScript     |
+| Build            | electron-vite, electron-builder |
+| Styling          | Tailwind CSS                    |
+| Testing          | Vitest, Playwright              |
+| Logging          | electron-log                    |
+| Config           | electron-store                  |
+| HTTP and parsing | axios, cheerio                  |
+| CI/CD            | GitHub Actions                  |
 
 ## Project Structure
 
-```
+```text
 src/
-├── main/                          # Main process (Node.js)
-│   ├── index.ts                   # Window creation, app entry
-│   ├── ipcHandlers.ts             # IPC routes + input validation
-│   ├── polyfills.ts               # File/FormData polyfill
-│   ├── services/
-│   │   ├── SteamCMD.ts            # SteamCMD process wrapper + pure functions
-│   │   ├── ModProcessor.ts        # File operations + About.xml validation
-│   │   └── WorkshopScraper.ts     # Steam web scraping
-│   └── utils/
-│       ├── ConfigManager.ts       # Config management + encryption migration
-│       ├── SecureStorage.ts       # OS keychain credential encryption
-│       ├── AutoUpdater.ts         # Auto-update manager
-│       └── logger.ts              # electron-log wrapper
-├── preload/
-│   └── index.ts                   # ContextBridge API (typed api only)
-├── renderer/                      # Renderer process (React)
-│   └── src/
-│       ├── App.tsx                # Main app
-│       ├── i18n/                  # i18n (en/zh-CN/zh-TW)
-│       ├── utils/
-│       │   ├── urlGuard.ts        # Webview URL whitelist
-│       │   ├── url.ts             # URL utilities
-│       │   └── language.ts        # Steam language param mapping
-│       └── components/            # UI components
-├── shared/
-│   ├── types.ts                   # Shared types
-│   ├── configSchema.ts            # IPC config runtime validation
-│   ├── constants.ts               # Global constants
-│   └── api.ts                     # Renderer API contract
-└── __tests__/                     # Unit tests (92 tests)
+|-- main/                         # Main process
+|   |-- index.ts                  # Window creation and Electron security guards
+|   |-- ipcHandlers.ts            # IPC routes and input validation
+|   |-- polyfills.ts              # Runtime polyfills
+|   |-- services/
+|   |   |-- SteamCMD.ts           # SteamCMD process wrapper
+|   |   |-- ModProcessor.ts       # File operations and About.xml validation
+|   |   `-- WorkshopScraper.ts    # Steam Workshop scraping
+|   `-- utils/
+|       |-- ConfigManager.ts      # Config management and secret masking
+|       |-- SecureStorage.ts      # OS keychain encryption
+|       |-- AutoUpdater.ts        # Auto-update manager
+|       `-- logger.ts             # electron-log wrapper
+|-- preload/
+|   `-- index.ts                  # Typed contextBridge API
+|-- renderer/
+|   `-- src/
+|       |-- App.tsx               # Main renderer app
+|       |-- components/           # React UI components
+|       |-- i18n/                 # en, zh-CN, zh-TW locale files
+|       |-- stores/               # Zustand state stores
+|       `-- utils/                # Renderer helpers
+`-- shared/
+    |-- api.ts                    # Renderer API contract
+    |-- configSchema.ts           # Runtime config validation
+    |-- constants.ts              # Global constants
+    |-- types.ts                  # Shared types
+    `-- urlGuard.ts               # Steam URL allow-list
 ```
 
 ## Development
 
 ### Requirements
 
-- Node.js 20+
-- npm
+- Node.js 22.13+
+- npm 10+
 
 ### Common Commands
 
@@ -137,94 +132,105 @@ src/
 # Install dependencies
 npm install
 
-# Dev mode (hot reload)
+# Dev mode with hot reload
 npm run dev
 
-# Full quality gate (lint + typecheck + test + build)
+# Full local quality gate: lint, typecheck, unit tests, production build
 npm run verify
 
-# Unit tests only
+# Unit tests
 npm run test:unit
 
-# Coverage report
+# Unit tests with full-src coverage reporting
 npm run test:coverage
 
-# E2E tests (run npm run test:e2e:install first)
+# Browser smoke tests
 npm run test:e2e
 
-# Package Windows installer
+# Native Electron smoke test
+npm run test:e2e:electron
+
+# Package Windows installers
 npm run build:win
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full development guide, commit conventions, and branching strategy.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development workflow, commit conventions, and branching strategy.
 
-### Security
+## Security
 
-This project follows Electron security best practices (context isolation, URL whitelist, OS keychain encryption, IPC input validation).
+The app follows Electron security best practices: context isolation, disabled Node integration in the renderer, URL allow-listing for Steam pages, OS keychain encryption for sensitive config, and IPC input validation.
+
 See [SECURITY.md](./SECURITY.md) for the security architecture and vulnerability reporting process.
+
+## Testing
+
+The main gate is:
+
+```bash
+npm run verify
+```
+
+CI also runs coverage, browser Playwright smoke tests, native Electron smoke tests, dependency audit, and Windows packaging for releases. See [TESTING.md](./TESTING.md) for the current coverage baseline and artifact layout.
 
 ## Troubleshooting
 
 <details>
-<summary><b>Network issues / Steam Workshop inaccessible</b></summary>
+<summary><b>Network issues or Steam Workshop pages do not load</b></summary>
 
-If you experience blank Workshop pages, 0 download speed, or stuck downloads:
-
-**Recommended: [Watt Toolkit (Steam++)](https://steampp.net/)** — a free, open-source Steam accelerator.
-
-Other accelerators (UU, Thunder, etc.) may only accelerate game traffic, not Steam Web or SteamCMD, causing Workshop access failures.
+If you see blank Workshop pages, zero download speed, or stuck downloads, check your network route to Steam Community and SteamCMD. Some network accelerators only accelerate game traffic and do not help Steam Web or SteamCMD traffic.
 
 </details>
 
 <details>
 <summary><b>SteamCMD download fails</b></summary>
 
-- Confirm `steamcmd.exe` exists at the configured path
-- Check if Windows Defender / antivirus is blocking SteamCMD
-- Ensure sufficient disk space
+- Confirm `steamcmd.exe` exists at the configured path.
+- Check whether Windows Defender or another antivirus tool is blocking SteamCMD.
+- Ensure the target disk has enough free space.
 
 </details>
 
 <details>
-<summary><b>File move failed / permission error</b></summary>
+<summary><b>File move failed or permission error</b></summary>
 
-- Confirm the Mods folder exists and is writable
-- Check if antivirus is blocking file operations
-- **Close RimWorld** — a running game locks the Mods folder
-- v1.2.0+ no longer requires admin privileges; if you still hit permission errors, check folder ACLs
-
-</details>
-
-<details>
-<summary><b>Download button not working</b></summary>
-
-- Confirm you're on a Steam Workshop **mod detail page** (not the listing page)
-- Press `F12` to open DevTools and check the console
+- Confirm the Mods folder exists and is writable.
+- Check whether antivirus software is blocking file operations.
+- Close RimWorld before moving files into the Mods folder.
+- v1.2.0+ does not require administrator privileges; if permission errors continue, check folder ACLs.
 
 </details>
 
 <details>
-<summary><b>Version detection not working</b></summary>
+<summary><b>Download button does not work</b></summary>
 
-- Confirm the parent directory of your Mods folder is the RimWorld install directory
-- Confirm `Version.txt` exists in the RimWorld install directory
+- Confirm you are on a Steam Workshop mod detail page, not a listing page.
+- Press `F12` to open DevTools and check the console for errors.
+
+</details>
+
+<details>
+<summary><b>Version detection does not work</b></summary>
+
+- Confirm the parent directory of your Mods folder is the RimWorld installation directory.
+- Confirm `Version.txt` exists in the RimWorld installation directory.
 
 </details>
 
 ## Roadmap
 
-- [x] Windows NSIS + MSI installers
-- [x] Auto-update via GitHub Releases
-- [x] Security hardening (safeStorage encryption, URL whitelist, IPC validation)
-- [x] Unit test coverage (92 tests)
-- [ ] macOS / Linux support
-- [ ] Git sync functionality (`git:init` / `git:commit`)
+- [x] Windows NSIS and MSI installers
+- [x] Auto-update through GitHub Releases
+- [x] Security hardening: safeStorage encryption, URL allow-list, IPC validation
+- [x] Unit test coverage with full-src reporting
+- [x] Browser and native Electron smoke tests
+- [ ] macOS and Linux support
+- [ ] Git sync functionality (`git:init`, `git:commit`)
 - [ ] Mod version resolution (`mod:resolveVersion`)
 - [ ] Code signing
 
 ## Contributing
 
-Issues and Pull Requests are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first for the development workflow and conventions.
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a contribution.
 
 ## Changelog
 
@@ -232,7 +238,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for version history.
 
 ## License
 
-[MIT License](./LICENSE) © 2026 czyczy23
+[MIT License](./LICENSE) (c) 2026 czyczy23
 
 ## Disclaimer
 

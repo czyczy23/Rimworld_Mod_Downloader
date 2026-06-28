@@ -18,7 +18,6 @@ interface Logger {
 
 function createLogger(): Logger {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const log = require('electron-log')
 
     // Configure file transport
@@ -26,12 +25,11 @@ function createLogger(): Logger {
     log.transports.file.maxSize = 5 * 1024 * 1024 // 5 MB rotation
 
     // Console transport: show in dev, silent in production
-    log.transports.console.level =
-      process.env.NODE_ENV === 'development' ? 'debug' : false
+    log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : false
 
     return log as Logger
   } catch {
-    // electron-log not installed — fall back to console with prefix
+    // electron-log not installed; fall back to console with prefix
     const prefix = '[Main]'
     return {
       info: (...args: unknown[]) => console.log(prefix, ...args),

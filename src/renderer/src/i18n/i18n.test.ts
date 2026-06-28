@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { mapToSupportedLanguage, getSteamLangParam } from '../utils/language'
 import { updateUrlLanguageParam, isModDetailPage, extractModId } from '../utils/url'
+import en from './locales/en.json'
+import zhCN from './locales/zh-CN.json'
+import zhTW from './locales/zh-TW.json'
+
+function flattenKeys(value: unknown, prefix = ''): string[] {
+  if (typeof value !== 'object' || value === null) {
+    return prefix ? [prefix] : []
+  }
+
+  return Object.entries(value).flatMap(([key, child]) => {
+    const nextPrefix = prefix ? `${prefix}.${key}` : key
+    return flattenKeys(child, nextPrefix)
+  })
+}
 
 describe('language utils', () => {
   it('should map language codes correctly', () => {
@@ -23,6 +37,15 @@ describe('language utils', () => {
     expect(getSteamLangParam('zh-TW')).toBe('tchinese')
     expect(getSteamLangParam('en')).toBe('english')
     expect(getSteamLangParam('unknown')).toBe('')
+  })
+})
+
+describe('locale resources', () => {
+  it('keeps all supported locale key sets in sync', () => {
+    const expectedKeys = flattenKeys(en).sort()
+
+    expect(flattenKeys(zhCN).sort()).toEqual(expectedKeys)
+    expect(flattenKeys(zhTW).sort()).toEqual(expectedKeys)
   })
 })
 

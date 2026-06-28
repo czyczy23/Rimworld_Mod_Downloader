@@ -21,9 +21,8 @@ module.exports = {
         arch: ['x64']
       }
     ],
-    // Code signing disabled — see SECURITY.md for details
-    signAndEditExecutable: false,
-    signDlls: false
+    // Code signing disabled; keep resource editing for icon and metadata.
+    signExecutable: false
   },
   nsis: {
     artifactName: `${installerBaseName}-setup.\${ext}`,

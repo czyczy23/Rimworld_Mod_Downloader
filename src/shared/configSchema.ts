@@ -4,10 +4,33 @@
  * through the IPC config:set channel.
  */
 
-import { isAbsolute } from 'path'
 import type { AppConfig } from './types'
 
 type ConfigKey = keyof AppConfig
+const CONFIG_KEYS: ConfigKey[] = [
+  'firstRunCompleted',
+  'app',
+  'steamcmd',
+  'rimworld',
+  'download',
+  'version',
+  'git'
+]
+
+/**
+ * Validate a full config object before starting multi-key persistence.
+ * This prevents a settings save from partially writing earlier keys before a
+ * later malformed section is rejected by the main-process IPC handler.
+ */
+export function validateConfig(config: AppConfig): void {
+  if (typeof config !== 'object' || config === null) {
+    throw new Error('config must be an object')
+  }
+
+  for (const key of CONFIG_KEYS) {
+    validateConfigValue(key, config[key])
+  }
+}
 
 /**
  * Validate a config value for a given key.
@@ -77,7 +100,7 @@ function validateSteamcmdConfig(value: AppConfig['steamcmd']): void {
     }
     if (v !== '') {
       // Must be an absolute path (starts with drive letter on Windows, / on Unix)
-      if (!isAbsolute(v)) {
+      if (!isAbsolutePath(v)) {
         throw new Error(`steamcmd.${field} must be an absolute path`)
       }
       // Block path traversal
@@ -86,6 +109,15 @@ function validateSteamcmdConfig(value: AppConfig['steamcmd']): void {
       }
     }
   }
+}
+
+function isAbsolutePath(value: string): boolean {
+  return (
+    value.startsWith('/') ||
+    value.startsWith('\\\\') ||
+    value.startsWith('//') ||
+    /^[a-zA-Z]:[\\/]/.test(value)
+  )
 }
 
 function validateRimworldConfig(value: AppConfig['rimworld']): void {
@@ -115,7 +147,11 @@ function validateDownloadConfig(value: AppConfig['download']): void {
   if (typeof value !== 'object' || value === null) {
     throw new Error('download must be an object')
   }
-  for (const field of ['autoDownloadDependencies', 'skipVersionCheck', 'extractCollectionToSubfolder'] as const) {
+  for (const field of [
+    'autoDownloadDependencies',
+    'skipVersionCheck',
+    'extractCollectionToSubfolder'
+  ] as const) {
     if (typeof value[field] !== 'boolean') {
       throw new Error(`download.${field} must be a boolean`)
     }
@@ -155,6 +191,12 @@ function validateGitConfig(value: AppConfig['git']): void {
   // githubToken and remoteUrl are optional strings
   if (value.githubToken !== undefined && typeof value.githubToken !== 'string') {
     throw new Error('git.githubToken must be a string if provided')
+  }
+  if (value.hasToken !== undefined && typeof value.hasToken !== 'boolean') {
+    throw new Error('git.hasToken must be a boolean if provided')
+  }
+  if (value.tokenPreview !== undefined && typeof value.tokenPreview !== 'string') {
+    throw new Error('git.tokenPreview must be a string if provided')
   }
   if (value.remoteUrl !== undefined && typeof value.remoteUrl !== 'string') {
     throw new Error('git.remoteUrl must be a string if provided')

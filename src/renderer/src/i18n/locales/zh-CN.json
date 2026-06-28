@@ -71,9 +71,9 @@
     "title": "欢迎使用 RimWorld 模组下载器",
     "subtitle": "这个向导将帮助您完成初次配置",
     "subtitle2": "只需几步即可开始下载和管理模组",
-    "quickDownload": "⚡ 快速下载",
-    "batchManagement": "📋 批量管理",
-    "dependencyCheck": "🔍 依赖检查",
+    "quickDownload": "快速下载",
+    "batchManagement": "批量管理",
+    "dependencyCheck": "依赖检查",
     "configureSteamcmd": "配置 SteamCMD",
     "steamcmdDescription": "SteamCMD 是 Valve 提供的命令行工具，用于下载 Steam 创意工坊内容。",
     "steamcmdDescription2": "如果您还没有安装，请先",
@@ -183,7 +183,7 @@
     "saveChanges": "保存修改"
   },
   "alerts": {
-    "pleaseConfigSteamcmd": "请先配置 SteamCMD 路径！\n\n1. SteamCMD 可执行文件路径：steamcmd.exe 的位置\n2. SteamCMD 下载路径：steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的 ⚙️ 设置按钮进行配置。",
+    "pleaseConfigSteamcmd": "请先配置 SteamCMD 路径！\n\n1. SteamCMD 可执行文件路径：steamcmd.exe 的位置\n2. SteamCMD 下载路径：steamcmd根目录\\steamapps\\workshop\\content\\294100\n\n点击右上角的设置按钮进行配置。",
     "steamcmdWarning": "警告：选择的文件不是 steamcmd.exe，请确认路径正确！",
     "versionDetected": "检测到 RimWorld 版本",
     "versionDetectFailed": "检测版本失败",

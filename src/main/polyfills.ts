@@ -9,14 +9,22 @@ if (typeof File === 'undefined') {
     size: number
     type: string
     lastModified: number
-    constructor(parts: any[], name: string, options: any = {}) {
+    constructor(
+      parts: unknown[],
+      name: string,
+      options: { type?: string; lastModified?: number } = {}
+    ) {
       this.name = name
       this.size = 0
       this.type = options.type || ''
       this.lastModified = options.lastModified || Date.now()
     }
-    async text(): Promise<string> { return '' }
-    async arrayBuffer(): Promise<ArrayBuffer> { return new ArrayBuffer(0) }
+    async text(): Promise<string> {
+      return ''
+    }
+    async arrayBuffer(): Promise<ArrayBuffer> {
+      return new ArrayBuffer(0)
+    }
   }
 }
 
@@ -25,10 +33,16 @@ if (typeof FormData === 'undefined') {
   console.log('[Polyfill] Initializing FormData API polyfill')
   // @ts-expect-error - augmenting global before TS knows about it
   global.FormData = class FormData {
-    private data: Map<string, any> = new Map()
-    append(key: string, value: any) { this.data.set(key, value) }
-    get(key: string) { return this.data.get(key) }
-    has(key: string) { return this.data.has(key) }
+    private data: Map<string, unknown> = new Map()
+    append(key: string, value: unknown) {
+      this.data.set(key, value)
+    }
+    get(key: string) {
+      return this.data.get(key)
+    }
+    has(key: string) {
+      return this.data.has(key)
+    }
   }
 }
 

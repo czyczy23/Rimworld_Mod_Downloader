@@ -14,10 +14,17 @@ vi.mock('electron', () => ({
 vi.mock('electron-store', () => {
   return {
     default: class MockStore {
-      store: any = {}
-      get(key?: any) { return key ? this.store[key] : this.store }
-      set(key: any, val?: any) { if (typeof key === 'object') Object.assign(this.store, key); else this.store[key] = val }
-      clear() { this.store = {} }
+      store: Record<string, unknown> = {}
+      get(key?: string) {
+        return key ? this.store[key] : this.store
+      }
+      set(key: string | Record<string, unknown>, val?: unknown) {
+        if (typeof key === 'object') Object.assign(this.store, key)
+        else this.store[key] = val
+      }
+      clear() {
+        this.store = {}
+      }
     }
   }
 })
@@ -36,9 +43,8 @@ vi.mock('../../utils/ConfigManager', () => ({
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { randomUUID } from 'crypto'
-import { mkdirSync, writeFileSync, rmSync } from 'fs'
+import { mkdirSync, rmSync } from 'fs'
 import { buildArgs, parseProgressLine, determineResult, SteamCMD, SteamCMDError } from '../SteamCMD'
-import { EventEmitter } from 'events'
 
 // ─── Pure function tests (no mocking needed) ─────────────────────────────
 
@@ -46,8 +52,11 @@ describe('buildArgs', () => {
   it('should produce correct SteamCMD arguments', () => {
     const args = buildArgs('12345')
     expect(args).toEqual([
-      '+login', 'anonymous',
-      '+workshop_download_item', '294100', '12345',
+      '+login',
+      'anonymous',
+      '+workshop_download_item',
+      '294100',
+      '12345',
       '+quit'
     ])
   })
@@ -103,13 +112,21 @@ describe('determineResult', () => {
   })
 
   afterEach(() => {
-    try { rmSync(testDir, { recursive: true, force: true }) } catch {}
+    try {
+      rmSync(testDir, { recursive: true, force: true })
+    } catch {
+      // Best-effort cleanup for temporary test directories.
+    }
   })
 
   it('should succeed when exit 0 and file exists', () => {
     mkdirSync(join(testDir, '123'), { recursive: true })
     const result = determineResult({
-      exitCode: 0, stdout: 'Success', stderr: '', modId: '123', downloadPath: testDir
+      exitCode: 0,
+      stdout: 'Success',
+      stderr: '',
+      modId: '123',
+      downloadPath: testDir
     })
     expect(result.success).toBe(true)
     expect(result.downloadPath).toContain('123')
@@ -117,7 +134,11 @@ describe('determineResult', () => {
 
   it('should fail when file does not exist despite exit 0', () => {
     const result = determineResult({
-      exitCode: 0, stdout: 'Success', stderr: '', modId: '999', downloadPath: testDir
+      exitCode: 0,
+      stdout: 'Success',
+      stderr: '',
+      modId: '999',
+      downloadPath: testDir
     })
     expect(result.success).toBe(false)
     expect(result.error).toContain('not found')
@@ -125,7 +146,11 @@ describe('determineResult', () => {
 
   it('should fail on non-zero exit code', () => {
     const result = determineResult({
-      exitCode: 1, stdout: '', stderr: 'ERROR: login failed', modId: '123', downloadPath: testDir
+      exitCode: 1,
+      stdout: '',
+      stderr: 'ERROR: login failed',
+      modId: '123',
+      downloadPath: testDir
     })
     expect(result.success).toBe(false)
     // ERROR indicator takes priority over exit code in message
@@ -135,7 +160,11 @@ describe('determineResult', () => {
   it('should fail when ERROR in stdout even with exit 0', () => {
     mkdirSync(join(testDir, '456'), { recursive: true })
     const result = determineResult({
-      exitCode: 0, stdout: 'ERROR: App 294100 not found', stderr: '', modId: '456', downloadPath: testDir
+      exitCode: 0,
+      stdout: 'ERROR: App 294100 not found',
+      stderr: '',
+      modId: '456',
+      downloadPath: testDir
     })
     expect(result.success).toBe(false)
     expect(result.error).toContain('ERROR')
@@ -143,7 +172,11 @@ describe('determineResult', () => {
 
   it('should extract first ERROR line from stderr', () => {
     const result = determineResult({
-      exitCode: 1, stdout: '', stderr: 'ERROR: specific failure\nmore stuff', modId: '789', downloadPath: testDir
+      exitCode: 1,
+      stdout: '',
+      stderr: 'ERROR: specific failure\nmore stuff',
+      modId: '789',
+      downloadPath: testDir
     })
     expect(result.success).toBe(false)
     expect(result.error).toContain('specific failure')

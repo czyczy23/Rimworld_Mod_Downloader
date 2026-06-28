@@ -12,18 +12,15 @@ import axios from 'axios'
 
 const mockedAxios = vi.mocked(axios, true)
 
-function makeHtml(options: {
-  title?: string
-  versions?: string
-  requiredItems?: string
-  description?: string
-} = {}): string {
-  const {
-    title = 'Test Mod',
-    versions = '',
-    requiredItems = '',
-    description = ''
-  } = options
+function makeHtml(
+  options: {
+    title?: string
+    versions?: string
+    requiredItems?: string
+    description?: string
+  } = {}
+): string {
+  const { title = 'Test Mod', versions = '', requiredItems = '', description = '' } = options
 
   return `<!DOCTYPE html><html><body>
     <div class="workshopItemTitle">${title}</div>
@@ -48,6 +45,17 @@ describe('WorkshopScraper', () => {
 
     const result = await scraper.scrapeModVersion('12345')
     expect(result.modName).toBe('My Awesome Mod')
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      'https://steamcommunity.com/sharedfiles/filedetails/?id=12345',
+      expect.objectContaining({ maxRedirects: 0 })
+    )
+  })
+
+  it('should reject non-numeric mod IDs before fetching', async () => {
+    await expect(scraper.scrapeModVersion('12345&redirect=https://evil.test')).rejects.toThrow(
+      'Invalid mod ID'
+    )
+    expect(mockedAxios.get).not.toHaveBeenCalled()
   })
 
   it('should extract supported versions from rightDetailsBlock', async () => {
@@ -72,8 +80,18 @@ describe('WorkshopScraper', () => {
 
     const result = await scraper.scrapeModVersion('12345')
     expect(result.dependencies).toHaveLength(2)
-    expect(result.dependencies[0]).toMatchObject({ modId: '111', name: 'Dependency A', required: true })
-    expect(result.dependencies[1]).toMatchObject({ modId: '222', name: 'Dependency B', required: true })
+    expect(result.dependencies[0]).toMatchObject({
+      id: '111',
+      name: 'Dependency A',
+      isOptional: false,
+      willDownload: true
+    })
+    expect(result.dependencies[1]).toMatchObject({
+      id: '222',
+      name: 'Dependency B',
+      isOptional: false,
+      willDownload: true
+    })
   })
 
   it('should deduplicate dependencies', async () => {
@@ -104,7 +122,9 @@ describe('WorkshopScraper', () => {
   it('should throw WorkshopScraperError on network failure', async () => {
     mockedAxios.get.mockRejectedValue(new Error('Network timeout'))
 
-    await expect(scraper.scrapeModVersion('12345')).rejects.toThrow('Failed to fetch mod information')
+    await expect(scraper.scrapeModVersion('12345')).rejects.toThrow(
+      'Failed to fetch mod information'
+    )
   })
 
   it('should extract versions from description text', async () => {
