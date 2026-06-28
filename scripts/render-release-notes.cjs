@@ -69,10 +69,10 @@ function buildCompareSection(repository, previousTag, currentTag) {
   }
 
   if (repository) {
-    return `- [查看 ${currentTag} 提交记录](https://github.com/${repository}/commits/${currentTag})`
+    return `- [View ${currentTag} commits / 查看 ${currentTag} 提交记录](https://github.com/${repository}/commits/${currentTag})`
   }
 
-  return `- Compare: ${previousTag || 'N/A'} -> ${currentTag}`
+  return `- Compare / 对比: ${previousTag || 'N/A'} -> ${currentTag}`
 }
 
 function renderTemplate(template, replacements) {
@@ -101,7 +101,10 @@ function main() {
 
   const tags = getSortedTags()
   const previousTag =
-    args.previousTag || process.env.PREVIOUS_TAG || tags.find((candidate) => candidate !== tag) || ''
+    args.previousTag ||
+    process.env.PREVIOUS_TAG ||
+    tags.find((candidate) => candidate !== tag) ||
+    ''
 
   const replacements = {
     RELEASE_TAG: tag,
