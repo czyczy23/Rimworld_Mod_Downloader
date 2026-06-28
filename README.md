@@ -235,7 +235,6 @@ If you see blank Workshop pages, zero download speed, or stuck downloads, check 
 - [x] Security hardening: safeStorage encryption, URL allow-list, IPC validation
 - [x] Unit test coverage with full-src reporting
 - [x] Browser and native Electron smoke tests
-- [x] Configurable Windows code signing support
 - [x] Opt-in real SteamCMD download and update metadata smoke commands
 - [ ] macOS and Linux support
 - [ ] Git sync functionality (`git:init`, `git:commit`)
