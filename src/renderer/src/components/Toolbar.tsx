@@ -241,6 +241,7 @@ export function Toolbar({
 
   const canDownload = currentPageInfo?.isModDetailPage && !isDownloading
   const canAdd = currentPageInfo?.isModDetailPage && !isAddingToQueue
+  const displayedModName = currentPageInfo?.modName || versionInfo?.modName
 
   return (
     <div
@@ -538,7 +539,7 @@ export function Toolbar({
             </code>
           </div>
 
-          {currentPageInfo.modName && (
+          {displayedModName && (
             <div
               style={{
                 flex: 1,
@@ -548,7 +549,7 @@ export function Toolbar({
               }}
             >
               <span style={{ color: '#8f98a0', fontSize: '12px' }}>{t('toolbar.name')}: </span>
-              <span style={{ color: '#c6d4df', fontSize: '13px' }}>{currentPageInfo.modName}</span>
+              <span style={{ color: '#c6d4df', fontSize: '13px' }}>{displayedModName}</span>
             </div>
           )}
 
