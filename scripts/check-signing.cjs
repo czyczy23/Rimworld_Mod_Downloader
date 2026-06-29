@@ -45,6 +45,7 @@ function powershell(command) {
 
 function authenticodeStatus(file) {
   const command = [
+    'Import-Module Microsoft.PowerShell.Security -ErrorAction Stop',
     '$signature = Get-AuthenticodeSignature -LiteralPath $env:SIGNING_FILE',
     '[pscustomobject]@{Status=$signature.Status.ToString();Subject=$signature.SignerCertificate.Subject;Issuer=$signature.SignerCertificate.Issuer} | ConvertTo-Json -Compress'
   ].join('; ')
