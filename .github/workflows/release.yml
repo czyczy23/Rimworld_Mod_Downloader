@@ -67,6 +67,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure Electron binary installed
+        run: node node_modules/electron/install.js
+
       - name: Install Playwright browser
         run: npm run test:e2e:install
 
