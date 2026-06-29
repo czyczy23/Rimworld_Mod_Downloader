@@ -2,14 +2,11 @@
 
 ## English
 
-### Summary
-
-This release includes feature improvements, bug fixes, and engineering updates. Upgrading is recommended.
-
 ### Highlights
 
-- Review the full change link below for the complete commit history.
-- For version-specific notes, add `.github/release-notes/versions/{{RELEASE_TAG}}.md`.
+- ✨ **Features** - Summary of the main feature improvements
+- 🐛 **Fixes** - Summary of the main bug fixes
+- 🛠️ **Engineering** - Summary of the main engineering and dependency updates
 
 ### Release Files
 
@@ -22,10 +19,11 @@ This release includes feature improvements, bug fixes, and engineering updates. 
 
 See [README.md](https://github.com/{{REPOSITORY}}/blob/main/README.md) for installation and setup instructions.
 
-### Known Notes
+### Known Issues
 
-- Windows is the only officially packaged platform.
-- Installers may be unsigned unless release signing is explicitly enabled.
+- ⚠️ Installers are unsigned, so Windows SmartScreen may warn on first run (see SECURITY.md).
+- ⚠️ Windows is the only officially packaged platform; Linux and macOS are not yet officially supported.
+- ℹ️ This project is written using **Vibe Coding** and may still contain undiscovered issues — please open an Issue to report them.
 
 ### Full Changes
 
@@ -33,30 +31,28 @@ See [README.md](https://github.com/{{REPOSITORY}}/blob/main/README.md) for insta
 
 ## 中文
 
-### 摘要
-
-本次版本包含功能改进、缺陷修复和工程质量更新，建议升级。
-
 ### 更新重点
 
-- 完整提交记录请查看下方完整变更链接。
-- 如需为某个版本提供专门说明，请新增 `.github/release-notes/versions/{{RELEASE_TAG}}.md`。
+- ✨ **功能改进** - 主要功能改进概述
+- 🐛 **问题修复** - 主要问题修复概述
+- 🛠️ **工程更新** - 主要工程与依赖更新概述
 
 ### 发布文件
 
-| 文件                                                    | 说明                                    |
-| ------------------------------------------------------- | --------------------------------------- |
-| `RimWorld-Mod-Downloader-{{RELEASE_VERSION}}-setup.exe` | Windows NSIS 安装包，推荐大多数用户使用 |
-| `RimWorld-Mod-Downloader-{{RELEASE_VERSION}}.msi`       | Windows MSI 安装包，适合标准化部署      |
+| 文件                                                    | 说明                               |
+| ------------------------------------------------------- | ---------------------------------- |
+| `RimWorld-Mod-Downloader-{{RELEASE_VERSION}}-setup.exe` | Windows 安装包，推荐大多数用户使用 |
+| `RimWorld-Mod-Downloader-{{RELEASE_VERSION}}.msi`       | Windows MSI 安装包，适合标准化部署 |
 
 ### 安装说明
 
-安装与配置说明请查看 [README_zh-CN.md](https://github.com/{{REPOSITORY}}/blob/main/README_zh-CN.md)。
+详细说明请参考 [README.md](https://github.com/{{REPOSITORY}}/blob/main/README.md)
 
-### 已知说明
+### 已知问题
 
-- 当前仅正式打包 Windows 平台。
-- 除非发布流程显式启用代码签名，否则安装包可能未签名。
+- ⚠️ 安装包未代码签名，Windows SmartScreen 首次运行时可能提示风险（详见 SECURITY.md）
+- ⚠️ 当前仅正式打包 Windows 平台，Linux 和 macOS 暂未正式支持
+- ℹ️ 本项目使用 **Vibe Coding** 编写，可能仍存在其他未发现的问题，欢迎提交 Issue 反馈
 
 ### 完整变更
 
