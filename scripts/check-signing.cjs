@@ -35,29 +35,55 @@ function checkEnvironment() {
   }
 }
 
+function resolvePowerShell() {
+  for (const candidate of ['pwsh', 'powershell']) {
+    try {
+      execFileSync(candidate, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'ignore', 'ignore']
+      })
+      return candidate
+    } catch {
+      // candidate not available, try next
+    }
+  }
+  throw new Error('Neither pwsh nor powershell is available on PATH.')
+}
+
+const POWERSHELL_BIN = resolvePowerShell()
+
 function powershell(command) {
   return execFileSync(
-    'powershell',
+    POWERSHELL_BIN,
     ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
     { encoding: 'utf8' }
   ).trim()
 }
 
 function authenticodeStatus(file) {
+  // PowerShell 7+ auto-loads Microsoft.PowerShell.Security and does not hit
+  // the Windows PowerShell 5.1 TypeData conflict ("AuditToString is already
+  // present") that -NoProfile + Import-Module triggers on GitHub runners.
+  // On Windows PowerShell 5.1 the module is normally available without
+  // Import-Module when -NoProfile is used. Skip the explicit Import-Module
+  // to avoid the TypeData conflict on either engine.
   const command = [
-    'Import-Module Microsoft.PowerShell.Security -ErrorAction Stop',
     '$signature = Get-AuthenticodeSignature -LiteralPath $env:SIGNING_FILE',
     '[pscustomobject]@{Status=$signature.Status.ToString();Subject=$signature.SignerCertificate.Subject;Issuer=$signature.SignerCertificate.Issuer} | ConvertTo-Json -Compress'
   ].join('; ')
 
   return JSON.parse(
-    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        SIGNING_FILE: file
+    execFileSync(
+      POWERSHELL_BIN,
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          SIGNING_FILE: file
+        }
       }
-    }).trim()
+    ).trim()
   )
 }
 
