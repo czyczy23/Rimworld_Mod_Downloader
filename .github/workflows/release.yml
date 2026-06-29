@@ -45,7 +45,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-unit-${{ github.ref_name }}
+          name: coverage-unit-${{ github.run_id }}
           path: coverage/unit
           retention-days: 14
 
@@ -84,7 +84,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.ref_name }}
+          name: playwright-report-${{ github.run_id }}
           path: |
             playwright-report
             playwright-report-electron
@@ -210,7 +210,7 @@ jobs:
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installers-${{ github.ref_name }}
+          name: windows-installers-${{ github.run_id }}
           path: |
             release/**/*.exe
             release/**/*.msi
@@ -220,7 +220,7 @@ jobs:
       - name: Upload package metadata
         uses: actions/upload-artifact@v4
         with:
-          name: windows-package-metadata-${{ github.ref_name }}
+          name: windows-package-metadata-${{ github.run_id }}
           path: |
             release/**/builder-debug.yml
             release/**/*.blockmap
