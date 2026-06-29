@@ -43,7 +43,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-unit-${{ github.run_id }}
           path: coverage/unit
@@ -85,7 +85,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ github.run_id }}
           path: |
@@ -211,7 +211,7 @@ jobs:
           Get-ChildItem -Path release/ -Recurse -File | Select-Object FullName, Length
 
       - name: Upload Windows installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installers-${{ github.run_id }}
           path: |
@@ -221,7 +221,7 @@ jobs:
           retention-days: 30
 
       - name: Upload package metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-package-metadata-${{ github.run_id }}
           path: |
